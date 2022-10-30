@@ -51,9 +51,12 @@ class Interval {
     registeredIntervals.push(this);
   }
 }
-function insertCSS(css, id = 'alreadyAddedCss') {
+function insertCSS(css, id = 'alreadyAddedCss', overwrite = false) {
   const alreadyExists = document.getElementById(id);
-  if (alreadyExists) return;
+  if (alreadyExists) {
+    if (!overwrite) return;
+    document.getElementById(id).remove();
+  };
   const styleTag = document.createElement('style');
   styleTag.id = id;
   styleTag.textContent = css;
@@ -853,6 +856,16 @@ function fixNetflix() {
   // netflixApi();
   toggleAutoSkipIntro();
   repeatIfCondition(addAutoSkipIntroButton, getNetflixButtonContainer, [], false);
+  netflixRestartWithSpaceKey();
+}
+
+/** if spacebar is pressed, restart if it is in restart-pause-mode */
+function netflixRestartWithSpaceKey() {
+  window.addEventListener('keyup', key => {
+    if (key.code !== 'Space') return;
+    const restartButton = document.querySelector('.watch-video--playback-restart button');
+    if (restartButton) restartButton.click();
+  })
 }
 
 /**
@@ -1083,6 +1096,79 @@ function fixImages() {
 // Twitch
 function fixTwitch() {
   collectViewBonusPointsAutomatically();
+  adjustEmotePickerDimensions();
+}
+
+const settingEl = () => document.querySelector('.emote-picker__search-content-dark .my-settings__popup');
+let toggleMyOpt = () => settingEl().classList.toggle('hidden');
+const myOpt = {h: 2.2, w:3.5, x: 2.5};
+function adjustEmotePickerDimensions() {
+  setEmotePopupCSS()
+
+  // insertOptions
+  const condition = () => document.querySelector('.emote-picker__search-content-dark > div');
+  repeatUntilCondition(()=>{
+    const insertTarget = condition();
+    insertTarget.insertAdjacentHTML('afterend', `
+    <button id="settingsEl" style="padding-left: 10px;">⚙️</button>
+    <div class="my-settings__popup hidden">
+      <span>adjust emote popup size</span>
+      <span>h:<input type="range" min="10" max="50" id="myH" style="width: 36px;" value="${myOpt.h * 10}"></span>
+      <span>w:<input type="range" min="10" max="50" id="myW" style="width: 36px;" value="${myOpt.w * 10}"></span>
+      <span>x:<input type="range" min="10" max="50" id="myX" style="width: 36px;" value="${myOpt.x * 10}"></span>
+    </div>
+    `);
+    setTimeout(()=>{
+      const settingsEl = settingEl();
+      const target = settingsEl.parentElement;
+      target.querySelector('#settingsEl').onclick = toggleMyOpt;
+      settingsEl.querySelectorAll('.my-settings__popup input').forEach(i => {
+        i.onchange = (ev) => onChangeMyInput(ev);
+      });
+    });
+  }, condition);
+}
+
+function onChangeMyInput(ev) {
+  let val = Number.parseFloat(ev.target.value);
+  if (!isNaN(val)) {
+    const id = ev.srcElement.id.slice(-1).toLowerCase();
+    val = val / 10;
+    myOpt[id] = val;
+    setEmotePopupCSS();
+  }
+}
+
+function setEmotePopupCSS(opt = myOpt) {  
+  // numbers are default values by twitch
+  const height = (30.5 * opt.h) + 'rem!important';
+  const width = (32 * opt.w) + 'rem!important';
+  const emoteBtnHeight = (3.8 * opt.x) + 'rem!important';
+  const emoteBtnWidth = (4 * opt.x) + 'rem!important';
+
+  insertCSS(`
+    .hidden { display: none!important }
+    .chat-shell__expanded [direction="top-right"] { right: 330px; bottom: -50px; }
+    .emote-picker { width: ${width}; max-width: calc(100vw - 330px); }
+    .emote-picker .emote-picker__tab-content { height: ${height}; max-height: calc(100vh - 100px) }
+    .emote-picker .emote-button { height: ${emoteBtnHeight}; width: ${emoteBtnWidth} }
+    .emote-picker .emote-button > div { display: block !important }
+    .emote-picker .emote-button > div .emote-button__link { height: 100%; width: 100% }
+    .emote-picker .emote-button > div .emote-button__link img { max-height: unset; height: 100%; width: 100% }
+    .emote-picker .emote-button > div .emote-button__link figure { width: 100%; height: 100% }
+
+    .emote-picker .my-settings { padding-left: 10px; font-size: 17px }
+    .emote-picker .my-settings__popup {
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      position: absolute;
+      right: 50px;
+      top: 50px;
+      background: #564b4b;
+      padding: 15px;
+    }
+  `, 'emote-popup', true);
 }
 
 const viewBonusStats = { history: [] };
@@ -1091,7 +1177,7 @@ function collectViewBonusPointsAutomatically() {
     const streamer = location.pathname.substring(1);
     if (!streamer || !isAllowed(userOptions.twitch.featureAutoCollectReward.isEnabled)) return;
     console.log(blue('scanning, looking for clickable view rewards...'));
-    const btn = document.querySelector('.iNPKuE');
+    const btn = document.querySelector('[class*="claimable-bonus"]')?.closest('button');
     if (btn) {
       const stamp = new Date();
       console.log(green('Points collected!' + reset(` (time: ${stamp.toLocaleString()})`)));

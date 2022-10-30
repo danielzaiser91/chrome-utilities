@@ -578,11 +578,13 @@ function resetInfoPW24() {
 }
 
 function store(key, value = undefined) {
-  localStorage.setItem(key, JSON.stringify(value ?? true));
+  const val = value === null ? null : (value ?? true);
+  localStorage.setItem(key, JSON.stringify(val));
 }
 
 function load(key) {
-  return JSON.parse(localStorage.getItem(key));
+  const item = localStorage.getItem(key);
+  return item ? JSON.parse(item) : null;
 }
 
 function initVolumeManager() {
@@ -1096,12 +1098,12 @@ function fixImages() {
 // Twitch
 function fixTwitch() {
   collectViewBonusPointsAutomatically();
-  adjustEmotePickerDimensions();
+  adjustEmotePickerDimensions(); // TODO: make optional
 }
 
 const settingEl = () => document.querySelector('.emote-picker__search-content-dark .my-settings__popup');
 let toggleMyOpt = () => settingEl().classList.toggle('hidden');
-const myOpt = {h: 2.2, w:3.5, x: 2.5};
+const myOpt = load('twitchOpt') || {h: 2.2, w:3.5, x: 2.5};
 function adjustEmotePickerDimensions() {
   setEmotePopupCSS()
 
@@ -1113,9 +1115,9 @@ function adjustEmotePickerDimensions() {
     <button id="settingsEl" style="padding-left: 10px;">⚙️</button>
     <div class="my-settings__popup hidden">
       <span>adjust emote popup size</span>
-      <span>h:<input type="range" min="10" max="50" id="myH" style="width: 36px;" value="${myOpt.h * 10}"></span>
-      <span>w:<input type="range" min="10" max="50" id="myW" style="width: 36px;" value="${myOpt.w * 10}"></span>
-      <span>x:<input type="range" min="10" max="50" id="myX" style="width: 36px;" value="${myOpt.x * 10}"></span>
+      <span>height:<input type="range" min="10" max="50" id="myH" style="width: 82px;" value="${myOpt.h * 10}"></span>
+      <span>width:<input type="range" min="10" max="50" id="myW" style="width: 82px;" value="${myOpt.w * 10}"></span>
+      <span>icon size:<input type="range" min="10" max="50" id="myX" style="width: 82px;" value="${myOpt.x * 10}"></span>
     </div>
     `);
     setTimeout(()=>{
@@ -1135,6 +1137,7 @@ function onChangeMyInput(ev) {
     const id = ev.srcElement.id.slice(-1).toLowerCase();
     val = val / 10;
     myOpt[id] = val;
+    store('twitchOpt', myOpt);
     setEmotePopupCSS();
   }
 }
@@ -1160,13 +1163,16 @@ function setEmotePopupCSS(opt = myOpt) {
     .emote-picker .my-settings { padding-left: 10px; font-size: 17px }
     .emote-picker .my-settings__popup {
       display: flex;
-      align-items: center;
       flex-direction: column;
       position: absolute;
       right: 50px;
       top: 50px;
       background: #564b4b;
       padding: 15px;
+    }
+    .emote-picker .my-settings__popup span {
+      justify-content: space-between;
+      display: flex;
     }
   `, 'emote-popup', true);
 }

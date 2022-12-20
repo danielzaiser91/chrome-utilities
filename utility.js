@@ -1064,6 +1064,7 @@ function fixCrunchyroll() {
 
 function addHotkeysForNextAndPrevious() {
   window.addEventListener('keyup', ev => {
+    if (!ev.altKey) return;
     if (ev.key === 'n') {
       document.querySelector('[data-t="next-episode"] a')?.click()
     } else if (ev.key === 'p') {
@@ -1126,7 +1127,6 @@ function fixTwitch() {
   collectViewBonusPointsAutomatically();
   adjustEmotePickerDimensions(); // TODO: make optional
   startListenerForOpenedPrimePanel();
-  applyStyleFix();
   // adBlockTwitch(); TODO: Implement
   addListenerToQuicklyCheckPokemonReward();
 }
@@ -1195,7 +1195,7 @@ function resetPokeballReward() {
 }
 
 function hasPokeballRewards() {
-  // TODO: get this automatically
+  // TODO: get this automatically || alternatively let user set option to activate for this streamer
   return location.pathname.includes('umut_rre');
 }
 
@@ -1208,7 +1208,7 @@ function adBlockTwitch() {
   }, 300).play();
 }
 
-function applyStyleFix() {
+function applyPrimeRewardOptionsStyles() {
   // move channel-point-reward-popup window to the right, so chat is still visible while, choosing the reward
   insertCSS(`
     [data-test-selector="community-points-summary"] + div > div > div {
@@ -1221,6 +1221,7 @@ function applyStyleFix() {
 
 let twitchPrimeRewardPanelIsOpened = false;
 function startListenerForOpenedPrimePanel() {
+  applyPrimeRewardOptionsStyles();
   // listener, to add removeFeature to prime-reward-popup window
   // TODO#1: Add Information Bubbles on screen to inform how many items have been removed.
   // TODO#1: Below feature, add another feature, to filter rewards, by selecting a checkbox

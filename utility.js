@@ -10,17 +10,21 @@ init = true;
  *   - make twitch queryselector generic, bcs it may not work
  *   - save user Options somewhere else than localstorage, so it is consistent between websites
  *   -- implement better handling of version Update of local userOptions (in loadUserSettings)
+ * 
+ * search for TODO to find places that need to be improved
+ * search for TODO#1 to find cool places to improve
  */
 
 // --- UTILITY FUNCTIONS ---
-function repeatIfCondition(fn, condition, fnArgs = [], pauseInBg = true) {
+function repeatIfCondition(fn, condition = () => true, fnArgs = [], pauseInBg = true) {
   return new Interval(function repeatIf() {
     if (condition()) {
       fnArgs?.length ? fn(...fnArgs) : fn();
     }
   }, 300, pauseInBg);
 }
-function repeatUntilCondition(fn, condition, fnArgs = [], pauseInBg = true) {
+
+function repeatUntilCondition(fn, condition = () => true, fnArgs = [], pauseInBg = true) {
   const interval = new Interval(function repeatUntil() {
     if (condition()) {
       fnArgs?.length ? fn(...fnArgs) : fn();
@@ -1055,7 +1059,19 @@ function removeNode(val) {
 // Crunchyroll
 function fixCrunchyroll() {
   autoplayNext();
+  addHotkeysForNextAndPrevious();
 }
+
+function addHotkeysForNextAndPrevious() {
+  window.addEventListener('keyup', ev => {
+    if (ev.key === 'n') {
+      document.querySelector('[data-t="next-episode"] a')?.click()
+    } else if (ev.key === 'p') {
+      document.querySelector('[data-t="prev-episode"] a')?.click()
+    }
+  });
+}
+
 function autoplayNext() {
   // feature disabled for now, since crunchyroll uses iframes...
   return;
@@ -1089,16 +1105,183 @@ function fixForAllWebsites() {
 }
 
 function fixImages() {
+  const zoom = () => document.body.classList.toggle('zoomed');
   const img = document.querySelector('img');
-  if (img) {
-    img.style.width = '100%';
-  }
+  img.addEventListener('click', zoom);
+  img.click();
+  insertCSS(`
+    body.zoomed {
+      height: unset !important;
+    }
+    .zoomed img {
+      width: 100%;
+      height: auto;
+      overflow: auto;
+    }
+  `);
 }
 
 // Twitch
 function fixTwitch() {
   collectViewBonusPointsAutomatically();
   adjustEmotePickerDimensions(); // TODO: make optional
+  startListenerForOpenedPrimePanel();
+  applyStyleFix();
+  // adBlockTwitch(); TODO: Implement
+  addListenerToQuicklyCheckPokemonReward();
+}
+
+const keyMap = {
+  prevUpCalled: 0,
+  prevDownCalled: 0,
+  blockWhileExecuting: false,
+  executionCounter: 0
+};
+function addListenerToQuicklyCheckPokemonReward() {
+  // --TODO: Fix issue, key is stuck --- issue might be fixed idk
+  const _listener = e => {
+    const validKey = ['ShiftRight', 'ShiftLeft', 'Numpad9'].includes(e.code);
+    if (!hasPokeballRewards() || !validKey || e.repeat) return;
+  
+    const up = e.type === 'keyup';
+    keyMap[up ? 'prevUpCalled' : 'prevDownCalled'] = new Date().getTime();
+    setTimeout(() => {
+      // cancel automatic shift press by system, because numpad key used --- Microsoft issue: https://stackoverflow.com/questions/55339015/shift-key-released-when-pressing-numpad
+      const cancel = up && e.key === 'Shift' && (new Date().getTime()-keyMap[!up ? 'prevUpCalled' : 'prevDownCalled']-10) < 5;
+      if (!cancel) {
+        keyMap[e.code] = !up;
+        keyMap[up ? 'prevUpCalled' : 'prevDownCalled'] = new Date().getTime() - 10;
+      } else {
+        keyMap['prevUpCalled'] = 0;
+        keyMap['prevDownCalled'] = 0;
+      }
+      if ((keyMap['ShiftLeft'] || keyMap['ShiftRight']) && keyMap['Numpad9']) {
+        keyMap.executionCounter++;
+        if (keyMap.blockWhileExecuting) return;
+        keyMap.blockWhileExecuting = true;
+        clickPokeballReward();
+      }
+    }, 10);
+  };
+  window.addEventListener('keydown', _listener);
+  window.addEventListener('keyup', _listener);
+}
+
+function clickPokeballReward() {
+  const channelPointRewardBtn = document.querySelector('[data-test-selector="community-points-summary"] button');
+  if (!channelPointRewardBtn) return resetPokeballReward();
+  channelPointRewardBtn.click();
+  setTimeout(() => {
+    const pokeballBtn = Array.from(document.querySelectorAll('.rewards-list > div')).find(e => e.textContent.includes('okeball'))?.querySelector('button');
+    if (!pokeballBtn) return resetPokeballReward();
+    pokeballBtn.click();
+    setTimeout(() => {
+      const redeemRewardBtn = document.querySelector('#channel-points-reward-center-body button');
+      if (!redeemRewardBtn) return resetPokeballReward();
+      redeemRewardBtn.click();
+      if (keyMap.executionCounter > 0) {
+        keyMap.executionCounter--;
+        setTimeout(clickPokeballReward, 200);
+      } else {
+        keyMap.blockWhileExecuting = false;
+      }
+    }, 200);
+  }, 200);
+}
+
+function resetPokeballReward() {
+  keyMap.executionCounter = 0;
+  keyMap.blockWhileExecuting = false;
+}
+
+function hasPokeballRewards() {
+  // TODO: get this automatically
+  return location.pathname.includes('umut_rre');
+}
+
+function adBlockTwitch() {
+  new Interval(() => {
+    const videoEl = document.querySelector('.video-player__container');
+    if (!videoEl) return;
+    videoEl.classList.remove('video-player__container--resize-calc');
+    videoEl.firstElementChild.classList.remove('video-player--stream-display-ad');
+  }, 300).play();
+}
+
+function applyStyleFix() {
+  // move channel-point-reward-popup window to the right, so chat is still visible while, choosing the reward
+  insertCSS(`
+    [data-test-selector="community-points-summary"] + div > div > div {
+      right: 88px !important;
+      left: unset !important;
+      bottom: -50px !important;
+    }
+  `, 'channel-point-popup');
+}
+
+let twitchPrimeRewardPanelIsOpened = false;
+function startListenerForOpenedPrimePanel() {
+  // listener, to add removeFeature to prime-reward-popup window
+  // TODO#1: Add Information Bubbles on screen to inform how many items have been removed.
+  // TODO#1: Below feature, add another feature, to filter rewards, by selecting a checkbox
+  const listener = () => {
+    const header = document.getElementById('PrimeOfferPopover-header');
+    const isOpen = !!header;
+    if (isOpen !== twitchPrimeRewardPanelIsOpened) {
+      twitchPrimeRewardPanelIsOpened = isOpen;
+      const alreadyAddedButton = document.querySelector('.dz-removeNonGameRewards');
+      if (!alreadyAddedButton) addRemoveAllNonGamesButton(header);
+    }
+  }
+
+  repeatIfCondition(listener)
+}
+function addRemoveAllNonGamesButton(el) {
+  if (!el) return;
+  const div = document.createElement('div');
+  const [btn, btn2, btn3] = Array.from({length:3}, ()=>document.createElement('button'));
+  btn.onclick = removeAllGames;
+  btn2.onclick = removeAllNonGames;
+  btn3.onclick = removeAllClaimed;
+  div.classList.add('dz-removeNonGameRewards');
+  btn.innerText = 'Games';
+  btn2.innerText = 'Other';
+  btn3.innerText = 'Claimed';
+  div.prepend('remove', btn, btn2, btn3);
+  el.prepend(div);
+  insertCSS(`
+    .dz-removeNonGameRewards {
+      position: absolute;
+      left: -90px;
+      top: 5px;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+      background: #1f1f23;
+      padding: 8px;
+      text-align: center;
+      border-right: 1px dashed white;
+    }
+    .dz-removeNonGameRewards button {
+      position: relative;
+      padding: 1px 2px;
+      display: block;
+      outline: 1px solid white;
+      margin: 0 10px 5px;
+      color: black;
+      background: antiquewhite;
+    }
+  `, undefined, true);
+}
+
+function removeAllNonGames() {
+  Array.from(document.querySelectorAll('.prime-claim')).filter(el=>el.textContent != 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+}
+function removeAllGames() {
+  Array.from(document.querySelectorAll('.prime-claim')).filter(el=>el.textContent === 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+}
+function removeAllClaimed() {
+  Array.from(document.querySelectorAll('.prime-redeem__confirmation')).filter(el=>el.textContent === 'Claimed').forEach(el => el.closest('.prime-offer').querySelector('button')?.click());
 }
 
 const settingEl = () => document.querySelector('.emote-picker__search-content-dark .my-settings__popup');
@@ -1329,7 +1512,7 @@ function info(val) {
 // globalVars
 let ascending = false;
 let sortButton;
-registeredIntervals.getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name)
+let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
   version: 1.004,
   '1movies': {

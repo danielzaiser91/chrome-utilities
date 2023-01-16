@@ -1,4 +1,5 @@
 init = true;
+const isPopup = location.pathname.split('/').includes('popout');
 /**
  * Chrome - Utility (cu)
  * 
@@ -861,7 +862,12 @@ function skipAmazonRecap() {
 function fixNetflix() {
   // netflixApi();
   toggleAutoSkipIntro();
-  repeatIfCondition(addAutoSkipIntroButton, getNetflixButtonContainer, [], false);
+  repeatIfCondition(() => {
+    try { // wrap in try, bcs there is an error on netflix
+
+      addAutoSkipIntroButton();
+    } catch {}
+  }, getNetflixButtonContainer, [], false);
   netflixRestartWithSpaceKey();
 }
 
@@ -1131,16 +1137,25 @@ function fixTwitch() {
   addListenerToQuicklyCheckPokemonReward();
 }
 
-const keyMap = {
+// Hotkeys:
+// Shift + Num9 = 1 Pokeball
+// Shift + Num8 = 4 Pokebälle
+// Shift + Num7 = Aufhören Pokebälle zu werfen (cancel)
+
+function resetPokeballReward() {
+  keyMap = Object.assign({}, keyMapDefault);
+}
+const keyMapDefault = {
   prevUpCalled: 0,
   prevDownCalled: 0,
   blockWhileExecuting: false,
   executionCounter: 0
 };
+let keyMap = Object.assign({}, keyMapDefault);
 function addListenerToQuicklyCheckPokemonReward() {
   // --TODO: Fix issue, key is stuck --- issue might be fixed idk
   const _listener = e => {
-    const validKey = ['ShiftRight', 'ShiftLeft', 'Numpad9'].includes(e.code);
+    const validKey = ['ShiftRight', 'ShiftLeft', 'Numpad9', 'Numpad8', 'Numpad7'].includes(e.code);
     if (!hasPokeballRewards() || !validKey || e.repeat) return;
   
     const up = e.type === 'keyup';
@@ -1155,8 +1170,10 @@ function addListenerToQuicklyCheckPokemonReward() {
         keyMap['prevUpCalled'] = 0;
         keyMap['prevDownCalled'] = 0;
       }
-      if ((keyMap['ShiftLeft'] || keyMap['ShiftRight']) && keyMap['Numpad9']) {
-        keyMap.executionCounter++;
+      if ((keyMap['ShiftLeft'] || keyMap['ShiftRight']) && (keyMap['Numpad9'] || keyMap['Numpad8'] || keyMap['Numpad7'])) {
+        if (keyMap['Numpad9']) keyMap.executionCounter++;
+        else if (keyMap['Numpad8']) keyMap.executionCounter = 4;
+        else if (keyMap['Numpad7']) keyMap.executionCounter = 0;
         if (keyMap.blockWhileExecuting) return;
         keyMap.blockWhileExecuting = true;
         clickPokeballReward();
@@ -1169,29 +1186,24 @@ function addListenerToQuicklyCheckPokemonReward() {
 
 function clickPokeballReward() {
   const channelPointRewardBtn = document.querySelector('[data-test-selector="community-points-summary"] button');
-  if (!channelPointRewardBtn) return resetPokeballReward();
+  if (keyMap.executionCounter <= 0 || !channelPointRewardBtn) return resetPokeballReward();
   channelPointRewardBtn.click();
   setTimeout(() => {
     const pokeballBtn = Array.from(document.querySelectorAll('.rewards-list > div')).find(e => e.textContent.includes('okeball'))?.querySelector('button');
-    if (!pokeballBtn) return resetPokeballReward();
+    if (keyMap.executionCounter <= 0 || !pokeballBtn) return resetPokeballReward();
     pokeballBtn.click();
     setTimeout(() => {
       const redeemRewardBtn = document.querySelector('#channel-points-reward-center-body button');
-      if (!redeemRewardBtn) return resetPokeballReward();
+      if (keyMap.executionCounter <= 0 || !redeemRewardBtn) return resetPokeballReward();
       redeemRewardBtn.click();
       if (keyMap.executionCounter > 0) {
         keyMap.executionCounter--;
-        setTimeout(clickPokeballReward, 200);
+        setTimeout(clickPokeballReward, 500);
       } else {
-        keyMap.blockWhileExecuting = false;
+        return resetPokeballReward();
       }
     }, 200);
   }, 200);
-}
-
-function resetPokeballReward() {
-  keyMap.executionCounter = 0;
-  keyMap.blockWhileExecuting = false;
 }
 
 function hasPokeballRewards() {
@@ -1209,7 +1221,8 @@ function adBlockTwitch() {
 }
 
 function applyPrimeRewardOptionsStyles() {
-  // move channel-point-reward-popup window to the right, so chat is still visible while, choosing the reward
+  // description: move channel-point-reward-popup window to the left, so chat is still visible while, choosing the reward
+
   insertCSS(`
     [data-test-selector="community-points-summary"] + div > div > div {
       right: 88px !important;
@@ -1221,6 +1234,9 @@ function applyPrimeRewardOptionsStyles() {
 
 let twitchPrimeRewardPanelIsOpened = false;
 function startListenerForOpenedPrimePanel() {
+  // return if it is the popup chat window
+  if (isPopup) return;
+
   applyPrimeRewardOptionsStyles();
   // listener, to add removeFeature to prime-reward-popup window
   // TODO#1: Add Information Bubbles on screen to inform how many items have been removed.
@@ -1336,8 +1352,9 @@ function setEmotePopupCSS(opt = myOpt) {
   insertCSS(`
     .hidden { display: none!important }
     .chat-shell__expanded [direction="top-right"] { right: 330px; bottom: -50px; }
-    .emote-picker { width: ${width}; max-width: calc(100vw - 330px); }
-    .emote-picker .emote-picker__tab-content { height: ${height}; max-height: calc(100vh - 100px) }
+    [aria-label="emote-picker"] { max-width: unset; }
+    .emote-picker { width: ${width}; max-width: calc(100vw - ${isPopup ? 20 : 330}px); }
+    .emote-picker .emote-picker__tab-content { height: ${height}; max-height: calc(100vh - ${isPopup ? 200 : 100}px) }
     .emote-picker .emote-button { height: ${emoteBtnHeight}; width: ${emoteBtnWidth} }
     .emote-picker .emote-button > div { display: block !important }
     .emote-picker .emote-button > div .emote-button__link { height: 100%; width: 100% }

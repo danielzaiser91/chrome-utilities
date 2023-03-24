@@ -17,6 +17,8 @@ const isPopup = location.pathname.split('/').includes('popout');
  */
 
 // --- UTILITY FUNCTIONS ---
+const query = (str) => document.querySelector(str);
+const queryAll = (str) => document.querySelectorAll(str);
 function repeatIfCondition(fn, condition = () => true, fnArgs = [], pauseInBg = true) {
   return new Interval(function repeatIf() {
     if (condition()) {
@@ -153,9 +155,9 @@ function prepareActionBar() {
       </button>
     </div>`
   );
-  const actionBar = document.querySelector('.cu-actions-container');
+  const actionBar = query('.cu-actions-container');
   const settingsBtn = actionBar.querySelector('button');
-  settingsOverlay = document.querySelector('.cu-settings');
+  settingsOverlay = query('.cu-settings');
   const mouseOverListener = new Interval(() => {
     if (mouseOver) {
       actionBar.classList.remove('cu-hide');
@@ -547,10 +549,10 @@ function autoplayPW24() {
   const play = localStorage.getItem('autoplayVideo');
   if (play) {
     localStorage.removeItem('autoplayVideo');
-    const condition = () => document.querySelector('#video_player video');
+    const condition = () => query('#video_player video');
     repeatUntilCondition(() => {
       const video = condition();
-      const continueWatching = document.querySelector('.continue__controls-wrapper button');
+      const continueWatching = query('.continue__controls-wrapper button');
       if (video) {
         video.play();
       }
@@ -593,7 +595,7 @@ function load(key) {
 }
 
 function initVolumeManager() {
-  const condition = () => document.querySelector('#video_player video');
+  const condition = () => query('#video_player video');
   repeatUntilCondition(() => {
     const videoEl = condition();
     const volume = load('volume');
@@ -643,13 +645,13 @@ function enableNextEpisodeHotkey_NV() {
 }
 
 function getInfo(key, cb) {
-  const isLoadedYet = (/[0-9]/).test(document.querySelector('.seasons-switcher span')?.textContent);
+  const isLoadedYet = (/[0-9]/).test(query('.seasons-switcher span')?.textContent);
   if (!isLoadedYet) return setTimeout(() => startGettingInformation(cb), 100);
   const baseKey = '.' + key + '-switcher';
-  document.querySelector(baseKey).click();
+  query(baseKey).click();
   setTimeout(() => {
-    const count = document.querySelectorAll(baseKey + ' .' + key + ' li').length;
-    const countCurr = +document.querySelector(baseKey + ' span').textContent.replace(/[^0-9]/g, '');
+    const count = queryAll(baseKey + ' .' + key + ' li').length;
+    const countCurr = + query(baseKey + ' span').textContent.replace(/[^0-9]/g, '');
     if (key === 'seasons') {
       PW24_curr_season = countCurr;
       PW24_seasons = count;
@@ -657,7 +659,7 @@ function getInfo(key, cb) {
       PW24_curr_episode = countCurr;
       PW24_total_Episodes_This_Season = count;
     }
-    document.querySelector(baseKey).click();
+    query(baseKey).click();
     startGettingInformation(cb);
   });
 }
@@ -787,7 +789,7 @@ function reloadUntilVideoAvailable() {
   const selfId = 'reloadUntilVideoAvailable';
   if (!isAllowed(userOptions["1movies"].featureReload.isEnabled) && !calledBefore(selfId)) return;
   else calledOnce.add(selfId);
-  const reloadNecessary = () => document.querySelector('#player_in_tab .left > .open:nth-child(1)');
+  const reloadNecessary = () => query('#player_in_tab .left > .open:nth-child(1)');
   repeatUntilCondition(function untilVideo() {
     if (reloadNecessary()) {
       cleanCache();
@@ -801,23 +803,33 @@ function rememberVideoPosition() {
 
 // Amazon
 let amazonSkipLoop = null;
-const getAmazonSkipRecapBtn = () => document.querySelector('.dv-player-fullscreen [class*="nextupcard-wrapper"]~div button');
-const getAmazonSkipAdvertBtn = () => document.querySelector('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)');
+const getAmazonSkipRecapBtn = () => query('.dv-player-fullscreen [class*="nextupcard-wrapper"]~div button');
+const getAmazonSkipAdvertBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)');
+const getAmazonSkipAdvertBtn2 = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div');
+const getAmazonSkipNextBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-nextupcard-button');
+const getAmazonBackwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekback-button');
+const getAmazonPlayPauseBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-playpause-button');
+const getAmazonForwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekforward-button');
 function toggleAmazonSkip() { !amazonSkipLoop.isPlaying ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
 function fixAmazon() {
-  const condition = () => getAmazonSkipAdvertBtn() || getAmazonSkipRecapBtn();
+  const condition = () => getAmazonSkipAdvertBtn() || getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn2();
   amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, [], false);
-
+  window.addEventListener('keydown', (event) => {
+    switch (event.code) {
+      case 'Space': return getAmazonPlayPauseBtn()?.click();
+      case 'ArrowRight': return getAmazonForwardsBtn()?.click();
+      case 'ArrowLeft': return getAmazonBackwardsBtn()?.click();
+      default: return;
+    }
+  });
 
   // repeat until video is playing (dont execute on amazon normal view)
   // TODO: change to repeatif pattern, to be executed once, whenever a video is started, removing the eventlisteners
   
   repeatUntilCondition(
+    immidiatlyRemoveUiWhenLeavingMouse,
     () => {
-      immidiatlyRemoveUiWhenLeavingMouse();
-    },
-    () => {
-      const atvEl = document.querySelector('.atvwebplayersdk-overlays-container');
+      const atvEl = query('.dv-player-fullscreen .atvwebplayersdk-overlays-container');
       return atvEl && getComputedStyle(atvEl).cursor === 'default';
     }
   );
@@ -829,18 +841,21 @@ function cleanupATV() {
 }
 
 const toggleUIVisible = (op) => {
-  // const subtitlesEl = document.querySelector('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
-  const topActionBarEl = document.querySelector('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)');
-  const bottomActionBarEl = document.querySelector('.atvwebplayersdk-bottompanel-container');
-  const opacityOverlayEl = document.querySelector('.atvwebplayersdk-overlays-container > div');
-  const centerActionsEl = document.querySelector('.atvwebplayersdk-overlays-container > div:nth-child(4) > div:nth-child(2)');
+  // const subtitlesEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
+  const topActionBarEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)');
+  const bottomActionBarEl = query('.atvwebplayersdk-bottompanel-container');
+  const opacityOverlayEl = query('.atvwebplayersdk-overlays-container > div');
+  const centerActionsEl = query('.atvwebplayersdk-overlays-container > div:nth-child(4) > div:nth-child(2)');
+  const titleEl = query('.atvwebplayersdk-title-text');
+  const subtitleEl = query('.atvwebplayersdk-subtitle-text');
 
-  [topActionBarEl, bottomActionBarEl, opacityOverlayEl, centerActionsEl].filter(e=>!!e).forEach(e => 
+  [topActionBarEl, bottomActionBarEl, opacityOverlayEl, centerActionsEl, titleEl, subtitleEl].filter(e=>!!e).forEach(e => 
     op === 'remove' ? e.classList.add('cu-hide') : e.classList.remove('cu-hide'));
 };
-const toggleAdd = () => stackEnd(toggleUIVisible('add'));
-const toggleRemove = () => stackEnd(toggleUIVisible('remove'));
+
 function immidiatlyRemoveUiWhenLeavingMouse() {
+  const toggleAdd = () => stackEnd(toggleUIVisible('add'));
+  const toggleRemove = () => stackEnd(toggleUIVisible('remove'));
   insertCSS('.cu-hide { display: none !important; }');
   document.addEventListener('mouseleave', toggleRemove);
   document.addEventListener('mouseenter', toggleAdd);
@@ -850,12 +865,40 @@ function stackEnd(fn) {
   setTimeout(fn,1);
 }
 
+let executionBlock = {
+  skipAmazonAdvert: false,
+  skipAmazonRecaps: false,
+  skipAmazonNext: false
+};
 function skipAmazonRecap() {
-  if (!isAllowed(userOptions.amazon.featureAutoSkip.isEnabled)) return;
+  const amazonFeature = userOptions.amazon.featureAutoSkip.isEnabled;
+  const spinner = query('.atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div').style.display !== 'none';
+  if (!isAllowed(amazonFeature) || spinner) return;
   const skipAdBtn = getAmazonSkipAdvertBtn();
-  if (userOptions.amazon.featureAutoSkip.isEnabled.subFeatures.skipAdverts && skipAdBtn) return skipAdBtn.click();
+  if (!executionBlock.skipAmazonAdvert && skipAdBtn && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
+    blockExecution('skipAmazonAdvert');
+    return skipAdBtn.click();
+  };
+  const skipAdBtn2 = getAmazonSkipAdvertBtn2();
+  if (!executionBlock.skipAmazonAdvert && skipAdBtn2 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
+    blockExecution('skipAmazonAdvert');
+    return skipAdBtn2.click();
+  };
   const skipRecapBtn = getAmazonSkipRecapBtn();
-  if (userOptions.amazon.featureAutoSkip.isEnabled.subFeatures.skipRecaps && skipRecapBtn) return skipRecapBtn.click();
+  if (!executionBlock.skipAmazonRecaps && skipRecapBtn && isAllowed(amazonFeature.subFeatures.skipRecaps)) {
+    blockExecution('skipAmazonRecaps');
+    return skipRecapBtn.click();
+  };
+  const skipNextBtn = getAmazonSkipNextBtn();
+  if (!executionBlock.skipAmazonNext && skipNextBtn && isAllowed(amazonFeature.subFeatures.skipRecaps)) {
+    blockExecution('skipAmazonNext');
+    skipNextBtn.click();
+  }
+}
+
+function blockExecution(key, timeout = 1000) {
+  executionBlock[key] = !executionBlock[key];
+  setTimeout(() => executionBlock[key] = !executionBlock[key], timeout);
 }
 
 // Netflix
@@ -875,7 +918,7 @@ function fixNetflix() {
 function netflixRestartWithSpaceKey() {
   window.addEventListener('keyup', key => {
     if (key.code !== 'Space') return;
-    const restartButton = document.querySelector('.watch-video--playback-restart button');
+    const restartButton = query('.watch-video--playback-restart button');
     if (restartButton) restartButton.click();
   })
 }
@@ -893,11 +936,11 @@ function netflixApi() {
   return { video, playState, isMovie: video.type === 'movie' };
 }
 
-const getNetflixButtonContainer = () => document.querySelector('.watch-video--bottom-controls-container [data-uia="controls-standard"] > div > div:nth-child(3) > div > div:nth-child(3)');
+const getNetflixButtonContainer = () => query('.watch-video--bottom-controls-container [data-uia="controls-standard"] > div > div:nth-child(3) > div > div:nth-child(3)');
 function addAutoSkipIntroButton() {
-  const featureIsTurnedOff = !isAllowed(userOptions.netflix.featureAutoSkip.skipButton);
-  const hideForMovies = netflixApi()?.isMovie && !isAllowed(userOptions.netflix.featureAutoSkip.skipButton.subFeatures.hideForMovies);
-  if (featureIsTurnedOff || hideForMovies) return;
+  const skipFeature = userOptions.netflix.featureAutoSkip;
+  const hideForMovies = netflixApi()?.isMovie && !isAllowed(skipFeature.skipButton.subFeatures.hideForMovies);
+  if (!isAllowed(skipFeature.skipButton) || hideForMovies) return;
   const parent = getNetflixButtonContainer();
   if (!parent) return;
   const alreadyExists = parent.querySelector('.button-autoSkipToggle');
@@ -907,7 +950,7 @@ function addAutoSkipIntroButton() {
   const playButton = copyChild.querySelector('.control-medium svg:nth-child(2)');
   playButton.outerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="playButton Hawkins-Icon Hawkins-Icon-Standard"><path fill-rule="evenodd" clip-rule="evenodd" d="M22 3H20V21H22V3ZM4.28615 3.61729C3.28674 3.00228 2 3.7213 2 4.89478V19.1052C2 20.2787 3.28674 20.9977 4.28615 20.3827L15.8321 13.2775C16.7839 12.6918 16.7839 11.3082 15.8321 10.7225L4.28615 3.61729ZM4 18.2104V5.78956L14.092 12L4 18.2104Z" fill="currentColor"></path></svg>`;
   copyChild.classList.add('button-autoSkipToggle');
-  if (userOptions.netflix.featureAutoSkip.isEnabled.value) {
+  if (isAllowed(skipFeature.isEnabled)) {
     autoSkipInterval.play();
     copyChild.classList.add('stop');
     copyChild.setAttribute('title', "stop skipping Intro/Outro automatically");
@@ -943,7 +986,7 @@ function addAutoSkipIntroButton() {
 }
 
 const autoSkipInterval = new Interval(skip, 100, false, () => !isAllowed(userOptions.netflix.featureAutoSkip.isEnabled.value), false);
-function toggleAutoSkipIntro(el = document.querySelector('.button-autoSkipToggle')) {
+function toggleAutoSkipIntro(el = query('.button-autoSkipToggle')) {
   if (!el) return;
   if (autoSkipInterval.isPlaying) {
     el.classList.remove('stop');
@@ -960,8 +1003,8 @@ function toggleAutoSkipIntro(el = document.querySelector('.button-autoSkipToggle
   }
 }
 function skip() {
-  const skipButton = document.querySelector('.watch-video--skip-content-button');
-  const skipOutroButton = document.querySelector('[data-uia*="next-episode"]');
+  const skipButton = query('.watch-video--skip-content-button');
+  const skipOutroButton = query('[data-uia*="next-episode"]');
   if (skipButton && isAllowed(userOptions.netflix.featureAutoSkip.skipIntro)) {
     skipButton.click();
     console.log(green('skipped Intro'));
@@ -978,7 +1021,7 @@ function skip() {
 
 // YouTube
 function fixYoutube() {
-  const query = () => document.querySelectorAll('#top-level-buttons-computed ytd-button-renderer #text');
+  const query = () => queryAll('#top-level-buttons-computed ytd-button-renderer #text');
   const condition = () => query().length;
   repeatUntilCondition(fixShowingDateByRemovingTextFromIcons, condition, [query]);
 }
@@ -998,13 +1041,13 @@ function fixPGSurveyHelper() {
 }
 
 function loadLastInput() {
-  const inputs = Array.from(document.querySelectorAll('#motherlode_survey_input textarea'));
+  const inputs = Array.from(queryAll('#motherlode_survey_input textarea'));
   inputs.forEach(input => {
     input.value = sessionStorage.getItem(input.id) || input.value;
   });
 }
 function saveLastInput() {
-  const inputs = Array.from(document.querySelectorAll('#motherlode_survey_input textarea'));
+  const inputs = Array.from(queryAll('#motherlode_survey_input textarea'));
   inputs.forEach(input => {
     input.addEventListener('input', () => {
       sessionStorage.setItem(input.id, input.value);
@@ -1013,7 +1056,7 @@ function saveLastInput() {
 }
 
 function addNodeCounter() {
-  const inputs = Array.from(document.querySelectorAll('#motherlode_survey_input textarea'));
+  const inputs = Array.from(queryAll('#motherlode_survey_input textarea'));
   inputs.forEach(el => {
     el.style.position = 'relative';
     const id = el.id.substr(-1);
@@ -1048,7 +1091,7 @@ function addRemoveNodeInput() {
 }
 
 function removeNode(val) {
-  const inputs = Array.from(document.querySelectorAll('#motherlode_survey_input textarea'));
+  const inputs = Array.from(queryAll('#motherlode_survey_input textarea'));
   if (!inputs.length) return error('couldn\'t find inputs');
   const nrOfNodes = inputs[0].value.split('\n').length;
   const sameLen = inputs.every(v => v.value.split('\n').length === nrOfNodes);
@@ -1072,9 +1115,9 @@ function addHotkeysForNextAndPrevious() {
   window.addEventListener('keyup', ev => {
     if (!ev.altKey) return;
     if (ev.key === 'n') {
-      document.querySelector('[data-t="next-episode"] a')?.click()
+      query('[data-t="next-episode"] a')?.click()
     } else if (ev.key === 'p') {
-      document.querySelector('[data-t="prev-episode"] a')?.click()
+      query('[data-t="prev-episode"] a')?.click()
     }
   });
 }
@@ -1084,8 +1127,8 @@ function autoplayNext() {
   return;
   if (!isAllowed(userOptions.crunchyroll.featureAutoSkip.isEnabled)) return;
   const icon = addAutoplayInfoIcon();
-  const video = document.querySelector('video');
-  const nextVideo = document.querySelector('.c-playable-card-mini__link');
+  const video = query('video');
+  const nextVideo = query('.c-playable-card-mini__link');
   if (!video || !nextVideo || !icon) return;
   icon.textContent = 'autoskip active';
   const skipAt = video.duration - userOptions.crunchyroll.featureAutoSkip.skipVideo.value;
@@ -1094,7 +1137,7 @@ function autoplayNext() {
   };
 }
 function addAutoplayInfoIcon() {
-  const metaInfo = document.querySelector('.current-media-parent-ref');
+  const metaInfo = query('.current-media-parent-ref');
   if (!metaInfo) return;
   const div = document.createElement('div');
   metaInfo.appendChild(div);
@@ -1106,14 +1149,14 @@ function fixForAllWebsites() {
     { filetype: '.png', fix: fixImages }
   ];
   const path = location.pathname;
-  const filetype = path.slice(path.indexOf('.'));
-  const match = filetypeMatcher.find(match => match.filetype === filetype);
+  const filetype = path.match(/\.\w+$/mg)?.[0];
+  const match = filetype && filetypeMatcher.find(match => match.filetype === filetype);
   if (match) return match.fix();
 }
 
 function fixImages() {
   const zoom = () => document.body.classList.toggle('zoomed');
-  const img = document.querySelector('img');
+  const img = query('img');
   img.addEventListener('click', zoom);
   img.click();
   insertCSS(`
@@ -1134,9 +1177,13 @@ function fixTwitch() {
   adjustEmotePickerDimensions(); // TODO: make optional
   startListenerForOpenedPrimePanel();
   // adBlockTwitch(); TODO: Implement
-  addListenerToQuicklyCheckPokemonReward();
+  addPokemonRewardHotkeys();
+  styleAdjustTwitch();
 }
 
+function styleAdjustTwitch() {
+  insertCSS('.chat-shell__expanded [direction="top-right"] { bottom: 0 !important }');
+}
 // Hotkeys:
 // Shift + Num9 = 1 Pokeball
 // Shift + Num8 = 4 Pokebälle
@@ -1152,7 +1199,7 @@ const keyMapDefault = {
   executionCounter: 0
 };
 let keyMap = Object.assign({}, keyMapDefault);
-function addListenerToQuicklyCheckPokemonReward() {
+function addPokemonRewardHotkeys() {
   // --TODO: Fix issue, key is stuck --- issue might be fixed idk
   const _listener = e => {
     const validKey = ['ShiftRight', 'ShiftLeft', 'Numpad9', 'Numpad8', 'Numpad7'].includes(e.code);
@@ -1182,18 +1229,56 @@ function addListenerToQuicklyCheckPokemonReward() {
   };
   window.addEventListener('keydown', _listener);
   window.addEventListener('keyup', _listener);
+  addPokemonRewardLabel();
+}
+
+const retryPRLabel = () => setTimeout(addPokemonRewardLabel, 2000);
+function addPokemonRewardLabel() {
+  const channelPointRewardBtn = query('[data-test-selector="community-points-summary"] button');
+  if (channelPointRewardBtn) {
+    const _listener = () => setTimeout(() => {
+      const pokeballBtn = getPokeballRewardBtn();
+      if (!pokeballBtn) return retryPRLabel();
+      // apply listener on click to all rewards back arrow, so when you return to this window you reapply this label
+      // TODO: apply _listener to all "back"-arrows on all rewards, that have it
+      // const allRewards = Array.from(queryAll('.rewards-list > div'));
+      // allRewards.forEach(rewardBtn => rewardBtn.addEventListener('click', () => {
+      //   const backArrowBtn = query('.tw-popover-header button');
+      //   backArrowBtn.addEventListener('click', () => setTimeout(_listener, 200));
+      // }))
+      pokeballBtn.firstElementChild.insertAdjacentHTML('afterbegin', `
+        <div style="position: absolute;top: 0;left: 0;z-index: 1;color: white;font-size: 85%;padding: 3px;background: rgba(0,0,0,.8);width: 100%;height: 100%;">
+          <u>Hotkeys:</u><br>
+          <span>press shift and:</span>
+          <ul>
+            <li><u>num7</u> - interrupt</li>
+            <li><u>num8</u> - throw 4</li>
+            <li><u>num9</u> - throw 1</li>
+          </ul>
+        </div>
+      `);
+    }, 200);
+    channelPointRewardBtn.addEventListener('click', _listener);
+  } else {
+    // try again after 2sec
+    retryPRLabel();
+  }
+}
+
+function getPokeballRewardBtn() {
+  return Array.from(queryAll('.rewards-list > div')).find(e => e.textContent.includes('okeball'))?.querySelector('button');
 }
 
 function clickPokeballReward() {
-  const channelPointRewardBtn = document.querySelector('[data-test-selector="community-points-summary"] button');
+  const channelPointRewardBtn = query('[data-test-selector="community-points-summary"] button');
   if (keyMap.executionCounter <= 0 || !channelPointRewardBtn) return resetPokeballReward();
   channelPointRewardBtn.click();
   setTimeout(() => {
-    const pokeballBtn = Array.from(document.querySelectorAll('.rewards-list > div')).find(e => e.textContent.includes('okeball'))?.querySelector('button');
+    const pokeballBtn = getPokeballRewardBtn();
     if (keyMap.executionCounter <= 0 || !pokeballBtn) return resetPokeballReward();
     pokeballBtn.click();
     setTimeout(() => {
-      const redeemRewardBtn = document.querySelector('#channel-points-reward-center-body button');
+      const redeemRewardBtn = query('#channel-points-reward-center-body button');
       if (keyMap.executionCounter <= 0 || !redeemRewardBtn) return resetPokeballReward();
       redeemRewardBtn.click();
       if (keyMap.executionCounter > 0) {
@@ -1213,7 +1298,7 @@ function hasPokeballRewards() {
 
 function adBlockTwitch() {
   new Interval(() => {
-    const videoEl = document.querySelector('.video-player__container');
+    const videoEl = query('.video-player__container');
     if (!videoEl) return;
     videoEl.classList.remove('video-player__container--resize-calc');
     videoEl.firstElementChild.classList.remove('video-player--stream-display-ad');
@@ -1246,7 +1331,7 @@ function startListenerForOpenedPrimePanel() {
     const isOpen = !!header;
     if (isOpen !== twitchPrimeRewardPanelIsOpened) {
       twitchPrimeRewardPanelIsOpened = isOpen;
-      const alreadyAddedButton = document.querySelector('.dz-removeNonGameRewards');
+      const alreadyAddedButton = query('.dz-removeNonGameRewards');
       if (!alreadyAddedButton) addRemoveAllNonGamesButton(header);
     }
   }
@@ -1292,23 +1377,23 @@ function addRemoveAllNonGamesButton(el) {
 }
 
 function removeAllNonGames() {
-  Array.from(document.querySelectorAll('.prime-claim')).filter(el=>el.textContent != 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+  Array.from(queryAll('.prime-claim')).filter(el=>el.textContent != 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
 }
 function removeAllGames() {
-  Array.from(document.querySelectorAll('.prime-claim')).filter(el=>el.textContent === 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+  Array.from(queryAll('.prime-claim')).filter(el=>el.textContent === 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
 }
 function removeAllClaimed() {
-  Array.from(document.querySelectorAll('.prime-redeem__confirmation')).filter(el=>el.textContent === 'Claimed').forEach(el => el.closest('.prime-offer').querySelector('button')?.click());
+  Array.from(queryAll('.prime-redeem__confirmation')).filter(el=>el.textContent === 'Claimed').forEach(el => el.closest('.prime-offer').querySelector('button')?.click());
 }
 
-const settingEl = () => document.querySelector('.emote-picker__search-content-dark .my-settings__popup');
+const settingEl = () => query('.emote-picker__search-content-dark .my-settings__popup');
 let toggleMyOpt = () => settingEl().classList.toggle('hidden');
 const myOpt = load('twitchOpt') || {h: 2.2, w:3.5, x: 2.5};
 function adjustEmotePickerDimensions() {
   setEmotePopupCSS()
 
   // insertOptions
-  const condition = () => document.querySelector('.emote-picker__search-content-dark > div');
+  const condition = () => query('.emote-picker__search-content-dark > div');
   repeatUntilCondition(()=>{
     const insertTarget = condition();
     insertTarget.insertAdjacentHTML('afterend', `
@@ -1384,7 +1469,7 @@ function collectViewBonusPointsAutomatically() {
     const streamer = location.pathname.substring(1);
     if (!streamer || !isAllowed(userOptions.twitch.featureAutoCollectReward.isEnabled)) return;
     console.log(blue('scanning, looking for clickable view rewards...'));
-    const btn = document.querySelector('[class*="claimable-bonus"]')?.closest('button');
+    const btn = query('[class*="claimable-bonus"]')?.closest('button');
     if (btn) {
       const stamp = new Date();
       console.log(green('Points collected!' + reset(` (time: ${stamp.toLocaleString()})`)));
@@ -1409,7 +1494,7 @@ function fextraLifeAddSortIcon() {
   if (!location.href.includes('eldenring.wiki.fextralife.com/Spirit+Ashes')) return;
   if (!isAllowed(userOptions.fextralife.featureAddSortButton.isEnabled)) return;
 
-  const tab = document.querySelector('.tabcontent');
+  const tab = query('.tabcontent');
   if (!tab) return;
   const tabChild = tab.firstElementChild;
   const button = document.createElement("div");
@@ -1453,10 +1538,10 @@ function fextralifeRemoveTwitchPlayer() {
 function fextralifeSortAlphabetically() {
   ascending = !ascending;
   sortButton.textContent = ascending ? 'Z-A' : 'A-Z';
-  const match = document.querySelector('.tabcontent .row');
+  const match = query('.tabcontent .row');
   if (!match) return;
   console.log('sorting...');
-  const original = Array.from(document.querySelectorAll('.tabcontent .row')).map(v => Array.from(v.querySelectorAll('.wiki_tooltip'))).filter(v => v && v.length);
+  const original = Array.from(queryAll('.tabcontent .row')).map(v => Array.from(v.querySelectorAll('.wiki_tooltip'))).filter(v => v && v.length);
   const aTagsSorted = original.flat(1).sort((a, b) => {
     const textA = a.textContent.trim()[0];
     const textB = b.textContent.trim()[0];
@@ -1532,7 +1617,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.004,
+  version: 1.005,
   '1movies': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -1586,6 +1671,11 @@ let userOptions = { // key must be match.site (saved as matcher globally)
             label: 'Adverts',
             description: 'will skip Adverts that play before Videos'
           },
+          skipNext: {
+            value: true,
+            label: 'Next',
+            description: 'will click the next episode button immidiatly for you'
+          }
         }
       }
     }

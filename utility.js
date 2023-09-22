@@ -3,6 +3,14 @@ const isPopup = location.pathname.split('/').includes('popout');
 /**
  * Chrome - Utility (cu)
  * 
+ * BIG TODO:
+ * 1. observed on: twitch
+ *   _issue: content script are executed multiple times, because of "all_frames": true, in manifest 
+ *   _solution #1: Implement background script, send message from content script to background script, that it has been loaded already, and stop further execution
+ *              this background script holds single shared state, where we can check if we want to allow multiple executions or not (crunchyroll + static.crunchyroll for example)
+ *   _solution #2: move static.crunchyroll script to seperate extension...
+ *   _solution #3: check url of iframes and exclude...
+ * 
  *  TODO:
  *   ---- inject script instead of content script, to have access to window variable: https://stackoverflow.com/questions/20499994/access-window-variable-from-content-script
  *   - scope function groups to classes
@@ -17,16 +25,112 @@ const isPopup = location.pathname.split('/').includes('popout');
  */
 
 // --- UTILITY FUNCTIONS ---
-const query = (str) => document.querySelector(str);
-const queryAll = (str) => document.querySelectorAll(str);
-function repeatIfCondition(fn, condition = () => true, fnArgs = [], pauseInBg = true) {
-  return new Interval(function repeatIf() {
-    if (condition()) {
-      fnArgs?.length ? fn(...fnArgs) : fn();
-    }
-  }, 300, pauseInBg);
+// console coloring
+const Log = {
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  dim: "\x1b[2m",
+  underscore: "\x1b[4m",
+  blink: "\x1b[5m",
+  reverse: "\x1b[7m",
+  hidden: "\x1b[8m",
+  // Foreground (text) colors
+  fg: {
+    black: "\x1b[30m",
+    red: "\x1b[31m",
+    green: "\x1b[32m",
+    yellow: "\x1b[33m",
+    blue: "\x1b[34m",
+    magenta: "\x1b[35m",
+    cyan: "\x1b[36m",
+    white: "\x1b[37m",
+    crimson: "\x1b[38m"
+  },
+  // Background colors
+  bg: {
+    black: "\x1b[40m",
+    red: "\x1b[41m",
+    green: "\x1b[42m",
+    yellow: "\x1b[43m",
+    blue: "\x1b[44m",
+    magenta: "\x1b[45m",
+    cyan: "\x1b[46m",
+    white: "\x1b[47m",
+    crimson: "\x1b[48m"
+  }
+};
+const red = text => `${Log.fg.red}${text}${Log.reset}`;
+const purple = text => `${Log.fg.magenta}${text}${Log.reset}`;
+const yellow = text => `${Log.fg.yellow}${text}${Log.reset}`;
+const green = text => `${Log.fg.green}${text}${Log.reset}`;
+const blue = text => `${Log.fg.blue}${text}${Log.reset}`;
+const reset = text => `${Log.reset}${text}`;
+
+// other
+const query = str => document.querySelector(str);
+const queryAll = str => document.querySelectorAll(str);
+const byId = str => document.getElementById(str);
+/**
+ * 
+ * @param {string} type string identifier of Element
+ * @param { { [key: string]: string } | undefined } attributes attributes to set on element
+ * @param { ElementCreationOptions | undefined } options document.createElement options
+ * @returns 
+ */
+function toArray(arrayLike) {
+  return Array.from(arrayLike);
+}
+function create(type, attributes = {}, options = {}) {
+  const el = document.createElement(type, options);
+  for (const [option, value] of Object.entries(attributes)) {
+    el[option] = value;
+  }
+  return el;
 }
 
+/**
+ * if given value exceeds max / min, it will be set to max/min respectively
+ * @param {number} val value to clamp
+ * @param { { max: number, min: number } } maxMin max, min to clamp value with
+ * @returns {number} clamped val
+ */
+function clamp(val, maxMin) {
+  const { max, min } = maxMin;
+  return Math.max(min, Math.min(max, val));
+}
+
+/**
+ * 
+ * @param { () => void } fn function to call
+ * @param { boolean } condition when to execute
+ * @param {{ fnArgs?: *[], pauseInBg?: boolean, interval?: number, debounceTime?: number }} options
+ * fnArgs: default [], arguments to call given function with
+ * pauseInBg: default true, if true, interval will stop, when tab switch, or browser not in focus
+ * interval: default 300, interval in which condition is checked
+ * debounceTime: default 0, not implemented yet...
+ * @returns 
+ */
+function repeatIfCondition(fn, condition = () => true, options = {}) {
+  const fnArgs = options.fnArgs ?? [];
+  const pauseInBg = options.pauseInBg ?? true;
+  const interval = options.interval ?? 300
+  const debounceTime = options.debounceTime ?? 0; // implement in future...
+  return new Interval(function repeatIf() {
+    if (condition()) fn(...fnArgs);
+  }, interval, pauseInBg);
+}
+
+function isNumber(val) {
+  return typeof val === 'number';
+}
+
+/**
+ * call a function, when condition is met. Interval 300ms. stops after executing once.
+ * @param {() => void} fn function to call
+ * @param {() => boolean} condition optional, condition to wait for truthyness, before executing given function
+ * @param {any[]} fnArgs optional, arguments to call the given function with.
+ * @param {boolean} pauseInBg default true, decides if script will be executed when tab is not in focus
+ */
 function repeatUntilCondition(fn, condition = () => true, fnArgs = [], pauseInBg = true) {
   const interval = new Interval(function repeatUntil() {
     if (condition()) {
@@ -38,6 +142,10 @@ function repeatUntilCondition(fn, condition = () => true, fnArgs = [], pauseInBg
 }
 const registeredIntervals = [];
 class Interval {
+  /** for some reason sometimes interval get executed multiple times, use this function to check if interval already exists */
+  static exists(_handlerName) {
+    return registeredIntervals.some(i => i.handler.name === _handlerName);
+  }
   constructor(handler, timeout, pauseInBg = true, playCondition = () => true, autoplay = true) {
     this.handler = handler;
     this.timeout = timeout;
@@ -71,10 +179,11 @@ function insertCSS(css, id = 'alreadyAddedCss', overwrite = false) {
   console.debug(yellow('inserting css... id: "' + id + '"'));
 }
 // --- UTILITY FUNCTIONS ---
+
 function showExtensionInfoInLog() {
   const excludeFromLog = ['version'];
-  console.log(red('Chrome:Utility:Extension starting'));
-  console.log(
+  console.info(red('Chrome:Utility:Extension starting'));
+  console.info(
     blue(
       'this extension currently supports Improvements for the following websites:\n' + reset('') +
       '- ' + purple('PGSurveyHelper') + ': NodeInfo\n' +
@@ -87,7 +196,8 @@ function showExtensionInfoInLog() {
 }
 document.addEventListener('DOMContentLoaded', function () {
   websiteSelector();
-  if (!matcher) return;
+  if (!matcher?.allowInIframe) return;
+  fixForAllWebsites();
   showExtensionInfoInLog();
   loadUserSettings();
   startFixing();
@@ -126,6 +236,7 @@ const svg = {
   amazon: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="603" height="182" fill="#221f1f"><path fill="#f90" d="M374 142a234 234 0 0 1-287-21c-4-3-1-7 3-4a318 318 0 0 0 279 17c6-3 11 4 5 8"/><path fill="#f90" d="M389 126c-5-6-30-3-41-2-4 1-4-2-1-5 20-14 53-10 57-5 3 5-1 38-20 54-3 2-6 1-5-3 5-10 14-34 10-39"/><path d="M348 20V6c0-2 2-3 4-3h61c2 0 4 1 4 3v12l-5 9-32 45c12 0 25 1 35 8 3 1 3 3 4 5v14c0 2-3 5-5 4a71 71 0 0 0-65 0c-2 1-4-1-4-3V86c0-3 0-6 2-10l37-52h-32c-2 0-4-2-4-4m-223 85h-19c-1 0-3-1-3-3V7c0-2 2-4 4-4h17c2 0 3 2 3 3v13h1c4-12 13-18 24-18 12 0 19 6 24 18 5-12 15-18 26-18 8 0 17 3 22 11 6 8 4 19 4 30v60c0 2-1 3-3 3h-19c-2 0-3-1-3-3V51l-1-18c-1-6-5-8-11-8-4 0-9 3-11 8s-1 13-1 18v51c0 2-2 3-4 3h-19c-2 0-3-1-3-3V51c0-10 2-26-12-26-13 0-12 15-12 26v51c0 2-2 3-4 3M470 1c27 0 42 24 42 54 0 29-16 52-42 52-28 0-42-23-42-53s15-53 42-53m0 20c-14 0-15 18-15 30s0 37 15 37c14 0 15-20 15-33 0-8-1-17-3-25-2-7-6-9-12-9m78 84h-19c-1 0-3-1-3-3V6c0-1 2-3 4-3h17c2 0 3 1 3 3v14h1c5-13 12-19 25-19 8 0 17 3 22 11s5 21 5 30v60c-1 2-2 3-4 3h-19c-1 0-3-1-3-3V50c0-10 1-25-12-25-4 0-8 3-10 7-3 6-3 12-3 18v52c0 2-2 3-4 3"/><use xlink:href="#a" transform="translate(244)"/><path id="a" d="M55 60v-4c-13 0-27 3-27 18 0 9 4 14 11 14 5 0 10-3 13-8 3-7 3-13 3-20m19 45-4 1c-7-6-8-8-11-13-10 11-17 14-31 14-15 0-28-10-28-29 0-15 9-26 20-31 10-4 24-5 35-6v-3c0-4 1-9-2-13-2-4-7-5-10-5-8 0-14 4-15 11-1 2-2 4-4 4L6 33c-1-1-3-2-3-4C8 7 27 0 45 0c9 0 21 3 28 10 9 8 8 19 8 32v29c0 8 4 12 7 17 2 2 2 4 0 5l-14 12"/></svg>',
 }
 function prepareActionBar() {
+  if (Interval.exists('_prepareActionBar')) return;
   // TODO: Add settings button with dropdown or overlay for setting custom userOptions
   const site = matcher.site.toLowerCase();
   if (!document.body || !userOptions[site]) return;
@@ -158,13 +269,14 @@ function prepareActionBar() {
   const actionBar = query('.cu-actions-container');
   const settingsBtn = actionBar.querySelector('button');
   settingsOverlay = query('.cu-settings');
-  const mouseOverListener = new Interval(() => {
+  const _prepareActionBar = () => {
     if (mouseOver) {
       actionBar.classList.remove('cu-hide');
     } else {
       actionBar.classList.add('cu-hide');
     }
-  }, 300, false);
+  };
+  const mouseOverListener = new Interval(_prepareActionBar, 300, false);
   actionBar.addEventListener('mouseenter', () => {
     mouseOver = true;
     mouseOverListener.pause();
@@ -395,11 +507,12 @@ function getNestedValue(obj, accessorArray) {
 
 function renderFeatureRow(featureRow, key, value, optKeys, isDisabled) {
   const feature = value;
+  const isNum = isNumber(feature.value);
   if (feature.hideFromUser) return;
   const row = document.createElement('div');
   row.classList.add('cu-action-row');
   const input = document.createElement('input');
-  input.setAttribute('type', 'checkbox');
+  input.setAttribute('type', isNum ? 'number' : 'checkbox');
   const id = 'cu-' + optKeys.join('-');
   input.setAttribute('id', id);
   let tooltip = feature.description;
@@ -410,28 +523,39 @@ function renderFeatureRow(featureRow, key, value, optKeys, isDisabled) {
     if (feature.disabledReason) featureRow.classList.add('cu-disabled');
   }
   featureRow.setAttribute('title', tooltip);
-  input.checked = feature.value;
-  input.addEventListener('change', (event) => {
+  if (!isNum) {
+    input.checked = feature.value;
+  } else {
+    input.value = feature.value;
+    input.min = feature.min;
+    input.max = feature.max;
+    input.step = feature.step;
+  }
+  const changeValEvent = (event) => {
     event.preventDefault();
     event.stopPropagation();
+    let val = input.value;
+    if (isNum) val = clamp(val, { max: input.max, min: input.min });
     if (optKeys.length === 3) {
       // todo: Make nested userOption Access dynamic
       // getNestedValue(userOptions, [...optKeys]).value
-      userOptions[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].value = input.checked;
+      userOptions[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].value = !isNum ? input.checked : val;
       if (defaultSettings[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].toggle) {
-        defaultSettings[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].toggle();
+        defaultSettings[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].toggle(event, input);
       }
     } else if (optKeys.length === 2) {
-      userOptions[optKeys[0]][optKeys[1]][key].value = input.checked;
+      userOptions[optKeys[0]][optKeys[1]][key].value = !isNum ? input.checked : val;
       if (defaultSettings[optKeys[0]][optKeys[1]][key].toggle) {
-        defaultSettings[optKeys[0]][optKeys[1]][key].toggle();
+        defaultSettings[optKeys[0]][optKeys[1]][key].toggle(event, input);
       }
     }
     if (feature.subFeatures) { // TODO: use input.checked and subfeature inputs, to check if really necessary
       renderOptions();
     }
     saveUserSettings();
-  }, true);
+  };
+  input.addEventListener('change', changeValEvent, true);
+  input.addEventListener('keyup', changeValEvent, true);
   const label = document.createElement('label');
   label.textContent = feature.label;
   label.setAttribute('for', id);
@@ -479,16 +603,16 @@ function intervalHandler() {
   window.addEventListener('focus', whenFocusingTab);
 }
 function whenMouseLeavesWindow() {
-  console.log(red('Mouse is Leaving Browser-Window'));
+  console.info(red('Mouse is Leaving Browser-Window'));
   saveUserSettings();
 }
 function whenLeavingTab() {
-  console.log(red('Leaving Tab'));
+  console.info(red('Leaving Tab'));
   saveUserSettings();
   stopIntervals();
 }
 function whenFocusingTab() {
-  console.log(green('Returning to Tab'));
+  console.info(green('Returning to Tab'));
   resumeIntervals();
 }
 function stopIntervals(includeAllIntervals = false) {
@@ -505,20 +629,23 @@ function resumeIntervals(includeAllIntervals = false) {
 }
 
 class Matcher {
-  constructor(match, fix, hasActions = false, site = '') {
+  constructor(match, fix, hasActions = false, site = '', allowInIframe) {
     this.match = match;
     this.fix = fix;
     this.hasActions = hasActions;
     this.site = site ? site : fix.name.replace('fix', '');
+    this.allowInIframe = allowInIframe ?? self === top; // if not provided, always disable code when in iframe
   }
 }
 
-let matcher = '';
+/** @type {Matcher} */
+let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
     new Matcher('wiki.fextralife.com', fixFextralife, true),
     new Matcher('twitch.tv', fixTwitch, true),
+    new Matcher('static.crunchyroll.com', crunchyrolliFrameHook, false, 'crunchyHook', true),
     new Matcher('crunchyroll.com', fixCrunchyroll, true),
     new Matcher('defenestration.co/pg/surveying', fixPGSurveyHelper),
     new Matcher('youtube.com', fixYoutube),
@@ -526,16 +653,133 @@ function websiteSelector() {
     new Matcher('1movies.life', fix1movies, true),
     new Matcher('amazon.de', fixAmazon, true),
     new Matcher('playerwatchlm24.xyz', fixPlayerWatch24, true),
+    new Matcher('fandom.com', fixFandom),
+    new Matcher('zkjellberg.github.io/dark-souls-3-cheat-sheet', fixDarkSouls3CheatSheet, true, 'ds3CheatSheet'),
+    new Matcher('pogchamps.gg', fixPogChamps, false),
+    new Matcher('aternos.org', fixAternos, false)
   ];
   const match = websiteMatcher.find(v => location.href.includes(v.match));
-  fixForAllWebsites();
-  if (!match) return console.log(yellow(`no utility fix for this website found`));;
+  if (!match) return console.info(yellow(`no utility fix for this website found`));;
   matcher = match;
 }
 function startFixing() {
-  console.log(yellow(`starting process ${matcher.fix.name}`));
+  console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
+}
+
+// --------------------------------
+// fix PogChamps
+function fixPogChamps() {
+  const el = document.querySelector('.elementor-background-video-container')?.parentElement?.parentElement;
+  el.style.display = 'none';
+}
+// fix ds3CheatSheet
+function fixDarkSouls3CheatSheet() {
+  insertCSS('body.cu-dark-mode { background-color: #1a1a1a; color: #c3c3c3; }');
+  if (userOptions.ds3cheatsheet.featureDarkMode.isEnabled.value) {
+    toggleDarkModeDs3CheatSheet();
+  }
+}
+function toggleDarkModeDs3CheatSheet() {
+  document.body.classList.toggle('cu-dark-mode');
+}
+
+
+// fix Aternos
+function fixAternos() {
+  insertCSS(`
+    .vm-footer, .ad-dfp, .sidebar, .header-link-exaroton, .videoAdUiClickElement, .server-tutorials {
+      display: none !important;
+    }
+  `)
+}
+
+// fix fandom.com
+function fixFandom() {
+  const rightSidePanel = () => query('.page__right-rail');
+  repeatUntilCondition(() => {
+    const rightEl = rightSidePanel();
+    const wikibar = query('#WikiaBar');
+    const adContainer = query('.bottom-ads-container');
+    adContainer.remove();
+    wikibar.remove();
+    rightEl.remove();
+    insertCSS(`
+      *::-webkit-scrollbar {
+        width: 20px !important;
+      }
+      *::-webkit-scrollbar-thumb {
+        background-size: 140% !important;
+        width: 100%;
+        background-position-x: 60%;
+      }
+      .cu-hide { display: none }
+      .cu-btn {
+        background: var(--theme-page-background-color--secondary);
+        border: 1px solid var(--theme-border-color);
+        border-radius: 3px;
+        color: var(--theme-page-text-color);
+        cursor: pointer;
+        font-weight: 700;
+        padding: 12px;
+        text-align: center;
+        text-transform: uppercase;
+        width: 100%;
+      }`);
+      // fanfeed is added asynchronously, need to wait for it, and then execute code
+      const getFanFeed = () => query('#mixed-content-footer');
+      const fanFeedInView = () => Number.parseInt(getComputedStyle(getFanFeed()).height) > 50;
+      repeatUntilCondition(() => {
+        const fanFeed = getFanFeed();
+        fanFeed.classList.add('cu-hide');
+        const btn = document.createElement('button');
+        btn.appendChild(document.createTextNode('expand Fan Feed'));
+        btn.classList.add('cu-btn');
+        let isExpanded = false;
+        btn.addEventListener('click', () => {
+          isExpanded = !isExpanded;
+          btn.textContent = isExpanded ? 'collapse Fan Feed' : 'expand Fan Feed';
+          fanFeed.classList.toggle('cu-hide');
+        });
+        fanFeed.parentElement.insertBefore(btn, fanFeed);
+      }, fanFeedInView);
+      // listener for commentSection
+      
+      const getComments = () => Array.from(queryAll('[data-testid="article-comments__comment"]'));
+      const commentsLoaded = () => document.querySelector('[data-testid="article-comments__comment"]');
+      repeatUntilCondition(() => {
+        const comments = getComments();
+        const commentsToToggle = [];
+        const commentCounter = query('[class*="CommentCounter_comment-counter"');
+        const commentCount = Number.parseInt(commentCounter.firstChild.textContent);
+        if (commentCount < 6) {
+          return;
+        }
+        for (let i = 0; i < comments.length; i++) {
+          if (i < 5) continue;
+          const comment = comments[i];
+          comment.classList.add('cu-hide');
+          commentsToToggle.push(comment);
+        }
+        const getLoadMoreButton = () => query('.load-more-button');
+        let loadMoreButton = getLoadMoreButton();
+        if (loadMoreButton) loadMoreButton.classList.toggle('cu-hide');
+        const parent = comments[0].parentElement;
+        
+        const btn = document.createElement('button');
+        btn.appendChild(document.createTextNode('show more comments'));
+        btn.classList.add('cu-btn');
+        let isExpanded = false;
+        btn.addEventListener('click', () => {
+          isExpanded = !isExpanded;
+          btn.textContent = isExpanded ? 'show less comments' : 'show more comments';
+          commentsToToggle.forEach(comment => comment.classList.toggle('cu-hide'));
+          if (loadMoreButton) loadMoreButton.classList.toggle('cu-hide');
+        });
+        parent.appendChild(btn)
+      }, commentsLoaded);
+  }, rightSidePanel);
 }
 // fixPlayerWatch24
 function fixPlayerWatch24() {
@@ -572,7 +816,7 @@ function startGettingInformation(callback) {
   } else if (!PW24_total_Episodes_This_Season) {
     return getInfo('episodes', callback);
   }
-  console.log(PW24_seasons, PW24_total_Episodes_This_Season);
+  console.info(PW24_seasons, PW24_total_Episodes_This_Season);
   if (callback) callback();
   else enableNextEpisodeHotkey_NV();
 }
@@ -806,14 +1050,19 @@ let amazonSkipLoop = null;
 const getAmazonSkipRecapBtn = () => query('.dv-player-fullscreen [class*="nextupcard-wrapper"]~div button');
 const getAmazonSkipAdvertBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)');
 const getAmazonSkipAdvertBtn2 = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div');
+const getAmazonSkipAdvertBtn3 = () => {
+  const btn = query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(2) > div:nth-child(2)');
+  const isSkip = ['Überspringen', 'Skip'].some(v => btn?.textContent);
+  return isSkip ? btn : null;
+};
 const getAmazonSkipNextBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-nextupcard-button');
 const getAmazonBackwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekback-button');
 const getAmazonPlayPauseBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-playpause-button');
 const getAmazonForwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekforward-button');
 function toggleAmazonSkip() { !amazonSkipLoop.isPlaying ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
-function fixAmazon() {
-  const condition = () => getAmazonSkipAdvertBtn() || getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn2();
-  amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, [], false);
+function fixAmazon() {  
+  const condition = () => getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn() || getAmazonSkipAdvertBtn2() || getAmazonSkipAdvertBtn3();
+  amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, { pauseInBg: false });
   window.addEventListener('keydown', (event) => {
     switch (event.code) {
       case 'Space': return getAmazonPlayPauseBtn()?.click();
@@ -854,15 +1103,11 @@ const toggleUIVisible = (op) => {
 };
 
 function immidiatlyRemoveUiWhenLeavingMouse() {
-  const toggleAdd = () => stackEnd(toggleUIVisible('add'));
-  const toggleRemove = () => stackEnd(toggleUIVisible('remove'));
+  const toggleAdd = () => setTimeout(toggleUIVisible('add'));
+  const toggleRemove = () => setTimeout(toggleUIVisible('remove'));
   insertCSS('.cu-hide { display: none !important; }');
   document.addEventListener('mouseleave', toggleRemove);
   document.addEventListener('mouseenter', toggleAdd);
-}
-
-function stackEnd(fn) {
-  setTimeout(fn,1);
 }
 
 let executionBlock = {
@@ -884,6 +1129,11 @@ function skipAmazonRecap() {
     blockExecution('skipAmazonAdvert');
     return skipAdBtn2.click();
   };
+  const skipAdBtn3 = getAmazonSkipAdvertBtn3();
+  if (!executionBlock.skipAmazonAdvert && skipAdBtn3 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
+    blockExecution('skipAmazonAdvert');
+    return skipAdBtn3.click();
+  };
   const skipRecapBtn = getAmazonSkipRecapBtn();
   if (!executionBlock.skipAmazonRecaps && skipRecapBtn && isAllowed(amazonFeature.subFeatures.skipRecaps)) {
     blockExecution('skipAmazonRecaps');
@@ -901,17 +1151,57 @@ function blockExecution(key, timeout = 1000) {
   setTimeout(() => executionBlock[key] = !executionBlock[key], timeout);
 }
 
+let _netflix_autoSkipInterval;
 // Netflix
 function fixNetflix() {
   // netflixApi();
-  toggleAutoSkipIntro();
-  repeatIfCondition(() => {
-    try { // wrap in try, bcs there is an error on netflix
-
-      addAutoSkipIntroButton();
-    } catch {}
-  }, getNetflixButtonContainer, [], false);
+  if (isAllowed(userOptions.netflix.featureAutoSkip.isEnabled)) {
+    toggleAutoSkipIntro();
+    repeatIfCondition(() => {
+      try { // wrap in try, bcs there is an error on netflix
+        addAutoSkipIntroButton();
+      } catch {}
+    }, getNetflixButtonContainer, { pauseInBg: false });
+  }
   netflixRestartWithSpaceKey();
+  _netflix_speed_custom_control();
+}
+// TODO: when user disables feature, it should not set input (maybe pause interval?)
+const _netflix_setPlayerValue = (val, playBackInput) => {
+  const video = document.querySelector('video');
+  if (Number.isNaN(val) || !video) return;
+  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
+  userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
+  video.playbackRate = val;
+}
+const _netflix_adjustVal = (e, playBackInput) => {
+  e.stopPropagation();
+  if (!e.srcElement?.value) return;
+  const newValue = +(+e.srcElement.value)?.toFixed(2);
+  _netflix_setPlayerValue(newValue, playBackInput);
+}
+function _netflix_speed_custom_control() {
+  // add user option to allow this feature
+  const value = userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+  const playBackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback' });
+  insertCSS('.cu-playbackSpeedContainer { display: flex; justify-content: space-between }', 'cu-playbackSpeedContainer');
+  insertCSS('.cu-playbackSpeedInput { color: black; font-size: 24px; }', 'cu-playbackSpeedInput');
+  playBackInput.classList.add('cu-playbackSpeedInput');
+  playBackInput.addEventListener('keydown', e => _netflix_adjustVal(e, playBackInput));
+  playBackInput.addEventListener('input', e => _netflix_adjustVal(e, playBackInput));
+  const condition = () => query('[data-uia="watch-video-speed-controls"]');
+  repeatIfCondition(() => setTimeout(() =>
+    _netflix_setPlayerValue(userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput),
+  300), () => document.querySelector('video'), { interval: 1000 });
+  const _add_custom_speed_control = () => {
+    const playBackContainer = query('[data-uia="playback-speed"] div');
+    if (playBackContainer?.classList?.contains('cu-playbackSpeedContainer')) return;
+    playBackInput.value = userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    playBackContainer.classList.add('cu-playbackSpeedContainer');
+    playBackContainer.appendChild(playBackInput);
+  }
+
+  repeatIfCondition(_add_custom_speed_control, condition);
 }
 
 /** if spacebar is pressed, restart if it is in restart-pause-mode */
@@ -951,7 +1241,7 @@ function addAutoSkipIntroButton() {
   playButton.outerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="playButton Hawkins-Icon Hawkins-Icon-Standard"><path fill-rule="evenodd" clip-rule="evenodd" d="M22 3H20V21H22V3ZM4.28615 3.61729C3.28674 3.00228 2 3.7213 2 4.89478V19.1052C2 20.2787 3.28674 20.9977 4.28615 20.3827L15.8321 13.2775C16.7839 12.6918 16.7839 11.3082 15.8321 10.7225L4.28615 3.61729ZM4 18.2104V5.78956L14.092 12L4 18.2104Z" fill="currentColor"></path></svg>`;
   copyChild.classList.add('button-autoSkipToggle');
   if (isAllowed(skipFeature.isEnabled)) {
-    autoSkipInterval.play();
+    _netflix_autoSkipInterval.play();
     copyChild.classList.add('stop');
     copyChild.setAttribute('title', "stop skipping Intro/Outro automatically");
   } else {
@@ -985,33 +1275,35 @@ function addAutoSkipIntroButton() {
   parent.insertBefore(copyChild, parent.children[0]);
 }
 
-const autoSkipInterval = new Interval(skip, 100, false, () => !isAllowed(userOptions.netflix.featureAutoSkip.isEnabled.value), false);
 function toggleAutoSkipIntro(el = query('.button-autoSkipToggle')) {
+  if (!Interval.exists('_netflix_skip')) {
+    _netflix_autoSkipInterval = new Interval(_netflix_skip, 300, false);
+  }
   if (!el) return;
-  if (autoSkipInterval.isPlaying) {
+  if (_netflix_autoSkipInterval.isPlaying) {
     el.classList.remove('stop');
-    autoSkipInterval.pause();
+    _netflix_autoSkipInterval.pause();
     userOptions.netflix.featureAutoSkip.isEnabled.value = false;
     saveUserSettings();
     el.setAttribute('title', "start skipping Intro/Outro automatically");
   } else {
     el.classList.add('stop');
-    autoSkipInterval.play();
+    _netflix_autoSkipInterval.play();
     userOptions.netflix.featureAutoSkip.isEnabled.value = true;
     saveUserSettings();
     el.setAttribute('title', "stop skipping Intro/Outro automatically");
   }
 }
-function skip() {
+function _netflix_skip() {
   const skipButton = query('.watch-video--skip-content-button');
   const skipOutroButton = query('[data-uia*="next-episode"]');
   if (skipButton && isAllowed(userOptions.netflix.featureAutoSkip.skipIntro)) {
     skipButton.click();
-    console.log(green('skipped Intro'));
+    console.info(green('skipped Intro'));
   }
   if (skipOutroButton && isAllowed(userOptions.netflix.featureAutoSkip.skipOutro)) {
     skipOutroButton.click();
-    console.log(green('skipped Outro'));
+    console.info(green('skipped Outro'));
     /**
      * extend info by giving video title, by finding the information in the netflix object...
      * TODO: Use netflix api info, for more detailled logs here
@@ -1020,15 +1312,88 @@ function skip() {
 }
 
 // YouTube
-function fixYoutube() {
+const initDateVisibilityListener = () => {
   const query = () => queryAll('#top-level-buttons-computed ytd-button-renderer #text');
   const condition = () => query().length;
   repeatUntilCondition(fixShowingDateByRemovingTextFromIcons, condition, [query]);
 }
 
+const ShortsRegistryOfListeners = new Set();
+const initShortsControl = () => {
+  const query = () => queryAll('ytd-reel-video-renderer');
+  let newShorts = []
+  const condition = () => {
+    const shorts = Array.from(query());
+    newShorts = [];
+    shorts.forEach(short => {
+      if (!ShortsRegistryOfListeners.has(short.id)) {
+        ShortsRegistryOfListeners.add(short.id)
+        newShorts.push(short);
+      }
+    });
+    return newShorts.length;
+  };
+  const getNewShorts = () => newShorts;
+  // repeatIfCondition(addListenerOnShorts, condition, { fnArgs: [getNewShorts], interval: 500 });
+  repeatIfCondition(addControlsToShorts, condition, { fnArgs: [getNewShorts], interval: 500 });
+}
+function fixYoutube() {
+  initDateVisibilityListener();
+  /* FIXME: work in progress...
+    need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
+  -- also need to figure out how to execute video.controls = true, because it violates content policy
+  */
+  // initShortsControl();
+}
+
+function addControlsToShorts(shortsGetter) {
+  const shorts = shortsGetter();
+  shorts.forEach(short => {
+    console.log(short);
+    repeatUntilCondition(() => {
+      repeatUntilCondition(() => short.querySelector('video').controls = true, () => short.querySelector('video').controls);
+    }, () => short.querySelector('video'))
+    short.classList.add('yt-short-'+short.id);
+    insertCSS(`
+    `, 'controls-for-short-css-'+short.id)
+  });
+}
+
+function onHoverYTShort(ev, shortContainerEl) {
+  console.log('hovering yt short element:',shortContainerEl,'mouseEvent:',ev);
+}
+
+function onLeaveYTShort(ev, shortContainerEl) {
+  console.log('hovering yt short element:',shortContainerEl,'mouseEvent:',ev);
+}
+
+/** @param ev {MouseEvent} */
+function onClickYTShort(ev) {
+  ev.stopImmediatePropagation();
+  ev.stopPropagation();
+  ev.preventDefault();
+  console.log(ev.clientY);
+}
+
+/** @param shortsGetter {() => HTMLElement[]} */
+function addListenerOnShorts(shortsGetter) {
+  const shorts = shortsGetter();
+  shorts.forEach(short => {
+    short.classList.add('yt-short-'+short.id);
+    insertCSS(`
+      ytd-reel-video-renderer.yt-short-${short.id} #progress-bar-line .progress-bar-played { bottom: 0 }
+      ytd-reel-video-renderer.yt-short-${short.id}:hover #progress-bar-line .progress-bar-played { height: 10px }
+    `, 'short-css-'+short.id)
+    short.addEventListener('mouseover', ev => onHoverYTShort(ev, short));
+    short.addEventListener('mouseenter', ev => onHoverYTShort(ev, short));
+    short.addEventListener('mouseleave', ev => onLeaveYTShort(ev, short));
+    short.addEventListener('click', onClickYTShort);
+  });
+}
+
 function fixShowingDateByRemovingTextFromIcons(query) {
   query().forEach(e => e.innerText = '');
-  console.log(green('successfully removed texts from icons next to likes to fix youtube date disappearing'));
+  console.info(green('successfully removed texts from icons next to likes to fix youtube date disappearing'));
 }
 
 // Project Gorgon
@@ -1111,6 +1476,55 @@ function fixCrunchyroll() {
   addHotkeysForNextAndPrevious();
 }
 
+function crunchyrolliFrameHook() {
+  initPlaybackOptionListener();
+}
+
+const _crunchyhook_setPlayerValue = (val, playBackInput) => {
+  if (Number.isNaN(val)) return;
+  lastVideoUrl = document.querySelector('video').src;
+  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
+  userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
+  document.getElementById('player0').playbackRate = val;
+}
+const _crunchyhook_adjustVal = (e, playBackInput) => {
+  e.stopPropagation();
+  if (!e.srcElement?.value) return;
+  const newValue = +(+e.srcElement.value)?.toFixed(2);
+  _crunchyhook_setPlayerValue(newValue, playBackInput);
+}
+let lastVideoUrl = '';
+function videoChanged() {
+  return lastVideoUrl !== document.querySelector('video').src;
+}
+function initPlaybackOptionListener() {
+  // --- prepare input Element to insert ---
+  const _value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+  const playBackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value: _value, className: 'cu_playback' });
+  repeatIfCondition(() => _crunchyhook_setPlayerValue(userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput), videoChanged, { pauseInBg: false, interval: 500 });
+  const playBackContainer = create('div', { className: 'cu_playBackContainer' });
+  const playBackLabel = create('div', { className: 'cu_playBackLabel', textContent: 'playBackSpeed' });
+  playBackInput.addEventListener('keydown', e => _crunchyhook_adjustVal(e, playBackInput));
+  playBackInput.addEventListener('input', e => _crunchyhook_adjustVal(e, playBackInput));
+  playBackContainer.appendChild(playBackLabel);
+  playBackContainer.appendChild(playBackInput);
+  insertCSS(`
+    .cu_playback { width: 50px; background-color: inherit; color: white; border: 1px solid rgb(40, 189, 187); padding: 2px 0 2px 25px; outline: none }
+    .cu_playBackLabel { display: flex; align-items: center; }
+    .cu_playBackContainer { display: flex; justify-content: space-between; padding: 10px 19px 3px; color: white; font-size: 14px; }
+  `);
+
+  //  --- init Listener ---
+  const getMenu = () => query('#velocity-settings-menu div');
+  repeatIfCondition(() => {
+    const menu = getMenu();
+    const prevent = menu.firstElementChild.classList.contains('cu_playBackContainer');
+    if (prevent) return;
+    playBackInput.value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    menu.insertBefore(playBackContainer, menu.firstElementChild);
+  }, getMenu, { interval: 100 })
+}
+
 function addHotkeysForNextAndPrevious() {
   window.addEventListener('keyup', ev => {
     if (!ev.altKey) return;
@@ -1124,6 +1538,7 @@ function addHotkeysForNextAndPrevious() {
 
 function autoplayNext() {
   // feature disabled for now, since crunchyroll uses iframes...
+  // TODO: actually now i am able to implement this...
   return;
   if (!isAllowed(userOptions.crunchyroll.featureAutoSkip.isEnabled)) return;
   const icon = addAutoplayInfoIcon();
@@ -1297,12 +1712,14 @@ function hasPokeballRewards() {
 }
 
 function adBlockTwitch() {
-  new Interval(() => {
+  if (Interval.exists('_adBlockTwitch')) return;
+  const _adBlockTwitch = () => {
     const videoEl = query('.video-player__container');
     if (!videoEl) return;
     videoEl.classList.remove('video-player__container--resize-calc');
     videoEl.firstElementChild.classList.remove('video-player--stream-display-ad');
-  }, 300).play();
+  };
+  new Interval(_adBlockTwitch, 300).play();
 }
 
 function applyPrimeRewardOptionsStyles() {
@@ -1341,15 +1758,17 @@ function startListenerForOpenedPrimePanel() {
 function addRemoveAllNonGamesButton(el) {
   if (!el) return;
   const div = document.createElement('div');
-  const [btn, btn2, btn3] = Array.from({length:3}, ()=>document.createElement('button'));
+  const [btn, btn2, btn3, btn4] = Array.from({length:4}, ()=>document.createElement('button'));
   btn.onclick = removeAllGames;
   btn2.onclick = removeAllNonGames;
   btn3.onclick = removeAllClaimed;
+  btn4.onclick = _twitch_claimGame;
   div.classList.add('dz-removeNonGameRewards');
   btn.innerText = 'Games';
   btn2.innerText = 'Other';
   btn3.innerText = 'Claimed';
-  div.prepend('remove', btn, btn2, btn3);
+  btn4.innerText = 'Games';
+  div.prepend('remove', btn, btn2, btn3, 'claim', btn4);
   el.prepend(div);
   insertCSS(`
     .dz-removeNonGameRewards {
@@ -1375,26 +1794,57 @@ function addRemoveAllNonGamesButton(el) {
     }
   `, undefined, true);
 }
-
+function getAllPrimeRewardContainers() {
+  return toArray(queryAll('.prime-offer'));
+}
+function getAllPrimeReward_Buttons_claimable_Games() {
+  return toArray(queryAll('.prime-claim-button [data-test-selector="test_selector_prime_tracking_button_wrapper"] > div button'));
+}
+function getAllPrimeReward_Container_all_games() {
+  return toArray([...getAllPrimeReward_Buttons_claimable_Games(), ...getAllPrimeRewardContainer_claimed()]);
+}
+function getAllPrimeRewardContainer_claimed() {
+  return toArray(queryAll('.prime-offer [data-a-target="prime-redeem-check"]'));
+}
+function getAllPrimeReward_Buttons_NonGames() {
+  return toArray(queryAll('.prime-claim-button [data-test-selector="test_selector_prime_tracking_button_wrapper"] > a'));
+}
+const _prime_reward_remove = el => el.closest('.prime-offer').querySelector('.prime-offer__dismiss button').click();
+function _twitch_claimGame() {
+  getAllPrimeReward_Buttons_claimable_Games().forEach(el => el.click());
+}
 function removeAllNonGames() {
-  Array.from(queryAll('.prime-claim')).filter(el=>el.textContent != 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+  getAllPrimeReward_Buttons_NonGames().forEach(el => _prime_reward_remove(el));
+  setTimeout(() => {
+    const all = getAllPrimeReward_Buttons_NonGames();
+    if (all.length === 1) all[0].remove();
+  }, 100);
 }
 function removeAllGames() {
-  Array.from(queryAll('.prime-claim')).filter(el=>el.textContent === 'Claim Game').forEach(el => el.parentElement.previousElementSibling.querySelector('button')?.click());
+  getAllPrimeReward_Container_all_games().forEach(el => _prime_reward_remove(el));
+  setTimeout(() => {
+    const all = getAllPrimeReward_Container_all_games();
+    if (all.length === 1) all[0].remove();
+  }, 100);
 }
 function removeAllClaimed() {
-  Array.from(queryAll('.prime-redeem__confirmation')).filter(el=>el.textContent === 'Claimed').forEach(el => el.closest('.prime-offer').querySelector('button')?.click());
+  getAllPrimeRewardContainer_claimed().forEach(el => _prime_reward_remove(el));
+  setTimeout(() => {
+    const all = getAllPrimeRewardContainer_claimed();
+    if (all.length === 1) all[0].remove();
+  }, 100);
 }
 
 const settingEl = () => query('.emote-picker__search-content-dark .my-settings__popup');
-let toggleMyOpt = () => settingEl().classList.toggle('hidden');
-const myOpt = load('twitchOpt') || {h: 2.2, w:3.5, x: 2.5};
+const toggleMyOpt = () => settingEl().classList.toggle('hidden');
 function adjustEmotePickerDimensions() {
-  setEmotePopupCSS()
+  let myOpt = load('twitchOpt') || {h: 2.2, w:3.5, x: 2.5};
+  setEmotePopupCSS(myOpt)
 
   // insertOptions
   const condition = () => query('.emote-picker__search-content-dark > div');
   repeatUntilCondition(()=>{
+    myOpt = load('twitchOpt') || {h: 2.2, w:3.5, x: 2.5};
     const insertTarget = condition();
     insertTarget.insertAdjacentHTML('afterend', `
     <button id="settingsEl" style="padding-left: 10px;">⚙️</button>
@@ -1410,24 +1860,24 @@ function adjustEmotePickerDimensions() {
       const target = settingsEl.parentElement;
       target.querySelector('#settingsEl').onclick = toggleMyOpt;
       settingsEl.querySelectorAll('.my-settings__popup input').forEach(i => {
-        i.onchange = (ev) => onChangeMyInput(ev);
+        i.onchange = (ev) => onChangeMyInput(ev, myOpt);
       });
     });
   }, condition);
 }
 
-function onChangeMyInput(ev) {
+function onChangeMyInput(ev, myOpt) {
   let val = Number.parseFloat(ev.target.value);
   if (!isNaN(val)) {
     const id = ev.srcElement.id.slice(-1).toLowerCase();
     val = val / 10;
     myOpt[id] = val;
     store('twitchOpt', myOpt);
-    setEmotePopupCSS();
+    setEmotePopupCSS(myOpt);
   }
 }
 
-function setEmotePopupCSS(opt = myOpt) {  
+function setEmotePopupCSS(opt) {  
   // numbers are default values by twitch
   const height = (30.5 * opt.h) + 'rem!important';
   const width = (32 * opt.w) + 'rem!important';
@@ -1465,19 +1915,19 @@ function setEmotePopupCSS(opt = myOpt) {
 
 const viewBonusStats = { history: [] };
 function collectViewBonusPointsAutomatically() {
-  const btnClicker = () => {
+  if (Interval.exists('collectViewBonusPointsAutomatically')) return;
+  const _collectViewBonusPointsAutomatically = () => {
     const streamer = location.pathname.substring(1);
     if (!streamer || !isAllowed(userOptions.twitch.featureAutoCollectReward.isEnabled)) return;
-    console.log(blue('scanning, looking for clickable view rewards...'));
     const btn = query('[class*="claimable-bonus"]')?.closest('button');
     if (btn) {
       const stamp = new Date();
-      console.log(green('Points collected!' + reset(` (time: ${stamp.toLocaleString()})`)));
+      console.info(green('Points collected!' + reset(` (time: ${stamp.toLocaleString()})`)));
       viewBonusStats.history.push(stamp);
       btn.click();
     }
   };
-  new Interval(btnClicker, 300, false);
+  new Interval(_collectViewBonusPointsAutomatically, 600, false);
 }
 
 // Fextralife
@@ -1540,7 +1990,7 @@ function fextralifeSortAlphabetically() {
   sortButton.textContent = ascending ? 'Z-A' : 'A-Z';
   const match = query('.tabcontent .row');
   if (!match) return;
-  console.log('sorting...');
+  console.info('sorting...');
   const original = Array.from(queryAll('.tabcontent .row')).map(v => Array.from(v.querySelectorAll('.wiki_tooltip'))).filter(v => v && v.length);
   const aTagsSorted = original.flat(1).sort((a, b) => {
     const textA = a.textContent.trim()[0];
@@ -1563,47 +2013,6 @@ function fextralifeSortAlphabetically() {
   })
 }
 
-// console coloring
-const Log = {
-  reset: "\x1b[0m",
-  bright: "\x1b[1m",
-  dim: "\x1b[2m",
-  underscore: "\x1b[4m",
-  blink: "\x1b[5m",
-  reverse: "\x1b[7m",
-  hidden: "\x1b[8m",
-  // Foreground (text) colors
-  fg: {
-    black: "\x1b[30m",
-    red: "\x1b[31m",
-    green: "\x1b[32m",
-    yellow: "\x1b[33m",
-    blue: "\x1b[34m",
-    magenta: "\x1b[35m",
-    cyan: "\x1b[36m",
-    white: "\x1b[37m",
-    crimson: "\x1b[38m"
-  },
-  // Background colors
-  bg: {
-    black: "\x1b[40m",
-    red: "\x1b[41m",
-    green: "\x1b[42m",
-    yellow: "\x1b[43m",
-    blue: "\x1b[44m",
-    magenta: "\x1b[45m",
-    cyan: "\x1b[46m",
-    white: "\x1b[47m",
-    crimson: "\x1b[48m"
-  }
-};
-const red = text => `${Log.fg.red}${text}${Log.reset}`;
-const purple = text => `${Log.fg.magenta}${text}${Log.reset}`;
-const yellow = text => `${Log.fg.yellow}${text}${Log.reset}`;
-const green = text => `${Log.fg.green}${text}${Log.reset}`;
-const blue = text => `${Log.fg.blue}${text}${Log.reset}`;
-const reset = text => `${Log.reset}${text}`;
-
 function error(val) {
   console.error('Utility.js Error: ' + val);
 }
@@ -1617,7 +2026,39 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.005,
+  version: 1.013,
+  'crunchyhook': {
+    featurePlayBackSpeed: {
+      featureName: 'PlayBackSpeed',
+      featureDescription: 'this feature will set the speed for video playback',
+      isEnabled: {
+        value: true,
+        label: 'PlayBackSpeed',
+        description: 'set your desired PlayBackSpeed',
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _crunchyhook_adjustVal(e, input)
+          },
+        }
+      }
+    }
+  },
+  'ds3cheatsheet': {
+    featureDarkMode: {
+      featureName: 'DarkMode',
+      featureDescription: 'this feature will turn on/off Dark Mode',
+      isEnabled: {
+        value: false,
+        label: 'Activate',
+        description: 'turn DarkMode on or off',
+        toggle: toggleDarkModeDs3CheatSheet
+      }
+    }
+  },
   '1movies': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -1773,6 +2214,24 @@ let userOptions = { // key must be match.site (saved as matcher globally)
             disabled: true,
             disabledReason: 'currently disabled, because this requires access to netflix API, will be added in the future'
           }
+        }
+      }
+    },
+    featurePlayBackSpeed: {
+      featureName: 'PlayBackSpeed',
+      featureDescription: 'this feature will set the speed for video playback',
+      isEnabled: {
+        value: true,
+        label: 'PlayBackSpeed',
+        description: 'set your desired PlayBackSpeed',
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _netflix_adjustVal(e, input)
+          },
         }
       }
     }

@@ -82,8 +82,13 @@ function toArray(arrayLike) {
 }
 function create(type, attributes = {}, options = {}) {
   const el = document.createElement(type, options);
-  for (const [option, value] of Object.entries(attributes)) {
-    el[option] = value;
+  for (const [attrName, value] of Object.entries(attributes)) {
+    if (['className', 'textContent'].includes(attrName)) {
+      // for some reason this will not be added to the element with setAttribute correctly
+      el[attrName] = value;
+    } else {
+      el.setAttribute(attrName, value);
+    }
   }
   return el;
 }
@@ -102,8 +107,8 @@ function clamp(val, maxMin) {
 /**
  * 
  * @param { () => void } fn function to call
- * @param { boolean } condition when to execute
- * @param {{ fnArgs?: *[], pauseInBg?: boolean, interval?: number, debounceTime?: number }} options
+ * @param { () => boolean } condition when to execute
+ * @param {{ fnArgs?: *[], pauseInBg?: boolean, interval?: number, debounceTime?: number, autoplay = true }} options
  * fnArgs: default [], arguments to call given function with
  * pauseInBg: default true, if true, interval will stop, when tab switch, or browser not in focus
  * interval: default 300, interval in which condition is checked
@@ -114,10 +119,11 @@ function repeatIfCondition(fn, condition = () => true, options = {}) {
   const fnArgs = options.fnArgs ?? [];
   const pauseInBg = options.pauseInBg ?? true;
   const interval = options.interval ?? 300
+  const autoplay = options.autoplay ?? true;
   const debounceTime = options.debounceTime ?? 0; // implement in future...
   return new Interval(function repeatIf() {
     if (condition()) fn(...fnArgs);
-  }, interval, pauseInBg);
+  }, interval, pauseInBg, undefined, autoplay);
 }
 
 function isNumber(val) {
@@ -676,7 +682,7 @@ function fixPogChamps() {
 }
 // fix ds3CheatSheet
 function fixDarkSouls3CheatSheet() {
-  insertCSS('body.cu-dark-mode { background-color: #1a1a1a; color: #c3c3c3; }');
+  insertCSS('body.cu-dark-mode { background-color: #1a1a1a; color: #c3c3c3; }', 'fixDarkSouls3CheatSheet');
   if (userOptions.ds3cheatsheet.featureDarkMode.isEnabled.value) {
     toggleDarkModeDs3CheatSheet();
   }
@@ -692,7 +698,7 @@ function fixAternos() {
     .vm-footer, .ad-dfp, .sidebar, .header-link-exaroton, .videoAdUiClickElement, .server-tutorials {
       display: none !important;
     }
-  `)
+  `, 'fixAternos');
 }
 
 // fix fandom.com
@@ -726,7 +732,7 @@ function fixFandom() {
         text-align: center;
         text-transform: uppercase;
         width: 100%;
-      }`);
+      }`, 'fixFandom');
       // fanfeed is added asynchronously, need to wait for it, and then execute code
       const getFanFeed = () => query('#mixed-content-footer');
       const fanFeedInView = () => Number.parseInt(getComputedStyle(getFanFeed()).height) > 50;
@@ -784,7 +790,7 @@ function fixFandom() {
 // fixPlayerWatch24
 function fixPlayerWatch24() {
   startGettingInformation();
-  insertCSS('.telegram-link {display:none}');
+  insertCSS('.telegram-link {display:none}', 'fixPlayerWatch24');
   autoplayPW24();
   initVolumeManager();
 }
@@ -997,7 +1003,7 @@ function fix1movies() {
   .cu-dark-mode #player_wrapper {
       background-color: #2a2a21 !important;
   }
-  `);
+  `, 'fix1movies');
   toggleDarkMode1Movies();
   rememberVideoPosition();
 }
@@ -1105,7 +1111,7 @@ const toggleUIVisible = (op) => {
 function immidiatlyRemoveUiWhenLeavingMouse() {
   const toggleAdd = () => setTimeout(toggleUIVisible('add'));
   const toggleRemove = () => setTimeout(toggleUIVisible('remove'));
-  insertCSS('.cu-hide { display: none !important; }');
+  insertCSS('.cu-hide { display: none !important; }', 'fixAmazonVideo');
   document.addEventListener('mouseleave', toggleRemove);
   document.addEventListener('mouseenter', toggleAdd);
 }
@@ -1472,12 +1478,41 @@ function removeNode(val) {
 
 // Crunchyroll
 function fixCrunchyroll() {
-  autoplayNext();
   addHotkeysForNextAndPrevious();
 }
 
 function crunchyrolliFrameHook() {
+  addCrunchySkipOptionListener();
+  startCrunchySkipInterval();
   initPlaybackOptionListener();
+}
+
+function addCrunchySkipOptionListener() {
+  const checked = userOptions.crunchyhook.featureAutoSkip.isEnabled.value;
+  const skipIntroInput = create('input', { type: 'checkbox', checked, className: 'cu_skipIntro', id: 'cu_skipIntro' });
+  const skipIntroContainer = create('div', { className: 'cu_skipIntroContainer' });
+  const skipIntroLabel = create('label', { className: 'cu_skipIntroLabel', textContent: 'AutoSkip', for: 'cu_skipIntro' });
+  skipIntroInput.addEventListener('change', ev => {
+    userOptions.crunchyhook.featureAutoSkip.isEnabled.value = ev.target.checked;
+    startCrunchySkipInterval();
+  });
+  skipIntroContainer.appendChild(skipIntroLabel);
+  skipIntroContainer.appendChild(skipIntroInput);
+  insertCSS(`
+    .cu_skipIntro { width: 50px; background-color: inherit; color: white; border: 1px solid rgb(40, 189, 187); padding: 2px 0 2px 25px; outline: none; cursor: pointer; }
+    .cu_skipIntroLabel { display: flex; align-items: center; cursor: pointer; }
+    .cu_skipIntroContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
+    .cu_skipIntroContainer:hover { background-color: rgb(35,37,43); }
+  `, 'addCrunchySkipOptionListener');
+  //  --- init Listener ---
+  const getMenu = () => query('#velocity-settings-menu div');
+  repeatIfCondition(() => {
+    const menu = getMenu();
+    const prevent = Array.from(menu.children).some(child => child.classList.contains('cu_skipIntroContainer'));
+    if (prevent) return;
+    skipIntroInput.value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    menu.insertBefore(skipIntroContainer, menu.firstElementChild);
+  }, getMenu, { interval: 100 })
 }
 
 const _crunchyhook_setPlayerValue = (val, playBackInput) => {
@@ -1500,25 +1535,26 @@ function videoChanged() {
 function initPlaybackOptionListener() {
   // --- prepare input Element to insert ---
   const _value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
-  const playBackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value: _value, className: 'cu_playback' });
+  const playBackInput = create('input', { type: 'number', id: 'cu_playback', step: '0.1', min: '0.2', max: '5', value: _value, className: 'cu_playback' });
   repeatIfCondition(() => _crunchyhook_setPlayerValue(userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput), videoChanged, { pauseInBg: false, interval: 500 });
   const playBackContainer = create('div', { className: 'cu_playBackContainer' });
-  const playBackLabel = create('div', { className: 'cu_playBackLabel', textContent: 'playBackSpeed' });
+  const playBackLabel = create('label', { className: 'cu_playBackLabel', textContent: 'playBackSpeed', for: 'cu_playback' });
   playBackInput.addEventListener('keydown', e => _crunchyhook_adjustVal(e, playBackInput));
   playBackInput.addEventListener('input', e => _crunchyhook_adjustVal(e, playBackInput));
   playBackContainer.appendChild(playBackLabel);
   playBackContainer.appendChild(playBackInput);
   insertCSS(`
     .cu_playback { width: 50px; background-color: inherit; color: white; border: 1px solid rgb(40, 189, 187); padding: 2px 0 2px 25px; outline: none }
-    .cu_playBackLabel { display: flex; align-items: center; }
-    .cu_playBackContainer { display: flex; justify-content: space-between; padding: 10px 19px 3px; color: white; font-size: 14px; }
-  `);
+    .cu_playBackLabel { display: flex; align-items: center; cursor: pointer; }
+    .cu_playBackContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
+    .cu_playBackContainer:hover { background-color: rgb(35,37,43); }
+  `, 'initPlaybackOptionListener');
 
   //  --- init Listener ---
   const getMenu = () => query('#velocity-settings-menu div');
   repeatIfCondition(() => {
     const menu = getMenu();
-    const prevent = menu.firstElementChild.classList.contains('cu_playBackContainer');
+    const prevent = Array.from(menu.children).some(child => child.classList.contains('cu_playBackContainer'));
     if (prevent) return;
     playBackInput.value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
     menu.insertBefore(playBackContainer, menu.firstElementChild);
@@ -1536,27 +1572,18 @@ function addHotkeysForNextAndPrevious() {
   });
 }
 
-function autoplayNext() {
-  // feature disabled for now, since crunchyroll uses iframes...
-  // TODO: actually now i am able to implement this...
-  return;
-  if (!isAllowed(userOptions.crunchyroll.featureAutoSkip.isEnabled)) return;
-  const icon = addAutoplayInfoIcon();
-  const video = query('video');
-  const nextVideo = query('.c-playable-card-mini__link');
-  if (!video || !nextVideo || !icon) return;
-  icon.textContent = 'autoskip active';
-  const skipAt = video.duration - userOptions.crunchyroll.featureAutoSkip.skipVideo.value;
-  video.ontimeupdate = () => {
-    if (video.duration >= skipAt) nextVideo.click();
-  };
-}
-function addAutoplayInfoIcon() {
-  const metaInfo = query('.current-media-parent-ref');
-  if (!metaInfo) return;
-  const div = document.createElement('div');
-  metaInfo.appendChild(div);
-  return div;
+/** @type {Interval} */
+let _crunchySkipInterval = null;
+function startCrunchySkipInterval() {
+  if (!isAllowed(userOptions.crunchyhook.featureAutoSkip.isEnabled)) {
+    _crunchySkipInterval?.pause();
+    return;
+  }
+  const getSkipBtn = () => document.querySelector('[data-testid="skipButton"] div');
+  if (!_crunchySkipInterval) {
+    _crunchySkipInterval = repeatIfCondition(() => getSkipBtn().click(), getSkipBtn, { autoplay: false });
+  }
+  _crunchySkipInterval.play();
 }
 // GlobalFix
 function fixForAllWebsites() {
@@ -1583,7 +1610,7 @@ function fixImages() {
       height: auto;
       overflow: auto;
     }
-  `);
+  `, 'fixImages');
 }
 
 // Twitch
@@ -1597,7 +1624,7 @@ function fixTwitch() {
 }
 
 function styleAdjustTwitch() {
-  insertCSS('.chat-shell__expanded [direction="top-right"] { bottom: 0 !important }');
+  insertCSS('.chat-shell__expanded [direction="top-right"] { bottom: 0 !important }', 'styleAdjustTwitch');
 }
 // Hotkeys:
 // Shift + Num9 = 1 Pokeball
@@ -1792,7 +1819,7 @@ function addRemoveAllNonGamesButton(el) {
       color: black;
       background: antiquewhite;
     }
-  `, undefined, true);
+  `, 'addRemoveAllNonGamesButton', true);
 }
 function getAllPrimeRewardContainers() {
   return toArray(queryAll('.prime-offer'));
@@ -2026,27 +2053,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.013,
-  'crunchyhook': {
-    featurePlayBackSpeed: {
-      featureName: 'PlayBackSpeed',
-      featureDescription: 'this feature will set the speed for video playback',
-      isEnabled: {
-        value: true,
-        label: 'PlayBackSpeed',
-        description: 'set your desired PlayBackSpeed',
-        subFeatures: {
-          playBackSpeed: {
-            value: 1,
-            min: 0.2,
-            max: 5,
-            step: 0.1,
-            toggle: (e, input) => _crunchyhook_adjustVal(e, input)
-          },
-        }
-      }
-    }
-  },
+  version: 1.014,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2154,32 +2161,40 @@ let userOptions = { // key must be match.site (saved as matcher globally)
       }
     }
   },
-  crunchyroll: {
-    featureAutoSkip: {
-      featureName: 'AutoSkip',
-      featureDescription: 'this feature automatically skips the Outro/Intro',
-      skipVideo: {
-        value: 75,
-        hideFromUser: true
-      },
+  crunchyhook: {
+    featurePlayBackSpeed: {
+      featureName: 'PlayBackSpeed',
+      featureDescription: 'this feature will set the speed for video playback',
       isEnabled: {
-        value: false,
-        label: 'Activate',
-        disabled: true,
-        disabledReason: 'the feature is currently disabled, because crunchyroll is using iframes with content policy, making it difficult to implement this. Maybe I can find a fix in the future.',
+        value: true,
+        label: 'PlayBackSpeed',
+        description: 'set your desired PlayBackSpeed',
         subFeatures: {
-          skipIntro: {
-            value: true,
-            label: 'Openings',
-            description: 'will skip Intros / Recaps at the beginning of Videos'
-          },
-          skipOutro: {
-            value: true,
-            label: 'Outros',
-            description: 'will skip outro / ending / credits at the end of Videos'
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _crunchyhook_adjustVal(e, input)
           },
         }
       }
+    },
+    featureAutoSkip: {
+      featureName: 'AutoSkip',
+      featureDescription: 'automatically skip Intro',
+      isEnabled: {
+        value: false,
+        label: 'Activate',
+        description: 'turn skipping on or off',
+        toggle: startCrunchySkipInterval
+      }
+    }
+  },
+  crunchyroll: {
+    featureAutoSkip: {
+      featureName: 'AutoSkip',
+      featureDescription: 'click settings icon and check the checkbox to automatically skip intros'
     }
   },
   netflix: {

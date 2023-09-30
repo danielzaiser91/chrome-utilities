@@ -440,12 +440,13 @@ function prepareActionBar() {
       user-select: none;
       font-size: 19px;
       line-height: 0.9;
+      width: 100%;
     }
     .cu-action-row label {
       margin: 0;
       font-weight: 400;
     }
-    .cu-disabled .cu-action-row label {
+    .cu-disabled label {
       border-bottom: 1px dotted;
     }
     .cu-feature-row {
@@ -455,6 +456,9 @@ function prepareActionBar() {
 
     .cu-disabled {
       color: #b97777;
+    }
+    .cu-space-between {
+      justify-content: space-between;
     }
 
     .cu-subfeatures .cu-action-row {
@@ -511,46 +515,53 @@ function getNestedValue(obj, accessorArray) {
   return typeof val === 'object' ? getNestedValue(val, accessorArray) : val;
 }
 
-function renderFeatureRow(featureRow, key, value, optKeys, isDisabled) {
+function renderFeatureRow(featureRow, key, value, optKeys) {
   const feature = value;
-  const isNum = isNumber(feature.value);
   if (feature.hideFromUser) return;
+  const isNum = isNumber(feature.value);
+  const isText = typeof feature.value === 'string';
+  const typeIndex = [isNum, isText].findIndex(e => e === true);
+  const isCheckbox = typeIndex === -1;
+  const inputType = isCheckbox ? 'checkbox' : ['number', 'text'][typeIndex]
   const row = document.createElement('div');
   row.classList.add('cu-action-row');
+  if (!isCheckbox) row.classList.add('cu-space-between');
   const input = document.createElement('input');
-  input.setAttribute('type', isNum ? 'number' : 'checkbox');
+  input.setAttribute('type', inputType);
   const id = 'cu-' + optKeys.join('-');
   input.setAttribute('id', id);
-  let tooltip = feature.description;
-  if (feature.disabled || isDisabled) {
+  let tooltip = feature.description ?? '';
+  if (feature.disabled || !feature.hasOwnProperty('value')) {
     input.setAttribute('disabled', true);
     tooltip = feature.disabledReason ?? '';
     input.setAttribute('disabled', true);
-    if (feature.disabledReason) featureRow.classList.add('cu-disabled');
+    if (feature.disabledReason) row.classList.add('cu-disabled');
   }
-  featureRow.setAttribute('title', tooltip);
-  if (!isNum) {
+  row.setAttribute('title', tooltip);
+  if (isCheckbox) {
     input.checked = feature.value;
-  } else {
+  } else if (isNum) {
     input.value = feature.value;
     input.min = feature.min;
     input.max = feature.max;
     input.step = feature.step;
+  } else if (isText) {
+    input.value = feature.value;
   }
   const changeValEvent = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    let val = input.value;
-    if (isNum) val = clamp(val, { max: input.max, min: input.min });
+    const val = isNum ? clamp(input.value, { max: input.max, min: input.min })
+    : isCheckbox ? input.checked : input.value;
     if (optKeys.length === 3) {
       // todo: Make nested userOption Access dynamic
       // getNestedValue(userOptions, [...optKeys]).value
-      userOptions[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].value = !isNum ? input.checked : val;
+      userOptions[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].value = val;
       if (defaultSettings[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].toggle) {
         defaultSettings[optKeys[0]][optKeys[1]][optKeys[2]]['subFeatures'][key].toggle(event, input);
       }
     } else if (optKeys.length === 2) {
-      userOptions[optKeys[0]][optKeys[1]][key].value = !isNum ? input.checked : val;
+      userOptions[optKeys[0]][optKeys[1]][key].value = val;
       if (defaultSettings[optKeys[0]][optKeys[1]][key].toggle) {
         defaultSettings[optKeys[0]][optKeys[1]][key].toggle(event, input);
       }
@@ -566,14 +577,14 @@ function renderFeatureRow(featureRow, key, value, optKeys, isDisabled) {
   label.textContent = feature.label;
   label.setAttribute('for', id);
 
-  row.appendChild(input);
   row.appendChild(label);
+  row.appendChild(input);
   featureRow.appendChild(row);
   if (feature.subFeatures) {
     const subrows = document.createElement('div');
     subrows.classList.add('cu-subfeatures');
     Object.entries(feature.subFeatures).forEach(([kk, vv]) => {
-      renderFeatureRow(subrows, kk, vv, [...optKeys, key], feature.disabled || !feature.value);
+      renderFeatureRow(subrows, kk, vv, [...optKeys, key]);
     });
     featureRow.appendChild(subrows);
   }
@@ -662,7 +673,8 @@ function websiteSelector() {
     new Matcher('fandom.com', fixFandom),
     new Matcher('zkjellberg.github.io/dark-souls-3-cheat-sheet', fixDarkSouls3CheatSheet, true, 'ds3CheatSheet'),
     new Matcher('pogchamps.gg', fixPogChamps, false),
-    new Matcher('aternos.org', fixAternos, false)
+    new Matcher('aternos.org', fixAternos, false),
+    new Matcher('disneyplus.com', fixDisneyPlus, true)
   ];
   const match = websiteMatcher.find(v => location.href.includes(v.match));
   if (!match) return console.info(yellow(`no utility fix for this website found`));;
@@ -691,7 +703,37 @@ function toggleDarkModeDs3CheatSheet() {
   document.body.classList.toggle('cu-dark-mode');
 }
 
+// TODO: Refactor userOptions to also be able to add inputs etc.
+// fix DisneyPlus
+function fixDisneyPlus() {
+  activateAutoLoginListener();
+}
 
+let _disneyautoLoginListener;
+function toggleDisneyAutoLoginListener() {
+  !_disneyautoLoginListener.isPlaying ?  _disneyautoLoginListener.play() : _disneyautoLoginListener.pause();
+}
+
+function activateAutoLoginListener() {
+  let currentlyRunning = false;
+  _disneyautoLoginListener = repeatIfCondition(() => {
+    if (!isAllowed(userOptions.disneyplus.featureAutoLogin.isEnabled) || currentlyRunning) return;
+    currentlyRunning = true;
+    const feature = userOptions.disneyplus.featureAutoLogin.isEnabled.subFeatures;
+    const username = feature.profilename.value;
+    const pin = feature.pin.value;
+    const profileEl = Array.from(document.querySelectorAll('.profile-avatar-appear-done div')).find(el => el.querySelector('h3')?.textContent === username);
+    if (!profileEl) return currentlyRunning = false;
+    profileEl.click();
+    const ref = () => document.querySelectorAll('[data-gv2elementkey="pin"] input');
+    const condition = () => ref()?.length && location.pathname.includes('enter-pin');
+    repeatUntilCondition(() => {
+      const inputs = Array.from(ref());
+      currentlyRunning = false;
+      // inputs.forEach((input, i) => input.value = pin[i]);
+    }, () => condition());
+  }, () => location.pathname.includes('select-profile'), { pauseInBg: false, interval: 500 });
+}
 // fix Aternos
 function fixAternos() {
   insertCSS(`
@@ -1053,7 +1095,7 @@ function rememberVideoPosition() {
 
 // Amazon
 let amazonSkipLoop = null;
-const getAmazonSkipRecapBtn = () => query('.dv-player-fullscreen [class*="nextupcard-wrapper"]~div button');
+const getAmazonSkipRecapBtn = () => query('.atvwebplayersdk-adtimeindicator-text')?.parentElement.parentElement.querySelector('div:nth-child(2)')?.firstElementChild
 const getAmazonSkipAdvertBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)');
 const getAmazonSkipAdvertBtn2 = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div');
 const getAmazonSkipAdvertBtn3 = () => {
@@ -1281,7 +1323,10 @@ function addAutoSkipIntroButton() {
   parent.insertBefore(copyChild, parent.children[0]);
 }
 
-function toggleAutoSkipIntro(el = query('.button-autoSkipToggle')) {
+function toggleAutoSkipIntro(el) {
+  if (!el?.classList?.includes('button-autoSkipToggle')) {
+    el = query('.button-autoSkipToggle');
+  }
   if (!Interval.exists('_netflix_skip')) {
     _netflix_autoSkipInterval = new Interval(_netflix_skip, 300, false);
   }
@@ -2053,7 +2098,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.014,
+  version: 1.017,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2063,6 +2108,29 @@ let userOptions = { // key must be match.site (saved as matcher globally)
         label: 'Activate',
         description: 'turn DarkMode on or off',
         toggle: toggleDarkModeDs3CheatSheet
+      }
+    }
+  },
+  disneyplus: {
+    featureAutoLogin: {
+      featureName: 'AutoLogin',
+      featureDescription: 'this feature will log you into your Profile automatically',
+      isEnabled: {
+        value: true,
+        label: 'Enable Feature',
+        description: 'enter Name and pin, to auto login',
+        subFeatures: {
+          profilename: {
+            label: 'Profilename',
+            value: ''
+          },
+          pin: {
+            label: 'Pin',
+            value: '',
+            disabled: true,
+            disabledReason: 'disney checks for trusted events, making it impossible to set the pin automatically...',
+          }
+        }
       }
     }
   },
@@ -2194,13 +2262,13 @@ let userOptions = { // key must be match.site (saved as matcher globally)
   crunchyroll: {
     featureAutoSkip: {
       featureName: 'AutoSkip',
-      featureDescription: 'click settings icon and check the checkbox to automatically skip intros'
+      featureDescription: 'automatically clicks the "skip intro" button for you -> select it in the players ⚙️'
     }
   },
   netflix: {
     featureAutoSkip: {
       featureName: 'AutoSkip',
-      featureDescription: 'this feature will automatically skip Intro/Outro',
+      featureDescription: 'this feature will automatically click the button "skip Intro/Outro" for you',
       isEnabled: {
         value: false,
         label: 'Activate',

@@ -67,8 +67,11 @@ const blue = text => `${Log.fg.blue}${text}${Log.reset}`;
 const reset = text => `${Log.reset}${text}`;
 
 // other
+/** @returns {HTMLElement | null} */
 const query = str => document.querySelector(str);
+/** @returns {NodeList[]} */
 const queryAll = str => document.querySelectorAll(str);
+/** @returns {HTMLElement | null} */
 const byId = str => document.getElementById(str);
 /**
  * 
@@ -80,6 +83,8 @@ const byId = str => document.getElementById(str);
 function toArray(arrayLike) {
   return Array.from(arrayLike);
 }
+
+/** @returns {HTMLElement} */
 function create(type, attributes = {}, options = {}) {
   const el = document.createElement(type, options);
   for (const [attrName, value] of Object.entries(attributes)) {
@@ -105,14 +110,31 @@ function clamp(val, maxMin) {
 }
 
 /**
+ * would be cool if i could use this instead of below inline jsdoc... but on hover it just says options: Option... useless
+ * @typedef { Object } Option
+ * @property {any[] | undefined} fnArgs: default [], arguments to call given function with
+ * @property {boolean | undefined} pauseInBg: default true, if true, interval will stop, when tab switch, or browser not in focus
+ * @property {number | undefined} interval: default 300, interval in which condition is checked
+ * @property {number | undefined} debounceTime: default 0, not implemented yet...
+ * @property {boolean | undefined} autoplay: default true, if it should start with isPlaying true
+ */
+
+/**
  * 
  * @param { () => void } fn function to call
  * @param { () => boolean } condition when to execute
- * @param {{ fnArgs?: *[], pauseInBg?: boolean, interval?: number, debounceTime?: number, autoplay = true }} options
+ * @param {{ fnArgs?: any[]; pauseInBg?: boolean; interval?: number; debounceTime?: number; autoplay: boolean; }} options
+ * 
  * fnArgs: default [], arguments to call given function with
+ * 
  * pauseInBg: default true, if true, interval will stop, when tab switch, or browser not in focus
+ * 
  * interval: default 300, interval in which condition is checked
+ * 
  * debounceTime: default 0, not implemented yet...
+ * 
+ * autoplay: if it should start with isPlaying true, default true
+ * 
  * @returns 
  */
 function repeatIfCondition(fn, condition = () => true, options = {}) {
@@ -1109,8 +1131,11 @@ const getAmazonPlayPauseBtn = () => query('.dv-player-fullscreen .atvwebplayersd
 const getAmazonForwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekforward-button');
 function toggleAmazonSkip() { !amazonSkipLoop.isPlaying ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
 function fixAmazon() {  
+  // feature skip recap / ad / click next episode
   const condition = () => getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn() || getAmazonSkipAdvertBtn2() || getAmazonSkipAdvertBtn3();
   amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, { pauseInBg: false });
+
+  // feature: allow space and arrow keys to use video controls always
   window.addEventListener('keydown', (event) => {
     switch (event.code) {
       case 'Space': return getAmazonPlayPauseBtn()?.click();
@@ -1120,16 +1145,65 @@ function fixAmazon() {
     }
   });
 
-  // repeat until video is playing (dont execute on amazon normal view)
-  // TODO: change to repeatif pattern, to be executed once, whenever a video is started, removing the eventlisteners
-  
-  repeatUntilCondition(
-    immidiatlyRemoveUiWhenLeavingMouse,
-    () => {
-      const atvEl = query('.dv-player-fullscreen .atvwebplayersdk-overlays-container');
-      return atvEl && getComputedStyle(atvEl).cursor === 'default';
-    }
-  );
+  // feature add a button for playbackRate
+  addPlayBackRateButton();
+
+  // feature: remove xray when mouse leaves window immidiatly (no fade-out animation or delay)
+  immidiatlyRemoveUiWhenLeavingMouse();
+}
+
+const _amazon_setPlayerValue = (val, playBackInput) => {
+  if (Number.isNaN(val)) return;
+  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
+  userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
+  updateAmznVideoPlayrate(val);
+}
+const _amazon_adjustVal = (e, playBackInput) => {
+  e.stopPropagation();
+  if (!e.srcElement?.value) return;
+  const newValue = +(+e.srcElement.value)?.toFixed(2);
+  _amazon_setPlayerValue(newValue, playBackInput);
+}
+function updateAmznVideoPlayrate(val) {
+  /** @type {HTMLVideoElement} */
+  const video = query('.rendererContainer video');
+  if (video) {
+    video.playbackRate = val;
+  }
+}
+
+function addPlayBackRateButton() {
+  const amazonVideoPlaying = () => query('.dv-player-fullscreen');
+  const _addPlayBackRateButton = () => {
+    const container = query('.atvwebplayersdk-hideabletopbuttons-container div');
+    const div = create('div', { className: 'cu-playback-rate' });
+    const svg = `<svg fill="#82bf9a" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20px" height="20px" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve" transform="rotate(60)" stroke="#82bf9a">
+    <g id="SVGRepo_bgCarrier" stroke-width="0"/>
+    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="1.024"/>
+    <g id="SVGRepo_iconCarrier"> <g> <path d="M256,0C114.609,0,0,114.609,0,256s114.609,256,256,256s256-114.609,256-256S397.391,0,256,0z M256,472 c-119.297,0-216-96.703-216-216S136.703,40,256,40s216,96.703,216,216S375.297,472,256,472z"/> <g> <path d="M350.281,169.609l-23.594,21.625C343.016,209.047,352,232.047,352,256c0,52.938-43.062,96-96,96s-96-43.062-96-96 s43.062-96,96-96v-32c-70.578,0-128,57.422-128,128s57.422,128,128,128s128-57.422,128-128 C384,224.016,372.031,193.344,350.281,169.609z"/> <polygon points="272,262.391 307.188,138.688 240,249.609 248,272 "/> </g> </g> </g>
+    </svg>`;
+    insertCSS(`
+      .cu-playback-rate { margin-right: 20px; }
+      .cu-playback-rate:hover { cursor: pointer; }
+    `, 'cu-playback-rate');
+    const playbackSettings = create('div', { className: 'cu-hide cu-playback-settings' });
+    const value = userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    const playbackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback' });
+    updateAmznVideoPlayrate(value);
+    playbackInput.addEventListener('keydown', e => _amazon_adjustVal(e, playbackInput));
+    playbackInput.addEventListener('input', e => _amazon_adjustVal(e, playbackInput));
+    playbackSettings.prepend(playbackInput)
+    div.onclick = () => playbackSettings.classList.toggle('cu-hide');
+    div.insertAdjacentHTML('afterbegin', svg);
+    container.prepend(div, playbackSettings);
+  }
+  const checkIfNeedToAddIcon = () => {
+    if (query('.atvwebplayersdk-hideabletopbuttons-container .cu-playback-rate')) return;
+    if(!query('.atvwebplayersdk-hideabletopbuttons-container')) return;
+    _addPlayBackRateButton();
+  }
+  // repeat until there is a video, then check if the element already has the playback button added
+  repeatIfCondition(checkIfNeedToAddIcon, amazonVideoPlaying);
 }
 
 function cleanupATV() {
@@ -1138,6 +1212,7 @@ function cleanupATV() {
 }
 
 const toggleUIVisible = (op) => {
+  if (disableFeature) return;
   // const subtitlesEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
   const topActionBarEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)');
   const bottomActionBarEl = query('.atvwebplayersdk-bottompanel-container');
@@ -1149,13 +1224,16 @@ const toggleUIVisible = (op) => {
   [topActionBarEl, bottomActionBarEl, opacityOverlayEl, centerActionsEl, titleEl, subtitleEl].filter(e=>!!e).forEach(e => 
     op === 'remove' ? e.classList.add('cu-hide') : e.classList.remove('cu-hide'));
 };
-
+let disableFeature = true;
 function immidiatlyRemoveUiWhenLeavingMouse() {
   const toggleAdd = () => setTimeout(toggleUIVisible('add'));
   const toggleRemove = () => setTimeout(toggleUIVisible('remove'));
   insertCSS('.cu-hide { display: none !important; }', 'fixAmazonVideo');
   document.addEventListener('mouseleave', toggleRemove);
   document.addEventListener('mouseenter', toggleAdd);
+
+  const amazonVideoPlaying = () => query('.dv-player-fullscreen');
+  repeatIfCondition(() => disableFeature = !amazonVideoPlaying(), amazonVideoPlaying, { interval: 1000 });
 }
 
 let executionBlock = {
@@ -1231,10 +1309,9 @@ const _netflix_adjustVal = (e, playBackInput) => {
 function _netflix_speed_custom_control() {
   // add user option to allow this feature
   const value = userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
-  const playBackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback' });
+  const playBackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback cu-playbackSpeedInput' });
   insertCSS('.cu-playbackSpeedContainer { display: flex; justify-content: space-between }', 'cu-playbackSpeedContainer');
   insertCSS('.cu-playbackSpeedInput { color: black; font-size: 24px; }', 'cu-playbackSpeedInput');
-  playBackInput.classList.add('cu-playbackSpeedInput');
   playBackInput.addEventListener('keydown', e => _netflix_adjustVal(e, playBackInput));
   playBackInput.addEventListener('input', e => _netflix_adjustVal(e, playBackInput));
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
@@ -2098,7 +2175,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.017,
+  version: 1.018,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2168,6 +2245,24 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     }
   },
   amazon: {
+    featurePlayBackSpeed: {
+      featureName: 'PlayBackSpeed',
+      featureDescription: 'this feature will set the speed for video playback',
+      isEnabled: {
+        value: true,
+        label: 'PlayBackSpeed',
+        description: 'set your desired PlayBackSpeed',
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _amazon_adjustVal(e, input)
+          },
+        }
+      }
+    },
     featureAutoSkip: {
       featureName: 'AutoSkip',
       featureDescription: 'automatically skip Intro, Recaps and Adverts',

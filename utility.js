@@ -1482,7 +1482,7 @@ function noInterestButton() {
     if (!videos || !videos.length) return;
     videos.forEach(vid => {
       const isShorts = vid.parentElement.tagName === 'ytd-rich-grid-slim-media'.toUpperCase();
-      const videoRef = isShorts ? 'short' : vid.querySelector('a').href?.match('(?<=v=).*')?.[0];
+      const videoRef = isShorts ? 'short' : vid.querySelector('a#thumbnail').href?.match('(?<=v=).*')?.[0];
       if (!isShorts && videoRef) insertCSS(`.cu-vidref-${videoRef} .cu-vidref-${videoRef} .cu-no-interest{display:block}`,videoRef);
       vid.classList.add('cu-no-interest-container', 'cu-vidref-'+videoRef);
       const div = create('div', {className:'cu-no-interest'});
@@ -1517,7 +1517,7 @@ function noInterestButton() {
   repeatUntilCondition(() => {
     const previewEl = getPreviewEl();
     previewEl.addEventListener('mouseenter', () => {
-      lastHoveredPreview = previewEl.querySelector('a[href]').href?.match('(?<=v=).*')?.[0];
+      lastHoveredPreview = previewEl.querySelector('#media-container-link')?.href?.match('(?<=v=).*')?.[0];
       if (!lastHoveredPreview) return;
       document.body.classList.add('cu-vidref-'+lastHoveredPreview);
     }, getPreviewEl);

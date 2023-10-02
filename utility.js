@@ -1481,9 +1481,10 @@ function noInterestButton() {
     const videos = allVideos();
     if (!videos || !videos.length) return;
     videos.forEach(vid => {
-      const videoRef = vid.querySelector('a').href?.match('(?<=v=).*')?.[0];
-      if (videoRef) insertCSS(`.${videoRef} .${videoRef} .cu-no-interest{display:block}`,videoRef);
-      vid.classList.add('cu-no-interest-container', videoRef);
+      const isShorts = vid.parentElement.tagName === 'ytd-rich-grid-slim-media'.toUpperCase();
+      const videoRef = isShorts ? 'short' : vid.querySelector('a').href?.match('(?<=v=).*')?.[0];
+      if (!isShorts && videoRef) insertCSS(`.cu-vidref-${videoRef} .cu-vidref-${videoRef} .cu-no-interest{display:block}`,videoRef);
+      vid.classList.add('cu-no-interest-container', 'cu-vidref-'+videoRef);
       const div = create('div', {className:'cu-no-interest'});
       div.onclick = () => {
         const dropdownTrigger = vid.querySelector('#button.dropdown-trigger button');
@@ -1503,23 +1504,27 @@ function noInterestButton() {
     });
   }
   insertCSS(`
-    .cu-no-interest{position:absolute;top:0;left:0;display:none;background:white;z-index:9999;border-radius:50%;}
+    .cu-no-interest{position:absolute;top:0;left:0;display:none;background:white;z-index:2;border-radius:50%;}
     .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-no-interest-container:hover .cu-no-interest{display:block}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
+    .cu-vidref-short .cu-no-interest{display:block}
   `, 'cu-no-interest');
   repeatIfCondition(() => {
     _addNoInterestIcon();
   }, allVideos, { interval: 1000 });
-  const previewEl = query('#video-preview');
-  previewEl.addEventListener('mouseenter', () => {
-    lastHoveredPreview = previewEl.querySelector('a').href?.match('(?<=v=).*')?.[0];
-    if (!lastHoveredPreview) return;
-    document.body.classList.add(lastHoveredPreview);
-  });
-  previewEl.addEventListener('mouseleave', () => {
-    document.body.classList.remove(lastHoveredPreview);
-    lastHoveredPreview = '';
+  const getPreviewEl = () => query('#video-preview');
+  repeatUntilCondition(() => {
+    const previewEl = getPreviewEl();
+    previewEl.addEventListener('mouseenter', () => {
+      lastHoveredPreview = previewEl.querySelector('a[href]').href?.match('(?<=v=).*')?.[0];
+      if (!lastHoveredPreview) return;
+      document.body.classList.add('cu-vidref-'+lastHoveredPreview);
+    }, getPreviewEl);
+    previewEl.addEventListener('mouseleave', () => {
+      document.body.classList.remove('cu-vidref-'+lastHoveredPreview);
+      lastHoveredPreview = '';
+    });
   });
 }
 let lastHoveredPreview = '';

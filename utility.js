@@ -1474,6 +1474,8 @@ function fixYoutube() {
   */
   // initShortsControl();
 }
+
+let ytContainerIndex = 0;
 function noInterestButton() {
   const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
   const svg = '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false" style="display: block; width: 100%; height: 100%;"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';
@@ -1481,10 +1483,15 @@ function noInterestButton() {
     const videos = allVideos();
     if (!videos || !videos.length) return;
     videos.forEach(vid => {
-      const isShorts = vid.parentElement.tagName === 'ytd-rich-grid-slim-media'.toUpperCase();
-      const videoRef = isShorts ? 'short' : vid.querySelector('a#thumbnail').href?.match('(?<=v=).*')?.[0];
-      if (!isShorts && videoRef) insertCSS(`.cu-vidref-${videoRef} .cu-vidref-${videoRef} .cu-no-interest{display:block}`,videoRef);
-      vid.classList.add('cu-no-interest-container', 'cu-vidref-'+videoRef);
+      const id = 'cu-hovered-container-'+ ++ytContainerIndex;
+      vid.classList.add(id);
+      vid.addEventListener('mouseenter', () => document.body.classList.add(id));
+      // const isShorts = vid.parentElement.tagName === 'ytd-rich-grid-slim-media'.toUpperCase();
+      // const videoRef = isShorts ? 'short' : vid.querySelector('a#video-title-link').href?.match('(?<=v=).*')?.[0];
+      // if (!isShorts && videoRef) insertCSS(`.cu-vidref-${videoRef} .cu-vidref-${videoRef} .cu-no-interest{display:block}`,videoRef);
+      // vid.classList.add('cu-no-interest-container', 'cu-vidref-'+videoRef);
+      insertCSS(`.${id} .${id} .cu-no-interest{display:block}`,id);
+      vid.classList.add('cu-no-interest-container');
       const div = create('div', {className:'cu-no-interest'});
       div.onclick = () => {
         const dropdownTrigger = vid.querySelector('#button.dropdown-trigger button');
@@ -1506,9 +1513,10 @@ function noInterestButton() {
   insertCSS(`
     .cu-no-interest{position:absolute;top:0;left:0;display:none;background:white;z-index:2;border-radius:50%;}
     .cu-no-interest-container{position:relative; cursor:pointer}
-    .cu-no-interest-container:hover .cu-no-interest{display:block}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
-    .cu-vidref-short .cu-no-interest{display:block}
+    
+    // .cu-no-interest-container:hover .cu-no-interest{display:block}
+    // .cu-vidref-short .cu-no-interest{display:block}
   `, 'cu-no-interest');
   repeatIfCondition(() => {
     _addNoInterestIcon();
@@ -1516,18 +1524,20 @@ function noInterestButton() {
   const getPreviewEl = () => query('#video-preview');
   repeatUntilCondition(() => {
     const previewEl = getPreviewEl();
-    previewEl.addEventListener('mouseenter', () => {
-      lastHoveredPreview = previewEl.querySelector('#media-container-link')?.href?.match('(?<=v=).*')?.[0];
-      if (!lastHoveredPreview) return;
-      document.body.classList.add('cu-vidref-'+lastHoveredPreview);
-    }, getPreviewEl);
+    // previewEl.addEventListener('mouseenter', () => {
+    //   lastHoveredPreview = previewEl.querySelector('#media-container-link')?.href?.match('(?<=v=).*')?.[0];
+    //   if (!lastHoveredPreview) return;
+    //   document.body.classList.add('cu-vidref-'+lastHoveredPreview);
+    // }, getPreviewEl);
     previewEl.addEventListener('mouseleave', () => {
-      document.body.classList.remove('cu-vidref-'+lastHoveredPreview);
-      lastHoveredPreview = '';
+      const toRemove = Array.from(document.body.classList).filter(c=>c.includes('cu-hovered-container'));
+      if (!toRemove.length) return;
+      document.body.classList.remove(...toRemove);
+      // lastHoveredPreview = '';
     });
   });
 }
-let lastHoveredPreview = '';
+// let lastHoveredPreview = '';
 function addControlsToShorts(shortsGetter) {
   const shorts = shortsGetter();
   shorts.forEach(short => {

@@ -1445,7 +1445,7 @@ const initDateVisibilityListener = () => {
   const condition = () => query().length;
   repeatUntilCondition(fixShowingDateByRemovingTextFromIcons, condition, [query]);
 }
-
+/*
 const ShortsRegistryOfListeners = new Set();
 const initShortsControl = () => {
   const query = () => queryAll('ytd-reel-video-renderer');
@@ -1465,6 +1465,7 @@ const initShortsControl = () => {
   // repeatIfCondition(addListenerOnShorts, condition, { fnArgs: [getNewShorts], interval: 500 });
   repeatIfCondition(addControlsToShorts, condition, { fnArgs: [getNewShorts], interval: 500 });
 }
+*/
 function fixYoutube() {
   initDateVisibilityListener();
   noInterestButton();
@@ -1486,10 +1487,6 @@ function noInterestButton() {
       const id = 'cu-hovered-container-'+ ++ytContainerIndex;
       vid.classList.add(id);
       vid.addEventListener('mouseenter', () => document.body.classList.add(id));
-      // const isShorts = vid.parentElement.tagName === 'ytd-rich-grid-slim-media'.toUpperCase();
-      // const videoRef = isShorts ? 'short' : vid.querySelector('a#video-title-link').href?.match('(?<=v=).*')?.[0];
-      // if (!isShorts && videoRef) insertCSS(`.cu-vidref-${videoRef} .cu-vidref-${videoRef} .cu-no-interest{display:block}`,videoRef);
-      // vid.classList.add('cu-no-interest-container', 'cu-vidref-'+videoRef);
       insertCSS(`.${id} .${id} .cu-no-interest{display:block}`,id);
       vid.classList.add('cu-no-interest-container');
       const div = create('div', {className:'cu-no-interest'});
@@ -1524,20 +1521,14 @@ function noInterestButton() {
   const getPreviewEl = () => query('#video-preview');
   repeatUntilCondition(() => {
     const previewEl = getPreviewEl();
-    // previewEl.addEventListener('mouseenter', () => {
-    //   lastHoveredPreview = previewEl.querySelector('#media-container-link')?.href?.match('(?<=v=).*')?.[0];
-    //   if (!lastHoveredPreview) return;
-    //   document.body.classList.add('cu-vidref-'+lastHoveredPreview);
-    // }, getPreviewEl);
     previewEl.addEventListener('mouseleave', () => {
       const toRemove = Array.from(document.body.classList).filter(c=>c.includes('cu-hovered-container'));
       if (!toRemove.length) return;
       document.body.classList.remove(...toRemove);
-      // lastHoveredPreview = '';
     });
   });
 }
-// let lastHoveredPreview = '';
+/*
 function addControlsToShorts(shortsGetter) {
   const shorts = shortsGetter();
   shorts.forEach(short => {
@@ -1558,30 +1549,31 @@ function onHoverYTShort(ev, shortContainerEl) {
 function onLeaveYTShort(ev, shortContainerEl) {
   console.log('hovering yt short element:',shortContainerEl,'mouseEvent:',ev);
 }
+*/
 
-/** @param ev {MouseEvent} */
-function onClickYTShort(ev) {
-  ev.stopImmediatePropagation();
-  ev.stopPropagation();
-  ev.preventDefault();
-  console.log(ev.clientY);
-}
+// /** @param ev {MouseEvent} */
+// function onClickYTShort(ev) {
+//   ev.stopImmediatePropagation();
+//   ev.stopPropagation();
+//   ev.preventDefault();
+//   console.log(ev.clientY);
+// }
 
-/** @param shortsGetter {() => HTMLElement[]} */
-function addListenerOnShorts(shortsGetter) {
-  const shorts = shortsGetter();
-  shorts.forEach(short => {
-    short.classList.add('yt-short-'+short.id);
-    insertCSS(`
-      ytd-reel-video-renderer.yt-short-${short.id} #progress-bar-line .progress-bar-played { bottom: 0 }
-      ytd-reel-video-renderer.yt-short-${short.id}:hover #progress-bar-line .progress-bar-played { height: 10px }
-    `, 'short-css-'+short.id)
-    short.addEventListener('mouseover', ev => onHoverYTShort(ev, short));
-    short.addEventListener('mouseenter', ev => onHoverYTShort(ev, short));
-    short.addEventListener('mouseleave', ev => onLeaveYTShort(ev, short));
-    short.addEventListener('click', onClickYTShort);
-  });
-}
+// /** @param shortsGetter {() => HTMLElement[]} */
+// function addListenerOnShorts(shortsGetter) {
+//   const shorts = shortsGetter();
+//   shorts.forEach(short => {
+//     short.classList.add('yt-short-'+short.id);
+//     insertCSS(`
+//       ytd-reel-video-renderer.yt-short-${short.id} #progress-bar-line .progress-bar-played { bottom: 0 }
+//       ytd-reel-video-renderer.yt-short-${short.id}:hover #progress-bar-line .progress-bar-played { height: 10px }
+//     `, 'short-css-'+short.id)
+//     short.addEventListener('mouseover', ev => onHoverYTShort(ev, short));
+//     short.addEventListener('mouseenter', ev => onHoverYTShort(ev, short));
+//     short.addEventListener('mouseleave', ev => onLeaveYTShort(ev, short));
+//     short.addEventListener('click', onClickYTShort);
+//   });
+// }
 
 function fixShowingDateByRemovingTextFromIcons(query) {
   query().forEach(e => e.innerText = '');

@@ -696,7 +696,8 @@ function websiteSelector() {
     new Matcher('zkjellberg.github.io/dark-souls-3-cheat-sheet', fixDarkSouls3CheatSheet, true, 'ds3CheatSheet'),
     new Matcher('pogchamps.gg', fixPogChamps, false),
     new Matcher('aternos.org', fixAternos, false),
-    new Matcher('disneyplus.com', fixDisneyPlus, true)
+    new Matcher('disneyplus.com', fixDisneyPlus, true),
+    new Matcher('store.steampowered.com/app', fixSteam, false)
   ];
   const match = websiteMatcher.find(v => location.href.includes(v.match));
   if (!match) return console.info(yellow(`no utility fix for this website found`));;
@@ -706,6 +707,31 @@ function startFixing() {
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
+}
+
+// --------------------------------
+// fix Steam
+function fixSteam() {
+  insertCSS(`
+    .screenshot_popup_modal {
+      max-width: unset !important;
+      max-height: unset !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100vw !important;
+      position: absolute !important;
+    }
+    .screenshot_img_ctn {
+      user-select: none;
+    }
+    .screenshot_img_ctn img {
+      max-width: unset !important;
+      max-height: unset !important;
+      width: calc(100% - 10px);
+    }
+  `);
+
+  // TODO: create zoom on hover, like: https://www.w3schools.com/howto/howto_js_image_zoom.asp
 }
 
 // --------------------------------
@@ -1532,7 +1558,7 @@ function noInterestButton() {
       if (!toRemove.length) return;
       document.body.classList.remove(...toRemove);
     });
-  });
+  }, getPreviewEl);
 }
 /*
 function addControlsToShorts(shortsGetter) {
@@ -1669,6 +1695,19 @@ function crunchyrolliFrameHook() {
   addCrunchySkipOptionListener();
   startCrunchySkipInterval();
   initPlaybackOptionListener();
+  initKeyBindListener();
+}
+
+function initKeyBindListener() {
+  window.addEventListener('keydown', e => {
+    if (e.key === 'n') {
+      const vid = query('#vilosControlsContainer');
+      if (!vid) return;
+      vid.click();
+      const getNextButton = () => query('#vilosControlsContainer > div > div > div:nth-child(2) > div:nth-child(3) > div > div:nth-child(3)');
+      repeatUntilCondition(() => getNextButton().click(),getNextButton);
+    }
+  });
 }
 
 function addCrunchySkipOptionListener() {

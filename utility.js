@@ -755,6 +755,13 @@ function toggleDarkModeDs3CheatSheet() {
 // fix DisneyPlus
 function fixDisneyPlus() {
   activateAutoLoginListener();
+
+  // reposition player controls:
+  insertCSS(`
+    .controls__footer { padding: 14px 20px !important }
+    .body-copy { height: 100% }
+    .controls__footer:before { background-image: unset !important }
+  `);
 }
 
 let _disneyautoLoginListener;
@@ -1496,11 +1503,25 @@ function fixYoutube() {
   initDateVisibilityListener();
   noInterestButton();
   noYTBanner(); // make toggleable, let user decide
+  noYTAdBlockBanner();
   /* FIXME: work in progress...
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
   // initShortsControl();
+}
+
+/** start the current video */
+function ytPlay() {
+  document.querySelector('video').play();
+}
+
+function noYTAdBlockBanner() {
+  const banner = () => query('tp-yt-paper-dialog');
+  repeatIfCondition(() => {
+    banner().remove();
+    ytPlay();
+  }, banner, { interval: 500 });
 }
 
 function noYTBanner() {

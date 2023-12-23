@@ -1531,7 +1531,9 @@ function noYTBanner() {
 
 let ytContainerIndex = 0;
 function noInterestButton() {
-  const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
+  const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]');
+  // commented out inclusion of shorts...
+  // const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
   const svg = '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false" style="display: block; width: 100%; height: 100%;"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';
   const _addNoInterestIcon = () => {
     const videos = allVideos();
@@ -1542,6 +1544,7 @@ function noInterestButton() {
       vid.addEventListener('mouseenter', () => document.body.classList.add(id));
       insertCSS(`.${id} .${id} .cu-no-interest{display:block}`,id);
       vid.classList.add('cu-no-interest-container');
+      // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
       const div = create('div', {className:'cu-no-interest'});
       div.onclick = () => {
         const dropdownTrigger = vid.querySelector('#button.dropdown-trigger button');
@@ -1549,6 +1552,7 @@ function noInterestButton() {
         document.body.classList.add('cu-menu--hide');
         dropdownTrigger.click();
         setTimeout(() => {
+          // FOR SHORTS IT IS the 2nd to last one...
           const path = query('ytd-menu-popup-renderer ytd-menu-service-item-renderer:nth-last-child(3)');
           if (!path) return;
           const noInterestBtn = path.closest('ytd-menu-service-item-renderer');

@@ -1517,7 +1517,7 @@ function ytPlay() {
 }
 
 function noYTAdBlockBanner() {
-  const banner = () => query('tp-yt-paper-dialog');
+  const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog)');
   repeatIfCondition(() => {
     banner().remove();
     ytPlay();

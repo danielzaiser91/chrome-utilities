@@ -1513,7 +1513,7 @@ function fixYoutube() {
 
 /** start the current video */
 function ytPlay() {
-  document.querySelector('video').play();
+  document.querySelector('video')?.play();
 }
 
 function noYTAdBlockBanner() {
@@ -2073,7 +2073,7 @@ function getAllPrimeRewardContainers() {
   return toArray(queryAll('.prime-offer'));
 }
 function getAllPrimeReward_Buttons_claimable_Games() {
-  return toArray(queryAll('.prime-claim-button [data-test-selector="test_selector_prime_tracking_button_wrapper"] > div button'));
+  return toArray(queryAll('button[data-a-target="prime-claim-button"]'));
 }
 function getAllPrimeReward_Container_all_games() {
   return toArray([...getAllPrimeReward_Buttons_claimable_Games(), ...getAllPrimeRewardContainer_claimed()]);
@@ -2082,7 +2082,7 @@ function getAllPrimeRewardContainer_claimed() {
   return toArray(queryAll('.prime-offer [data-a-target="prime-redeem-check"]'));
 }
 function getAllPrimeReward_Buttons_NonGames() {
-  return toArray(queryAll('.prime-claim-button [data-test-selector="test_selector_prime_tracking_button_wrapper"] > a'));
+  return toArray(queryAll('a[data-a-target="prime-claim-button"]'));
 }
 const _prime_reward_remove = el => el.closest('.prime-offer').querySelector('.prime-offer__dismiss button').click();
 function _twitch_claimGame() {

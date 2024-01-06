@@ -1519,7 +1519,12 @@ function ytPlay() {
 function noYTAdBlockBanner() {
   const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog)') && document.querySelector('video');
   repeatIfCondition(() => {
-    banner().remove();
+    const isAdForPremium = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button');
+    if (isAdForPremium) {
+      isAdForPremium.click();
+    } else {
+      banner().remove();
+    }
     ytPlay();
   }, banner, { interval: 500 });
 }

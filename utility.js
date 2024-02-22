@@ -1517,7 +1517,7 @@ function ytPlay() {
 }
 
 function noYTAdBlockBanner() {
-  const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog)')?.getBoundingClientRect().width && document.querySelector('video');
+  const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog):not(:has(#share-targets))')?.getBoundingClientRect().width && document.querySelector('video');
   repeatIfCondition(() => {
     const isAdForPremium = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button');
     if (isAdForPremium) {

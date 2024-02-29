@@ -1508,7 +1508,13 @@ function fixYoutube() {
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
+ ytAutoskipAdd();
   // initShortsControl();
+}
+
+function ytAutoskipAdd() {
+  const getBtn = () => query('.ytp-skip-ad-button');
+  repeatIfCondition(() => getBtn().click(),getBtn, { pauseInBg: false, interval: 100 });
 }
 
 /** start the current video */
@@ -1763,7 +1769,7 @@ function addCrunchySkipOptionListener() {
     const menu = getMenu();
     const prevent = Array.from(menu.children).some(child => child.classList.contains('cu_skipIntroContainer'));
     if (prevent) return;
-    skipIntroInput.value = userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    skipIntroInput.checked = userOptions.crunchyhook.featureAutoSkip.isEnabled.value;
     menu.insertBefore(skipIntroContainer, menu.firstElementChild);
   }, getMenu, { interval: 100 })
 }

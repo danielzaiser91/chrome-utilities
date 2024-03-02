@@ -1840,7 +1840,7 @@ function startCrunchySkipInterval() {
   }
   const getSkipBtn = () => document.querySelector('[data-testid="skipButton"] div');
   if (!_crunchySkipInterval) {
-    _crunchySkipInterval = repeatIfCondition(() => getSkipBtn().click(), getSkipBtn, { autoplay: false });
+    _crunchySkipInterval = repeatIfCondition(() => getSkipBtn().click(), getSkipBtn, { autoplay: false, pauseInBg: false });
   }
   _crunchySkipInterval.play();
 }

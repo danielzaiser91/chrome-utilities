@@ -1500,6 +1500,7 @@ const initShortsControl = () => {
 }
 */
 function fixYoutube() {
+  initYTCSS();
   initDateVisibilityListener();
   noInterestButton();
   noYTBanner(); // make toggleable, let user decide
@@ -1510,6 +1511,10 @@ function fixYoutube() {
   */
  ytAutoskipAdd();
   // initShortsControl();
+}
+
+function initYTCSS() {
+  insertCSS('[id$="-ad"] { display: none !important }', 'yt-anti-ad');
 }
 
 function ytAutoskipAdd() {

@@ -1837,6 +1837,7 @@ function addHotkeysForNextAndPrevious() {
 }
 
 /** @type {Interval} */
+let initSkip = false;
 let _crunchySkipInterval = null;
 function startCrunchySkipInterval() {
   if (!isAllowed(userOptions.crunchyhook.featureAutoSkip.isEnabled)) {
@@ -1844,8 +1845,15 @@ function startCrunchySkipInterval() {
     return;
   }
   const getSkipBtn = () => document.querySelector('[data-testid="skipButton"] div');
+  const skipWithDelay = () => {
+    initSkip = true;
+    setTimeout(() => {
+      getSkipBtn()?.click();
+      setTimeout(() => initSkip = false, 500);
+    }, 1000);
+  }
   if (!_crunchySkipInterval) {
-    _crunchySkipInterval = repeatIfCondition(() => getSkipBtn().click(), getSkipBtn, { autoplay: false, pauseInBg: false });
+    _crunchySkipInterval = repeatIfCondition(skipWithDelay, () => getSkipBtn() && !initSkip, { autoplay: false, pauseInBg: false });
   }
   _crunchySkipInterval.play();
 }

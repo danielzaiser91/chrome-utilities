@@ -243,6 +243,7 @@ class Design {
 const designMap = {
   amazon: ['#000', '#ff9900'],
   default: ['#000', '#ff9900'],
+  netflix: ['#000', '#dd3b41']
 }
 cachedDesignForSite = {};
 function getDesign(site) {
@@ -272,6 +273,8 @@ function prepareActionBar() {
     mouseOver = true;
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
+      const isVisible = document.querySelector('.cu-settings').classList.contains('cu-slide-in');
+      if (isVisible) return;
       mouseOver = false;
     }, 2200);
   });
@@ -432,6 +435,7 @@ function prepareActionBar() {
     .cu-settings-container p {
       font-size: 24px;
       color: ${color.secondary};
+      white-space: pre-wrap;
     }
   
   
@@ -1780,16 +1784,15 @@ function addCrunchySkipOptionListener() {
 }
 
 const _crunchyhook_setPlayerValue = (val, playBackInput) => {
-  if (Number.isNaN(val)) return;
-  lastVideoUrl = document.querySelector('video').src;
+  if (isNaN(val)) return;
+  lastVideoUrl = document.querySelector('video').src; // this line does not do anything, since on next episode iframe reloads and entire script is reapplied
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
   document.getElementById('player0').playbackRate = val;
 }
-const _crunchyhook_adjustVal = (e, playBackInput) => {
-  e.stopPropagation();
-  if (!e.srcElement?.value) return;
-  const newValue = +(+e.srcElement.value)?.toFixed(2);
+const _crunchyhook_adjustVal = (playBackInput) => {
+  if (isNaN(playBackInput.value)) return;
+  const newValue = +(+playBackInput.value).toFixed(2);
   _crunchyhook_setPlayerValue(newValue, playBackInput);
 }
 let lastVideoUrl = '';
@@ -1803,8 +1806,16 @@ function initPlaybackOptionListener() {
   repeatIfCondition(() => _crunchyhook_setPlayerValue(userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput), videoChanged, { pauseInBg: false, interval: 500 });
   const playBackContainer = create('div', { className: 'cu_playBackContainer' });
   const playBackLabel = create('label', { className: 'cu_playBackLabel', textContent: 'playBackSpeed', for: 'cu_playback' });
-  playBackInput.addEventListener('keydown', e => _crunchyhook_adjustVal(e, playBackInput));
-  playBackInput.addEventListener('input', e => _crunchyhook_adjustVal(e, playBackInput));
+  playBackInput.addEventListener('input', e => {
+    e.stopImmediatePropagation();
+    _crunchyhook_adjustVal(playBackInput);
+  });
+  playBackInput.addEventListener('keydown', e => e.stopPropagation());
+  window.addEventListener('keydown', e => {
+    if (!['+', '-'].includes(e.key) || isNaN(playBackInput.value)) return;
+    playBackInput.value = +(+playBackInput.value + (e.key === '+' ? 0.1 : -0.1)).toFixed(2);
+    _crunchyhook_adjustVal(playBackInput);
+  });
   playBackContainer.appendChild(playBackLabel);
   playBackContainer.appendChild(playBackInput);
   insertCSS(`
@@ -2325,7 +2336,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.018,
+  version: 1.020,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2488,7 +2499,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
             min: 0.2,
             max: 5,
             step: 0.1,
-            toggle: (e, input) => _crunchyhook_adjustVal(e, input)
+            toggle: (e, input) => _crunchyhook_adjustVal(input)
           },
         }
       }
@@ -2505,9 +2516,13 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     }
   },
   crunchyroll: {
+    featureHotkeys: {
+      featureName: 'Hotkeys',
+      featureDescription: 'use +/- to adjust speed, or adjust it in the video player settings (⚙️).\nPress p/n to go to the previous/next episode.'
+    },
     featureAutoSkip: {
       featureName: 'AutoSkip',
-      featureDescription: 'automatically clicks the "skip intro" button for you -> select it in the players ⚙️'
+      featureDescription: 'automatically clicks the "skip intro" button for you -> select it in the video player settings (⚙️).'
     }
   },
   netflix: {

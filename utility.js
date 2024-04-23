@@ -521,7 +521,7 @@ function renderOptions() {
       }
       if (featureDescription) {
         const featureDescEl = document.createElement('p');
-        featureDescEl.textContent = featureDescription;
+        featureDescEl.innerHTML = featureDescription;
         featureContainer.appendChild(featureDescEl);
       }
 
@@ -1731,8 +1731,30 @@ function removeNode(val) {
   });
 }
 
+function addCustomCrunchyCss() {
+  // copied from: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/kbd
+  insertCSS(`
+    kbd {
+      background-color: #eee;
+      border-radius: 3px;
+      border: 1px solid #b4b4b4;
+      box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.2),
+        0 2px 0 0 rgba(255, 255, 255, 0.7) inset;
+      color: #333;
+      display: inline-block;
+      font-size: 0.85em;
+      font-weight: 700;
+      line-height: 1;
+      padding: 2px 4px;
+      white-space: nowrap;
+    }
+  `, 'custom-crunchy-css')
+}
+
 // Crunchyroll
 function fixCrunchyroll() {
+  addCustomCrunchyCss();
   addHotkeysForNextAndPrevious();
 }
 
@@ -2336,7 +2358,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.020,
+  version: 1.023,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2518,11 +2540,11 @@ let userOptions = { // key must be match.site (saved as matcher globally)
   crunchyroll: {
     featureHotkeys: {
       featureName: 'Hotkeys',
-      featureDescription: 'use +/- to adjust speed, or adjust it in the video player settings (⚙️).\nPress p/n to go to the previous/next episode.'
+      featureDescription: '<kbd>+</kbd>/<kbd>-</kbd> to adjust speed. <span style="color:black">Open video player settings (⚙️), for better control.</span>\n<kbd>alt</kbd> + <kbd>p</kbd>/<kbd>n</kbd> to go to the previous/next episode.'
     },
     featureAutoSkip: {
       featureName: 'AutoSkip',
-      featureDescription: 'automatically clicks the "skip intro" button for you -> select it in the video player settings (⚙️).'
+      featureDescription: 'automatically clicks the "skip intro" button for you. Activate it in the video player settings (⚙️).'
     }
   },
   netflix: {

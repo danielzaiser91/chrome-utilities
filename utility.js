@@ -207,16 +207,28 @@ function insertCSS(css, id = 'alreadyAddedCss', overwrite = false) {
   console.debug(yellow('inserting css... id: "' + id + '"'));
 }
 // --- UTILITY FUNCTIONS ---
-
 function showExtensionInfoInLog() {
   const excludeFromLog = ['version'];
+  const featuresThatDoNotHaveTheSettingsIcon = [
+    [
+      'chess.com',
+      {
+        feature1: {
+          featureName: 'Show Quick Analaysis in Postgame'
+        },
+        feature2: {
+          featureName: 'fix game review button flickering'
+        }
+      }
+    ]
+  ]
   console.info(red('Chrome:Utility:Extension starting'));
   console.info(
     blue(
       'this extension currently supports Improvements for the following websites:\n' + reset('') +
       '- ' + purple('PGSurveyHelper') + ': NodeInfo\n' +
       '- ' + purple('YouTube') + ': Prevent YouTube from hiding dates on smaller screen resolutions\n- ' +
-      Object.entries(userOptions).filter(([k]) => !excludeFromLog.includes(k)).map(([k, v]) => {
+      [...featuresThatDoNotHaveTheSettingsIcon, ...Object.entries(userOptions)].filter(([k]) => !excludeFromLog.includes(k)).map(([k, v]) => {
         return [purple(k), ': ' + Object.values(v).map(val => val.featureName).join(', ') + '\n'].join('');
       }).join('- ')
     )
@@ -686,6 +698,7 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
+    new Matcher('chess.com', fixChessDotCom, true),
     new Matcher('wiki.fextralife.com', fixFextralife, true),
     new Matcher('twitch.tv', fixTwitch, true),
     new Matcher('static.crunchyroll.com', crunchyrolliFrameHook, false, 'crunchyHook', true),
@@ -711,6 +724,29 @@ function startFixing() {
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
+}
+// ----
+// fix chess.com
+// ---
+function fixChessDotCom() {
+  unhideResultQuickAnalysis();
+  fixCSSGameReviewBtn();
+}
+
+function unhideResultQuickAnalysis() {
+  insertCSS(`
+    .game-over-modal-content .quick-analysis-tally-component {
+      display: flex !important;
+    }
+  `, 'cu-quick-result');
+}
+
+function fixCSSGameReviewBtn() {
+  insertCSS(`
+    .game-over-review-button-component {
+      display: flex !important;
+    }
+  `, 'cu-game-review-btn')
 }
 
 // --------------------------------

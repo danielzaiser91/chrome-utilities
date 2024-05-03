@@ -217,7 +217,7 @@ function showExtensionInfoInLog() {
           featureName: 'Show Quick Analaysis in Postgame'
         },
         feature2: {
-          featureName: 'fix game review button flickering'
+          featureName: 'change game review buttons (after match)'
         }
       }
     ]
@@ -745,6 +745,14 @@ function fixCSSGameReviewBtn() {
   insertCSS(`
     .game-over-review-button-component {
       display: flex !important;
+    }
+    .game-over-modal-buttons {
+      position: fixed;
+      bottom: 40px;
+      left: -5px;
+      background: inherit;
+      padding: 20px;
+      border-radius: 10px;
     }
   `, 'cu-game-review-btn')
 }
@@ -1545,12 +1553,34 @@ function fixYoutube() {
   noInterestButton();
   noYTBanner(); // make toggleable, let user decide
   noYTAdBlockBanner();
+  hideYoutubeAds();
+  hideYoutubeAdsReels();
   /* FIXME: work in progress...
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
  ytAutoskipAdd();
   // initShortsControl();
+}
+
+function hideYoutubeAdsReels() {
+  const condition = () => query('ad-badge-view-model');
+  const hide = () => Array.from(queryAll('reels-ad-card-buttoned-view-model')).forEach(e=> {
+    const parent = e.closest('ytd-reel-video-renderer');
+    if (!parent) return;
+    parent.style.display = 'none';
+  });
+  repeatIfCondition(hide, condition);
+}
+
+function hideYoutubeAds() {
+  const condition = () => query('ytd-in-feed-ad-layout-renderer');
+  const hide = () => Array.from(queryAll('ytd-in-feed-ad-layout-renderer')).forEach(e=> {
+    const parent = e.closest('ytd-rich-item-renderer');
+    if (!parent) return;
+    parent.style.display = 'none';
+  });
+  repeatIfCondition(hide, condition);
 }
 
 function initYTCSS() {

@@ -1564,8 +1564,8 @@ function fixYoutube() {
 }
 
 function hideYoutubeAdsReels() {
-  const condition = () => query('reels-ad-card-buttoned-view-model');
-  const hide = () => Array.from(queryAll('reels-ad-card-buttoned-view-model')).forEach(e=> {
+  const condition = () => query('ad-badge-view-model');
+  const hide = () => Array.from(queryAll('ad-badge-view-model')).forEach(e=> {
     const parent = e.closest('ytd-reel-video-renderer');
     if (!parent) return;
     parent.style.display = 'none';

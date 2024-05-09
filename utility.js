@@ -1600,10 +1600,12 @@ function ytPlay() {
 function noYTAdBlockBanner() {
   const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog):not(:has(#share-targets))')?.getBoundingClientRect().width && document.querySelector('video');
   repeatIfCondition(() => {
-    const isAdForPremium = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button') && !location.href.includes('@');
+    const popupBtn = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button');
+    const isAdForPremium = popupBtn && !location.href.includes('@');
     if (isAdForPremium) {
-      isAdForPremium.click();
+      popupBtn.click();
     } else {
+      // ??? wtf is das hier? xD
       banner().remove();
     }
     ytPlay();

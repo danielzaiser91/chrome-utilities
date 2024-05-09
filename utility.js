@@ -880,7 +880,7 @@ function fixFandom() {
       }`, 'fixFandom');
       // fanfeed is added asynchronously, need to wait for it, and then execute code
       const getFanFeed = () => query('#mixed-content-footer');
-      const fanFeedInView = () => Number.parseInt(getComputedStyle(getFanFeed()).height) > 50;
+      const fanFeedInView = () => getFanFeed() && Number.parseInt(getComputedStyle(getFanFeed()).height) > 50;
       repeatUntilCondition(() => {
         const fanFeed = getFanFeed();
         fanFeed.classList.add('cu-hide');
@@ -1600,7 +1600,7 @@ function ytPlay() {
 function noYTAdBlockBanner() {
   const banner = () => query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog):not(:has(#share-targets))')?.getBoundingClientRect().width && document.querySelector('video');
   repeatIfCondition(() => {
-    const isAdForPremium = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button');
+    const isAdForPremium = query('tp-yt-paper-dialog:not(.ytcp-uploads-dialog) button') && !location.href.includes('@');
     if (isAdForPremium) {
       isAdForPremium.click();
     } else {

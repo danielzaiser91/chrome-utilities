@@ -1570,7 +1570,7 @@ function hideYoutubeAdsReels() {
     if (!parent) return;
     parent.style.display = 'none';
   });
-  repeatIfCondition(hide, condition);
+  repeatIfCondition(hide, condition, { pauseInBg: false });
 }
 
 function hideYoutubeAds() {
@@ -1580,7 +1580,7 @@ function hideYoutubeAds() {
     if (!parent) return;
     parent.style.display = 'none';
   });
-  repeatIfCondition(hide, condition);
+  repeatIfCondition(hide, condition, { pauseInBg: false });
 }
 
 function initYTCSS() {
@@ -1589,7 +1589,7 @@ function initYTCSS() {
 
 function ytAutoskipAdd() {
   const getBtn = () => query('.ytp-skip-ad-button');
-  repeatIfCondition(() => getBtn().click(),getBtn, { pauseInBg: false, interval: 100 });
+  repeatIfCondition(() => getBtn().click(),getBtn, { pauseInBg: false });
 }
 
 /** start the current video */

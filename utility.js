@@ -1328,30 +1328,44 @@ function skipAmazonRecap() {
   const amazonFeature = userOptions.amazon.featureAutoSkip.isEnabled;
   const spinner = query('.atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div').style.display !== 'none';
   if (!isAllowed(amazonFeature) || spinner) return;
-  const skipAdBtn = getAmazonSkipAdvertBtn();
-  if (!executionBlock.skipAmazonAdvert && skipAdBtn && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
-    blockExecution('skipAmazonAdvert');
-    return skipAdBtn.click();
-  };
-  const skipAdBtn2 = getAmazonSkipAdvertBtn2();
-  if (!executionBlock.skipAmazonAdvert && skipAdBtn2 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
-    blockExecution('skipAmazonAdvert');
-    return skipAdBtn2.click();
-  };
-  const skipAdBtn3 = getAmazonSkipAdvertBtn3();
-  if (!executionBlock.skipAmazonAdvert && skipAdBtn3 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
-    blockExecution('skipAmazonAdvert');
-    return skipAdBtn3.click();
-  };
-  const skipRecapBtn = getAmazonSkipRecapBtn();
-  if (!executionBlock.skipAmazonRecaps && skipRecapBtn && isAllowed(amazonFeature.subFeatures.skipRecaps)) {
-    blockExecution('skipAmazonRecaps');
-    return skipRecapBtn.click();
-  };
-  const skipNextBtn = getAmazonSkipNextBtn();
-  if (!executionBlock.skipAmazonNext && skipNextBtn && isAllowed(amazonFeature.subFeatures.skipRecaps)) {
-    blockExecution('skipAmazonNext');
-    skipNextBtn.click();
+  const skipAds = isAllowed(amazonFeature.subFeatures.skipAdverts) && !executionBlock.skipAmazonAdvert;
+  if (skipAds) {
+    const skipAdBtn = getAmazonSkipAdvertBtn();
+    if (skipAdBtn) {
+      blockExecution('skipAmazonAdvert');
+      return skipAdBtn.click();
+    }
+    const skipAdBtn2 = getAmazonSkipAdvertBtn2();
+    if (!executionBlock.skipAmazonAdvert && skipAdBtn2 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
+      blockExecution('skipAmazonAdvert');
+      return skipAdBtn2.click();
+    }
+    const skipAdBtn3 = getAmazonSkipAdvertBtn3();
+    if (!executionBlock.skipAmazonAdvert && skipAdBtn3 && isAllowed(amazonFeature.subFeatures.skipAdverts)) {
+      blockExecution('skipAmazonAdvert');
+      return skipAdBtn3.click();
+    }
+  }
+  const skipRecaps = isAllowed(amazonFeature.subFeatures.skipRecaps) && !executionBlock.skipAmazonRecaps;
+  if (skipRecaps) {
+    const skipRecapBtn = getAmazonSkipRecapBtn();
+    if (skipRecapBtn) {
+      blockExecution('skipAmazonRecaps');
+      return skipRecapBtn.click();
+    }
+    const skipRecapBtn2 = getAmazonSkipRecapBtn2();
+    if (skipRecapBtn2) {
+      blockExecution('skipAmazonRecaps');
+      return skipRecapBtn2.click();
+    }
+  }
+  const skipNext = isAllowed(amazonFeature.subFeatures.skipRecaps) && !executionBlock.skipAmazonNext;
+  if (skipNext) {
+    const skipNextBtn = getAmazonSkipNextBtn();
+    if (skipNextBtn) {
+      blockExecution('skipAmazonNext');
+      skipNextBtn.click();
+    }
   }
 }
 

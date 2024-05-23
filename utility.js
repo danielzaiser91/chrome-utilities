@@ -313,7 +313,8 @@ function prepareActionBar() {
   const settingsBtn = actionBar.querySelector('button');
   settingsOverlay = query('.cu-settings');
   const _prepareActionBar = () => {
-    if (mouseOver) {
+    const actionBarShowCondition = userOptions[matcher.site.toLowerCase()]?.actionBarShowCondition?.() ?? true;
+    if (mouseOver && actionBarShowCondition) {
       actionBar.classList.remove('cu-hide');
     } else {
       actionBar.classList.add('cu-hide');
@@ -1199,6 +1200,7 @@ function rememberVideoPosition() {
 // Amazon
 let amazonSkipLoop = null;
 const getAmazonSkipRecapBtn = () => query('.atvwebplayersdk-adtimeindicator-text')?.parentElement.parentElement.querySelector('div:nth-child(2)')?.firstElementChild
+const getAmazonSkipRecapBtn2 = () => query('.atvwebplayersdk-skipelement-button');
 const getAmazonSkipAdvertBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)');
 const getAmazonSkipAdvertBtn2 = () => query('.dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div');
 const getAmazonSkipAdvertBtn3 = () => {
@@ -1213,7 +1215,7 @@ const getAmazonForwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk
 function toggleAmazonSkip() { !amazonSkipLoop.isPlaying ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
 function fixAmazon() {  
   // feature skip recap / ad / click next episode
-  const condition = () => getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn() || getAmazonSkipAdvertBtn2() || getAmazonSkipAdvertBtn3();
+  const condition = () => getAmazonSkipRecapBtn2() || getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn() || getAmazonSkipAdvertBtn2() || getAmazonSkipAdvertBtn3();
   amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, { pauseInBg: false });
 
   // feature: allow space and arrow keys to use video controls always
@@ -2419,6 +2421,9 @@ function error(val) {
 function info(val) {
   console.warn(val);
 }
+function amazonshowCondition() {
+  return location.href.includes('gp/video');
+}
 
 // Options
 // globalVars
@@ -2426,7 +2431,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.023,
+  version: 1.024,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2496,6 +2501,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     }
   },
   amazon: {
+    actionBarShowCondition: amazonshowCondition,
     featurePlayBackSpeed: {
       featureName: 'PlayBackSpeed',
       featureDescription: 'this feature will set the speed for video playback',

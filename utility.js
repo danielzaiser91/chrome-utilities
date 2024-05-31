@@ -1571,12 +1571,18 @@ function fixYoutube() {
   noYTAdBlockBanner();
   hideYoutubeAds();
   hideYoutubeAdsReels();
+  initListenerForAdEnforcer();
   /* FIXME: work in progress...
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
  ytAutoskipAdd();
   // initShortsControl();
+}
+
+function initListenerForAdEnforcer() {
+  const getEl = () => document.querySelector('ytd-enforcement-message-view-model');
+  repeatIfCondition(() => location.reload(), getEl, { pauseInBg: false })
 }
 
 function hideYoutubeAdsReels() {

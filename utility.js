@@ -1326,7 +1326,7 @@ let executionBlock = {
 };
 function skipAmazonRecap() {
   const amazonFeature = userOptions.amazon.featureAutoSkip.isEnabled;
-  const spinner = query('.atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div').style.display !== 'none';
+  const spinner = query('.atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div')?.checkVisibility?.();
   if (!isAllowed(amazonFeature) || spinner) return;
   const skipAds = isAllowed(amazonFeature.subFeatures.skipAdverts) && !executionBlock.skipAmazonAdvert;
   if (skipAds) {
@@ -1631,7 +1631,7 @@ function noYTAdBlockBanner() {
       banner().remove();
     }
     ytPlay();
-  }, banner, { interval: 500 });
+  }, banner, { interval: 500, pauseInBg: false });
 }
 
 function noYTBanner() {

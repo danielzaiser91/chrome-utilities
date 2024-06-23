@@ -1414,7 +1414,7 @@ function _netflix_speed_custom_control() {
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
   repeatIfCondition(() => setTimeout(() =>
     _netflix_setPlayerValue(userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput),
-  300), () => document.querySelector('video'), { interval: 1000 });
+  300), () => document.querySelector('video'), { interval: 1000, pauseInBg: false });
   const _add_custom_speed_control = () => {
     const playBackContainer = query('[data-uia="playback-speed"] div');
     if (playBackContainer?.classList?.contains('cu-playbackSpeedContainer')) return;
@@ -1423,7 +1423,7 @@ function _netflix_speed_custom_control() {
     playBackContainer.appendChild(playBackInput);
   }
 
-  repeatIfCondition(_add_custom_speed_control, condition);
+  repeatIfCondition(_add_custom_speed_control, condition, { pauseInBg: false });
 }
 
 /** if spacebar is pressed, restart if it is in restart-pause-mode */

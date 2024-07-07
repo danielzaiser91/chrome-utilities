@@ -816,23 +816,19 @@ function fixDisneyPlus() {
 
 /** @type {Interval} */
 let dpAutoSkip;
+const dpCheckAndClick = (condition, btn) => condition ? btn?.click() : null;
 function activateAutoSkipDP() {
   dpAutoSkip = repeatIfCondition(() => {
-    const { skipNext, skipRecaps } = userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
-    const isSkipNext = query('.is-showing-transition .skip__button') || query('.play-page button');
-    if (isSkipNext) {
-      if (!isAllowed(skipNext)) {
-        return;
-      }
-      isSkipNext.click();
-      return;
-    } else {
-      if (!isAllowed(skipRecaps)) {
-        return;
-      }
-      query('.skip__button')?.click();
-      return;
+    const { skipEndCard, skipNext, skipRecaps } = userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
+    const skipNextBtn = query('.is-showing-transition .skip__button');
+    const endCardBtn = query('.play-page button');
+    if (skipNextBtn) {
+      return dpCheckAndClick(isAllowed(skipNext), skipNextBtn);
+    } else if (endCardBtn) {
+      return dpCheckAndClick(isAllowed(skipEndCard), endCardBtn);
     }
+    // else it is recap / intro
+    return dpCheckAndClick(isAllowed(skipRecaps), query('.skip__button'));
   }, () => query('.skip__button') || query('.play-page button'), {
     pauseInBg: false,
     autoplay: isAllowed(userOptions.disneyplus.featureAutoSkip.isEnabled)
@@ -2481,7 +2477,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.025,
+  version: 1.026,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2534,6 +2530,11 @@ let userOptions = { // key must be match.site (saved as matcher globally)
             value: true,
             label: 'Next',
             description: 'will click the next episode button for you'
+          },
+          skipEndCard: {
+            value: false,
+            label: 'EndCard',
+            description: 'will click the next episode button on the end card for you'
           }
         }
       }

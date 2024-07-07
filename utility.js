@@ -804,6 +804,7 @@ function toggleDarkModeDs3CheatSheet() {
 // fix DisneyPlus
 function fixDisneyPlus() {
   activateAutoLoginListener();
+  activateAutoSkipDP();
 
   // reposition player controls:
   insertCSS(`
@@ -811,6 +812,35 @@ function fixDisneyPlus() {
     .body-copy { height: 100% }
     .controls__footer:before { background-image: unset !important }
   `);
+}
+
+/** @type {Interval} */
+let dpAutoSkip;
+function activateAutoSkipDP() {
+  dpAutoSkip = repeatIfCondition(() => {
+    const { skipNext, skipRecaps } = userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
+    const isSkipNext = query('.is-showing-transition .skip__button') || query('.play-page button');
+    if (isSkipNext) {
+      if (!isAllowed(skipNext)) {
+        return;
+      }
+      isSkipNext.click();
+      return;
+    } else {
+      if (!isAllowed(skipRecaps)) {
+        return;
+      }
+      query('.skip__button')?.click();
+      return;
+    }
+  }, () => query('.skip__button') || query('.play-page button'), {
+    pauseInBg: false,
+    autoplay: isAllowed(userOptions.disneyplus.featureAutoSkip.isEnabled)
+  });
+}
+
+function toggleAutoSkipDP() {
+  dpAutoSkip?.isPlaying ? dpAutoSkip.pause() : dpAutoSkip.play();
 }
 
 let _disneyautoLoginListener;
@@ -2451,7 +2481,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.024,
+  version: 1.025,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2482,6 +2512,28 @@ let userOptions = { // key must be match.site (saved as matcher globally)
             value: '',
             disabled: true,
             disabledReason: 'disney checks for trusted events, making it impossible to set the pin automatically...',
+          }
+        }
+      }
+    },
+    featureAutoSkip: {
+      featureName: 'AutoSkip',
+      featureDescription: 'automatically skip Intro and Recaps',
+      isEnabled: {
+        value: true,
+        label: 'Activate',
+        description: 'turn skipping on or off',
+        toggle: toggleAutoSkipDP,
+        subFeatures: {
+          skipRecaps: {
+            value: true,
+            label: 'Intro/Recaps',
+            description: 'will skip Intros / Recaps at the beginning of Videos'
+          },
+          skipNext: {
+            value: true,
+            label: 'Next',
+            description: 'will click the next episode button for you'
           }
         }
       }

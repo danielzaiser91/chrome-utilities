@@ -844,15 +844,55 @@ function toggleDisneyAutoLoginListener() {
   !_disneyautoLoginListener.isPlaying ?  _disneyautoLoginListener.play() : _disneyautoLoginListener.pause();
 }
 
+function getKey(e) {
+  return Object.assign({
+    "isTrusted": false,
+    "key": "2",
+    "code": "Digit1",
+    "location": 0,
+    "ctrlKey": false,
+    "shiftKey": false,
+    "altKey": false,
+    "metaKey": false,
+    "repeat": false,
+    "isComposing": false,
+    "charCode": 0,
+    "keyCode": 49,
+    "DOM_KEY_LOCATION_STANDARD": 0,
+    "DOM_KEY_LOCATION_LEFT": 1,
+    "DOM_KEY_LOCATION_RIGHT": 2,
+    "DOM_KEY_LOCATION_NUMPAD": 3,
+    "detail": 0,
+    "which": 49,
+    "type": "keydown",
+    "currentTarget": null,
+    "eventPhase": 0,
+    "bubbles": true,
+    "cancelable": true,
+    "defaultPrevented": false,
+    "composed": true,
+    "timeStamp": 6597189.6,
+    "returnValue": true,
+    "cancelBubble": false,
+    "NONE": 0,
+    "CAPTURING_PHASE": 1,
+    "AT_TARGET": 2,
+    "BUBBLING_PHASE": 3,
+    "view": null,
+    "sourceCapabilities": null
+  }, e);
+}
+
+
 function activateAutoLoginListener() {
   let currentlyRunning = false;
   _disneyautoLoginListener = repeatIfCondition(() => {
     if (!isAllowed(userOptions.disneyplus.featureAutoLogin.isEnabled) || currentlyRunning) return;
     currentlyRunning = true;
-    const feature = userOptions.disneyplus.featureAutoLogin.isEnabled.subFeatures;
-    const username = feature.profilename.value;
-    const pin = feature.pin.value;
-    const profileEl = Array.from(document.querySelectorAll('.profile-avatar-appear-done div')).find(el => el.querySelector('h3')?.textContent === username);
+    const { profilename, pin } = userOptions.disneyplus.featureAutoLogin.isEnabled.subFeatures;
+    const username = profilename.value;
+    const pinVal = pin.value;
+    const profileEl = Array.from(document.querySelectorAll('.profile-avatar-appear-done div')).find(el => el.querySelector('h3')?.textContent?.toLowerCase?.() === username?.toLowerCase?.());
     if (!profileEl) return currentlyRunning = false;
     profileEl.click();
     const ref = () => document.querySelectorAll('[data-gv2elementkey="pin"] input');
@@ -860,7 +900,7 @@ function activateAutoLoginListener() {
     repeatUntilCondition(() => {
       const inputs = Array.from(ref());
       currentlyRunning = false;
-      // inputs.forEach((input, i) => input.value = pin[i]);
+      inputs.forEach((input, i) => input.dispatchEvent(new KeyboardEvent('keydown', getKey({key:pinVal[i]}))));
     }, () => condition());
   }, () => location.pathname.includes('select-profile'), { pauseInBg: false, interval: 500 });
 }
@@ -2477,7 +2517,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.026,
+  version: 1.027,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2506,7 +2546,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
           pin: {
             label: 'Pin',
             value: '',
-            disabled: true,
+            disabled: false,
             disabledReason: 'disney checks for trusted events, making it impossible to set the pin automatically...',
           }
         }

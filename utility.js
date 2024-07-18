@@ -1705,9 +1705,15 @@ function noYTBanner() {
   repeatIfCondition(() => banner().remove(), banner, { interval: 1000 });
 }
 
+function inURL(arr) {
+  return arr.some(el => location.pathname.includes(el));
+}
+
 let ytContainerIndex = 0;
 function noInterestButton() {
-  const allVideos = () => !location.pathname.includes('@') && queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]');
+  const hasDismissibles = () => query('#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]') || query('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]');
+  const getDismissibles = () => [...Array.from(queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]')), ...Array.from(queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]'))];
+  const allVideos = () => !inURL(['@', 'subscriptions']) && hasDismissibles() && getDismissibles();
   // commented out inclusion of shorts...
   // const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
   const svg = '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false" style="display: block; width: 100%; height: 100%;"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';

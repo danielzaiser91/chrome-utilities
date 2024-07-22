@@ -644,6 +644,31 @@ function loadUserSettings() {
      */
 
     window.localStorage.removeItem('Chrome:Utility:userOptions');
+    const isDefined = val => val !== undefined;
+    const site = matcher?.site?.toLowerCase();
+    if (!site) return;
+    const siteOptions = opt[site];
+    if (!siteOptions || !userOptions[site]) return;
+    const keys = Object.keys(opt[site]);
+    Object.keys(userOptions[site]).forEach(keyF => {
+      if (!keys.includes(keyF) || !userOptions[site][keyF]) return;
+      const featureKeys = Object.keys(opt[site][keyF]);
+      Object.keys(userOptions[site][keyF]).forEach(keyFF => {
+        if (!featureKeys.includes(keyFF)) return;
+        if (isDefined(opt[site][keyF][keyFF].value) && isDefined(userOptions[site][keyF][keyFF].value)) {
+          userOptions[site][keyF][keyFF].value = opt[site][keyF][keyFF].value;
+        }
+        if (opt[site][keyF][keyFF].subFeatures && userOptions[site][keyF][keyFF].subFeatures) {
+          const subFeatureKeys = Object.keys(opt[site][keyF][keyFF].subFeatures);
+          Object.keys(userOptions[site][keyF][keyFF].subFeatures).forEach(keyFFF => {
+            if (!subFeatureKeys.includes(keyFFF)) return;
+            if (isDefined(userOptions[site][keyF][keyFF].subFeatures[keyFFF].value) && isDefined(opt[site][keyF][keyFF].subFeatures[keyFFF].value)) {
+              userOptions[site][keyF][keyFF].subFeatures[keyFFF].value = opt[site][keyF][keyFF].subFeatures[keyFFF].value;
+            }
+          });
+        }
+      });
+    });
     return;
   }
   Object.assign(userOptions, opt);
@@ -2542,7 +2567,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.028,
+  version: 1.030,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2750,6 +2775,10 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     }
   },
   crunchyroll: {
+    featurePlayBackSpeed: {
+      featureName: 'PlayBackSpeed',
+      featureDescription: 'this feature allows you to set the playbackrate for videos. Select your desired speed in the video player settings (⚙️).',
+    },
     featureHotkeys: {
       featureName: 'Hotkeys',
       featureDescription: '<kbd>+</kbd>/<kbd>-</kbd> to adjust speed. <span style="color:black">Open video player settings (⚙️), for better control.</span>\n<kbd>alt</kbd> + <kbd>p</kbd>/<kbd>n</kbd> to go to the previous/next episode.'

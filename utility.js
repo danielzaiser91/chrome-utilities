@@ -721,11 +721,13 @@ function websiteSelector() {
   if (!match) return console.info(yellow(`no utility fix for this website found`));;
   matcher = match;
 }
+
 function startFixing() {
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
 }
+
 // ----
 // fix chess.com
 // ---
@@ -1918,6 +1920,23 @@ function addCustomCrunchyCss() {
 function fixCrunchyroll() {
   addCustomCrunchyCss();
   addHotkeysForNextAndPrevious();
+  autoLogin();
+}
+
+function autoLogin() {
+  let pauseExecution = false;
+  const getUserProfileChoice = () => userOptions.crunchyroll.featureAutoLogin.isEnabled.subFeatures.profilename.value;
+  const autoLoginEnabled = () => isAllowed(userOptions.crunchyroll.featureAutoLogin.isEnabled);
+  const featureEnabled = () => autoLoginEnabled() && getUserProfileChoice();
+  const isOnProfileSelection = () => query('.erc-profile-item-wrapper');
+  repeatIfCondition(() => {
+    const profiles = queryAll('.erc-profile-item-wrapper');
+    const userProfileChoice = getUserProfileChoice();
+    const indexOfProfile = Array.from(profiles).findIndex(el => el.textContent === userProfileChoice);
+    profiles[indexOfProfile]?.querySelector('button')?.click();
+    pauseExecution = true;
+    setTimeout(() => pauseExecution = false, 1000);
+  }, () => isOnProfileSelection() && featureEnabled() && !pauseExecution, { pauseInBg: false });
 }
 
 function crunchyrolliFrameHook() {
@@ -2523,7 +2542,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.027,
+  version: 1.028,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2738,7 +2757,22 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     featureAutoSkip: {
       featureName: 'AutoSkip',
       featureDescription: 'automatically clicks the "skip intro" button for you. Activate it in the video player settings (⚙️).'
-    }
+    },
+    featureAutoLogin: {
+      featureName: 'AutoLogin',
+      featureDescription: 'this feature will log you into your Profile automatically',
+      isEnabled: {
+        value: true,
+        label: 'Enable Feature',
+        description: 'enter Name and pin, to auto login',
+        subFeatures: {
+          profilename: {
+            label: 'Profilename',
+            value: ''
+          }
+        }
+      }
+    },
   },
   netflix: {
     featureAutoSkip: {

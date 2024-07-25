@@ -759,6 +759,23 @@ function startFixing() {
 function fixChessDotCom() {
   unhideResultQuickAnalysis();
   fixCSSGameReviewBtn();
+  removeNewTag();
+}
+
+function removeNewTag() {
+  insertCSS(`
+    .cu-hide {
+      display: none !important;
+    }
+  `, 'cu-remove-new-tag');
+  const condition = () => query('.nav-tag');
+  const remove = () => {
+    const el = Array.from(queryAll('.nav-tag')).find(el=>el.textContent === 'new');
+    if (el) {
+      el.classList.add('cu-hide');
+    }
+  };
+  repeatIfCondition(remove, condition, { pauseInBg: false, interval: 1000 });
 }
 
 function unhideResultQuickAnalysis() {

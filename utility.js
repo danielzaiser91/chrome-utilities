@@ -1769,7 +1769,7 @@ function noInterestButton() {
       const id = 'cu-hovered-container-'+ ++ytContainerIndex;
       vid.classList.add(id);
       vid.addEventListener('mouseenter', () => document.body.classList.add(id));
-      insertCSS(`.${id} .${id} .cu-no-interest{display:block}`,id);
+      insertCSS(`.${id} .${id}:hover .cu-no-interest{display:block}`,id);
       vid.classList.add('cu-no-interest-container');
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
       const div = create('div', {className:'cu-no-interest'});

@@ -1607,8 +1607,11 @@ function addAutoSkipIntroButton() {
   parent.insertBefore(copyChild, parent.children[0]);
 }
 
+/**
+ * @param {HTMLElement} el 
+ */
 function toggleAutoSkipIntro(el) {
-  if (!el?.classList?.includes('button-autoSkipToggle')) {
+  if (!el?.classList?.contains('button-autoSkipToggle')) {
     el = query('.button-autoSkipToggle');
   }
   if (!Interval.exists('_netflix_skip')) {

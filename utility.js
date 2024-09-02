@@ -724,6 +724,7 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
+    new Matcher('/twweb/twwebclient', fixTisoware, true),
     new Matcher('chess.com', fixChessDotCom, true),
     new Matcher('wiki.fextralife.com', fixFextralife, true),
     new Matcher('twitch.tv', fixTwitch, true),
@@ -751,6 +752,15 @@ function startFixing() {
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
+}
+
+// ----
+// Fix Tisoware
+// ---
+function fixTisoware() {
+  repeatUntilCondition(() => {
+    query('[type="password"]').setAttribute('maxlength', 16);
+  }, () => query('[type="password"]'), false);
 }
 
 // ----

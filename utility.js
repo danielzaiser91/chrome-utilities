@@ -1017,8 +1017,11 @@ function fixFandom() {
     fixNguWiki();
   }
 
-  // general fixes
-  insertCSS('#WikiaBar { display: none !important }', 'remove wikia bar');
+  // general css fixes
+  insertCSS(`
+    #WikiaBar { display: none !important }
+    .notifications-placeholder { display: none !important }
+  `, 'remove wikia bar');
 
   // right side panel?? -- kp was das ist xD
   const rightSidePanel = () => query('.page__right-rail');

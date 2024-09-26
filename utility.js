@@ -754,6 +754,50 @@ function startFixing() {
   matcher.fix();
 }
 
+
+// ----
+// fix https://ngu-idle.fandom.com/wiki/Yggdrasil
+// ---
+function fixNguWiki() {
+  addCalcFruitOfMacGuffin();
+}
+
+function addCalcFruitOfMacGuffin() {
+  if (!document) {
+    return;
+  }
+
+  const element = Array.from(document.querySelector('.mw-parser-output').children).find(el => el.textContent.includes('Fruit of MacGuffin β') && el.tagName === 'UL').querySelector('li');
+  element.insertAdjacentHTML('beforeend', `
+    <br>Fruit Tier: <input type="number" id="dz-calc-T" min="1" max="24" value="1">
+    <br>poop: <input type="checkbox" id="dz-calc-poop">
+    <br>quirkYgg Sadistic Rank: <input title="The current bonus of the quirk "Increased Yggdrasil Yields" type="number" id="dz-calc-quirkYgg" min="0" max="50" value="0">
+    <br>EquipYggYield: <input title="Special "Yggdrasil Yield" bonuses from equipped items in the Inventory." type="number" id="dz-calc-equipYggYield" min="0" max="135" value="0">
+    <br>FirstHarvest Rank: <input type="number" id="dz-calc-firstHarvest" min="0" max="5" value="0">
+    <div>
+      result: <span id="dz-result"></span>
+    </div>
+  `);
+  const inputTEl = query('#dz-calc-T');
+  const inputPoopEl = query('#dz-calc-poop');
+  const inputQuirkYggEl = query('#dz-calc-quirkYgg');
+  const inputEquipYggYieldEl = query('#dz-calc-equipYggYield');
+  const inputFirstHarvestEl = query('#dz-calc-firstHarvest');
+  const resultEl = query('#dz-result');
+
+  const calc = () => {
+    const poop = inputPoopEl.checked ? 1.5 : 1;
+    const quirkYgg = (100 + (+inputQuirkYggEl.value / 10)) / 100;
+    const equipYggYield = (+inputEquipYggYieldEl.value + 100) / 100;
+    const firstHarvest = (100 + ((+inputFirstHarvestEl.value || 1) * 10)) / 100;
+    resultEl.textContent = (+inputTEl.value)**1.5 * 0.1 
+    * poop * quirkYgg * equipYggYield * firstHarvest;
+  }
+
+  [inputTEl, inputPoopEl, inputQuirkYggEl, inputEquipYggYieldEl, inputFirstHarvestEl].forEach(el => el.addEventListener('input', calc));
+  calc();
+}
+
 // ----
 // Fix Tisoware
 // ---
@@ -969,6 +1013,14 @@ function fixAternos() {
 
 // fix fandom.com
 function fixFandom() {
+  if (location.pathname.includes('Yggdrasil') && location.hostname.includes('ngu-idle')) {
+    fixNguWiki();
+  }
+
+  // general fixes
+  insertCSS('#WikiaBar { display: none !important }', 'remove wikia bar');
+
+  // right side panel?? -- kp was das ist xD
   const rightSidePanel = () => query('.page__right-rail');
   repeatUntilCondition(() => {
     const rightEl = rightSidePanel();

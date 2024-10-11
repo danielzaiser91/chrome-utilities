@@ -724,8 +724,9 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
-    new Matcher('/twweb/twwebclient', fixTisoware, true),
-    new Matcher('chess.com', fixChessDotCom, true),
+    new Matcher('www.keyforsteam.', fixKeyForSteam),
+    new Matcher('/twweb/twwebclient', fixTisoware),
+    new Matcher('chess.com', fixChessDotCom),
     new Matcher('wiki.fextralife.com', fixFextralife, true),
     new Matcher('twitch.tv', fixTwitch, true),
     new Matcher('static.crunchyroll.com', crunchyrolliFrameHook, false, 'crunchyHook', true),
@@ -754,6 +755,12 @@ function startFixing() {
   matcher.fix();
 }
 
+// ----
+// fix https://www.keyforsteam.de/
+// ---
+function fixKeyForSteam() {
+  insertCSS('.social-btns {display:none}')
+}
 
 // ----
 // fix https://ngu-idle.fandom.com/wiki/Yggdrasil
@@ -1829,7 +1836,7 @@ function noInterestButton() {
   const allVideos = () => !inURL(['@', 'subscriptions']) && hasDismissibles() && getDismissibles();
   // commented out inclusion of shorts...
   // const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
-  const svg = '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false" style="display: block; width: 100%; height: 100%;"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';
+  const svg = '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';
   const _addNoInterestIcon = () => {
     const videos = allVideos();
     if (!videos || !videos.length) return;
@@ -1841,7 +1848,8 @@ function noInterestButton() {
       vid.classList.add('cu-no-interest-container');
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
       const div = create('div', {className:'cu-no-interest'});
-      div.onclick = () => {
+      div.insertAdjacentHTML('afterbegin', svg);
+      div.querySelector('svg').onclick = () => {
         const dropdownTrigger = vid.querySelector('#button.dropdown-trigger button');
         if (!dropdownTrigger) return;
         document.body.classList.add('cu-menu--hide');
@@ -1855,12 +1863,12 @@ function noInterestButton() {
           document.body.classList.remove('cu-menu--hide');
         },100);        
       }
-      div.insertAdjacentHTML('afterbegin', svg);
       vid.prepend(div);
     });
   }
   insertCSS(`
-    .cu-no-interest{position:absolute;top:0;left:0;display:none;background:white;z-index:2;border-radius:50%;}
+    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:2;width:80%;height:60%}
+    .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
     .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     

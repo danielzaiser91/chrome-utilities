@@ -1831,6 +1831,11 @@ function inURL(arr) {
 
 let ytContainerIndex = 0;
 function noInterestButton() {
+  let lastVidHovered = '';
+  repeatUntilCondition(() => {
+    const preview = query('#video-preview');
+    preview.addEventListener('mouseenter', () => document.body.classList.add('cu-hovering-' + lastVidHovered));
+  }, () => query('#video-preview'));
   const hasDismissibles = () => query('#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]') || query('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]');
   const getDismissibles = () => [...Array.from(queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]')), ...Array.from(queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]'))];
   const allVideos = () => !inURL(['@', 'subscriptions']) && hasDismissibles() && getDismissibles();
@@ -1843,11 +1848,14 @@ function noInterestButton() {
     videos.forEach(vid => {
       const id = 'cu-hovered-container-'+ ++ytContainerIndex;
       vid.classList.add(id);
-      vid.addEventListener('mouseenter', () => document.body.classList.add(id));
-      insertCSS(`.${id} .${id}:hover .cu-no-interest{display:block}`,id);
+      vid.addEventListener('mouseenter', () => {
+        document.body.classList.add(id);
+        lastVidHovered = id;
+      });
+      insertCSS(`.${id} .${id}:hover .cu-no-interest, .cu-hovering-${id} .${id} .cu-no-interest{display:block}`,id);
       vid.classList.add('cu-no-interest-container');
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
-      const div = create('div', {className:'cu-no-interest'});
+      const div = create('div', {className:'cu-no-interest', title: 'not interested'});
       div.insertAdjacentHTML('afterbegin', svg);
       div.querySelector('svg').onclick = () => {
         const dropdownTrigger = vid.querySelector('#button.dropdown-trigger button');
@@ -1867,7 +1875,7 @@ function noInterestButton() {
     });
   }
   insertCSS(`
-    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:2;width:80%;height:60%}
+    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:2;}
     .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
     .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}

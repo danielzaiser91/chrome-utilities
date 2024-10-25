@@ -1577,6 +1577,7 @@ const _netflix_setPlayerValue = (val, playBackInput) => {
   if (Number.isNaN(val) || !video) return;
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
+  playBackInput.value = val;
   video.playbackRate = val;
 }
 const _netflix_adjustVal = (e, playBackInput) => {
@@ -1600,6 +1601,9 @@ function _netflix_speed_custom_control() {
   const _add_custom_speed_control = () => {
     const playBackContainer = query('[data-uia="playback-speed"] div');
     if (playBackContainer?.classList?.contains('cu-playbackSpeedContainer')) return;
+    const netflixPlay = queryAll('[data-uia="playback-speed-indicator"]');
+    const netflixPlayArr = [0.5, 0.75, 1, 1.25, 1.5];
+    (netflixPlay?.length ? Array.from(netflixPlay) : []).forEach((el, i) => el.addEventListener('click', _ => _netflix_setPlayerValue(netflixPlayArr[i], playBackInput)));
     playBackInput.value = userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
     playBackContainer.classList.add('cu-playbackSpeedContainer');
     playBackContainer.appendChild(playBackInput);
@@ -1753,7 +1757,9 @@ function fixYoutube() {
   initDateVisibilityListener();
   noInterestButton();
   noYTBanner(); // make toggleable, let user decide
-  noYTAdBlockBanner();
+
+  /** disabled, because it should only target the problem banner, not all banners... */
+  // noYTAdBlockBanner();
   hideYoutubeAds();
   hideYoutubeAdsReels();
   initListenerForAdEnforcer();
@@ -2048,6 +2054,25 @@ function fixCrunchyroll() {
   addCustomCrunchyCss();
   addHotkeysForNextAndPrevious();
   autoLogin();
+  showDub();
+}
+
+function showDub() {
+  const getTagsEl = () => query('[data-t="meta-tags"] > :nth-child(2)');
+  condition = () => {
+    const metaTagsEl = getTagsEl();
+    if (!metaTagsEl) return false;
+    const alreadyAdded = metaTagsEl.classList.contains('cu-added');
+    return !alreadyAdded;
+  }
+  function method() {
+    const metaTagsEl = getTagsEl();
+    metaTagsEl.classList.add('cu-added');
+    const dubEl = query('[data-t="detail-row-audio-language"] [data-t="details-table-description"]');
+    if (!dubEl) return;
+    metaTagsEl.textContent += ' ' + dubEl.textContent;
+  }
+  repeatIfCondition(method, condition, { pauseInBg: false });
 }
 
 function autoLogin() {

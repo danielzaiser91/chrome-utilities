@@ -1757,9 +1757,7 @@ function fixYoutube() {
   initDateVisibilityListener();
   noInterestButton();
   noYTBanner(); // make toggleable, let user decide
-
-  /** disabled, because it should only target the problem banner, not all banners... */
-  // noYTAdBlockBanner();
+  noYTAdBlockBanner();
   hideYoutubeAds();
   hideYoutubeAdsReels();
   initListenerForAdEnforcer();

@@ -1813,7 +1813,7 @@ function noYTAdBlockBanner() {
   repeatIfCondition(() => {
     banner().click()
     ytPlay();
-  }, banner, { interval: 500, pauseInBg: false });
+  }, () => banner() && banner().checkVisibility(), { interval: 500, pauseInBg: false });
 }
 
 function noYTBanner() {

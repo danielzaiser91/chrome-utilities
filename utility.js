@@ -2047,6 +2047,34 @@ function fixCrunchyroll() {
   addHotkeysForNextAndPrevious();
   autoLogin();
   showDub();
+  watchListColors();
+}
+
+function watchListColors() {
+  const isOnWatchList = () => location.pathname.includes('watchlist');
+  const isInLoadingState = () => query('[class*="my-lists-item"] :nth-child(1)')?.className?.includes?.('loading');
+  function fn() {
+    // Fügt zu Watchlisteinträgen Bubbles hinzu
+    // grün wenn nächste, gelb wenn erneut
+    queryAll('[class*="my-lists-item"]:not(.cu-added-watch-status)').forEach(card => {
+      const nameTag = card?.querySelector('[class*="watchlist-card-subtitle"]');
+      if (!nameTag) return;
+      const isFortsetzen = ['fortsetzen','continue', 'als nächstes', 'next up'].some(v => nameTag.textContent.toLowerCase().includes(v));
+      if (isFortsetzen) {
+        nameTag.textContent = '🟢' + nameTag.textContent;
+      }
+      const isErneut = !isFortsetzen && ['erneut', 'again'].some(v => nameTag.textContent.toLowerCase().includes(v));
+      if (isErneut) {
+        nameTag.textContent = '🟡' + nameTag.textContent;
+        // hide new tag if already watched: data-t="info-tag-new"
+        const newTag = card?.querySelector('[data-t="info-tag-new"]');
+        const hideNewTag = false; // TODO: mit user setting verbinden
+        if (newTag) newTag.style.display = hideNewTag ? 'none' : 'unset';
+      }
+      card.classList.add('cu-added-watch-status');
+    });
+  }
+  repeatIfCondition(fn, () => isOnWatchList() && !isInLoadingState(), { pauseInBg: false, interval: 500 });
 }
 
 function showDub() {

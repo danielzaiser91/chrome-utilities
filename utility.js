@@ -1810,8 +1810,8 @@ function ytPlay() {
 
 function noYTAdBlockBanner() {
   // 1. is the button of the banner on the bottom left
-  // 2. is the ad overlay in the video
-  const banner = () => query('yt-mealbar-promo-renderer button') || query('.ytp-ad-skip-button-modern');
+  // 2. is the ad overlay in the video --- can not be done, because yt detects and blocks this...
+  const banner = () => query('yt-mealbar-promo-renderer button'); // || query('.ytp-ad-skip-button-modern');
   repeatIfCondition(() => {
     banner().click()
     ytPlay();

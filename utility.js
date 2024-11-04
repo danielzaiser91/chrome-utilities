@@ -1809,7 +1809,9 @@ function ytPlay() {
 }
 
 function noYTAdBlockBanner() {
-  const banner = () => query('yt-mealbar-promo-renderer button');
+  // 1. is the button of the banner on the bottom left
+  // 2. is the ad overlay in the video
+  const banner = () => query('yt-mealbar-promo-renderer button') || query('.ytp-ad-skip-button-modern');
   repeatIfCondition(() => {
     banner().click()
     ytPlay();

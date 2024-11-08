@@ -821,6 +821,19 @@ function fixChessDotCom() {
   unhideResultQuickAnalysis();
   fixCSSGameReviewBtn();
   removeNewTag();
+  moveDailyPuzzleUp();
+}
+
+function moveDailyPuzzleUp() {
+  const getEl = () => query('[data-category="dailyPuzzle"]')?.parentElement;
+  const condition = () => getEl() && getEl().style.marginTop !== '0px';
+  const fn = () => {
+    const el = getEl();
+    el.parentElement.insertAdjacentElement('afterbegin', el);
+    el.parentElement.children[1].classList.add('v5-section');
+    el.style.marginTop = 0;
+  }
+  repeatIfCondition(fn, condition, { pauseInBg: false, interval: 500 });
 }
 
 function removeNewTag() {

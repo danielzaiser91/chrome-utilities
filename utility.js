@@ -2072,7 +2072,7 @@ function watchListColors() {
     queryAll('[class*="my-lists-item"]:not(.cu-added-watch-status)').forEach(card => {
       const nameTag = card?.querySelector('[class*="watchlist-card-subtitle"]');
       if (!nameTag) return;
-      const isFortsetzen = ['fortsetzen','continue', 'als nächstes', 'next up'].some(v => nameTag.textContent.toLowerCase().includes(v));
+      const isFortsetzen = ['fortsetzen','continue', 'als nächstes', 'up next'].some(v => nameTag.textContent.toLowerCase().includes(v));
       if (isFortsetzen) {
         nameTag.textContent = '🟢' + nameTag.textContent;
       }

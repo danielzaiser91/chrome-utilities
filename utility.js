@@ -195,10 +195,10 @@ class Interval {
   }
 }
 function insertCSS(css, id = 'alreadyAddedCss', overwrite = false) {
-  const alreadyExists = document.getElementById(id);
+  const alreadyExists = byId(id);
   if (alreadyExists) {
     if (!overwrite) return;
-    document.getElementById(id).remove();
+    byId(id).remove();
   };
   const styleTag = document.createElement('style');
   styleTag.id = id;
@@ -285,7 +285,7 @@ function prepareActionBar() {
     mouseOver = true;
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
-      const isVisible = document.querySelector('.cu-settings').classList.contains('cu-slide-in');
+      const isVisible = query('.cu-settings') && query('.cu-settings').classList.contains('cu-slide-in');
       if (isVisible) return;
       mouseOver = false;
     }, 2200);
@@ -774,7 +774,7 @@ function addCalcFruitOfMacGuffin() {
     return;
   }
 
-  const element = Array.from(document.querySelector('.mw-parser-output').children).find(el => el.textContent.includes('Fruit of MacGuffin β') && el.tagName === 'UL').querySelector('li');
+  const element = Array.from(query('.mw-parser-output').children).find(el => el.textContent.includes('Fruit of MacGuffin β') && el.tagName === 'UL').querySelector('li');
   element.insertAdjacentHTML('beforeend', `
     <br>Fruit Tier: <input type="number" id="dz-calc-T" min="1" max="24" value="1">
     <br>poop: <input type="checkbox" id="dz-calc-poop">
@@ -904,7 +904,7 @@ function fixSteam() {
 // --------------------------------
 // fix PogChamps
 function fixPogChamps() {
-  const el = document.querySelector('.elementor-background-video-container')?.parentElement?.parentElement;
+  const el = query('.elementor-background-video-container')?.parentElement?.parentElement;
   el.style.display = 'none';
 }
 // fix ds3CheatSheet
@@ -1010,10 +1010,10 @@ function activateAutoLoginListener() {
     const { profilename, pin } = userOptions.disneyplus.featureAutoLogin.isEnabled.subFeatures;
     const username = profilename.value;
     const pinVal = pin.value;
-    const profileEl = Array.from(document.querySelectorAll('.profile-avatar-appear-done div')).find(el => el.querySelector('h3')?.textContent?.toLowerCase?.() === username?.toLowerCase?.());
+    const profileEl = Array.from(queryAll('.profile-avatar-appear-done div')).find(el => el.querySelector('h3')?.textContent?.toLowerCase?.() === username?.toLowerCase?.());
     if (!profileEl) return currentlyRunning = false;
     profileEl.click();
-    const ref = () => document.querySelectorAll('[data-gv2elementkey="pin"] input');
+    const ref = () => queryAll('[data-gv2elementkey="pin"] input');
     const condition = () => ref()?.length && location.pathname.includes('enter-pin');
     repeatUntilCondition(() => {
       const inputs = Array.from(ref());
@@ -1094,7 +1094,7 @@ function fixFandom() {
       // listener for commentSection
       
       const getComments = () => Array.from(queryAll('[data-testid="article-comments__comment"]'));
-      const commentsLoaded = () => document.querySelector('[data-testid="article-comments__comment"]');
+      const commentsLoaded = () => query('[data-testid="article-comments__comment"]');
       repeatUntilCondition(() => {
         const comments = getComments();
         const commentsToToggle = [];
@@ -1586,7 +1586,7 @@ function fixNetflix() {
 }
 // TODO: when user disables feature, it should not set input (maybe pause interval?)
 const _netflix_setPlayerValue = (val, playBackInput) => {
-  const video = document.querySelector('video');
+  const video = query('video');
   if (Number.isNaN(val) || !video) return;
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
@@ -1610,7 +1610,7 @@ function _netflix_speed_custom_control() {
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
   repeatIfCondition(() => setTimeout(() =>
     _netflix_setPlayerValue(userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value, playBackInput),
-  300), () => document.querySelector('video'), { interval: 1000, pauseInBg: false });
+  300), () => query('video'), { interval: 1000, pauseInBg: false });
   const _add_custom_speed_control = () => {
     const playBackContainer = query('[data-uia="playback-speed"] div');
     if (playBackContainer?.classList?.contains('cu-playbackSpeedContainer')) return;
@@ -1783,7 +1783,7 @@ function fixYoutube() {
 }
 
 function initListenerForAdEnforcer() {
-  const getEl = () => document.querySelector('ytd-enforcement-message-view-model');
+  const getEl = () => query('ytd-enforcement-message-view-model');
   repeatIfCondition(() => location.reload(), getEl, { pauseInBg: false })
 }
 
@@ -1818,7 +1818,7 @@ function ytAutoskipAdd() {
 
 /** start the current video */
 function ytPlay() {
-  document.querySelector('video')?.play();
+  query('video')?.play();
 }
 
 function noYTAdBlockBanner() {
@@ -1995,7 +1995,7 @@ function addNodeCounter() {
     >Rows: x</div>
     `;
     el.insertAdjacentHTML('beforebegin', counterHTML);
-    const counter = document.getElementById(counterId);
+    const counter = byId(counterId);
     el.addEventListener('input', () => {
       const count = el.value.split('\n').length;
       counter.textContent = 'Rows: ' + count;
@@ -2010,11 +2010,11 @@ function addRemoveNodeInput() {
     <button id="remNodeButton">remove</button>
   </div>
   `;
-  const target = document.getElementById('motherlode_survey_input');
+  const target = byId('motherlode_survey_input');
   target.insertAdjacentHTML('beforebegin', inputHTML);
 
-  const btn = document.getElementById('remNodeButton');
-  const nodeInput = document.getElementById('node');
+  const btn = byId('remNodeButton');
+  const nodeInput = byId('node');
   btn.addEventListener('click', () => removeNode(nodeInput.value));
 }
 
@@ -2100,10 +2100,21 @@ function showDub() {
   }
   function method() {
     const metaTagsEl = getTagsEl();
-    metaTagsEl.classList.add('cu-added');
     const dubEl = query('[data-t="detail-row-audio-language"] [data-t="details-table-description"]');
     if (!dubEl) return;
-    metaTagsEl.textContent += ' ' + dubEl.textContent;
+    metaTagsEl.classList.add('cu-added');
+    const languages =  dubEl.textContent;
+    const feature = userOptions.crunchyroll.featureHighlightLanguage;
+    const highlight = isAllowed(feature.isEnabled);
+    const featureVal = feature.isEnabled.subFeatures.profilename.value;
+    let dubHTML = languages;
+    if (highlight && featureVal) {
+      const highlightLang = featureVal.split(';').map(v => v.trim());
+      highlightLang.forEach(lang => {
+        dubHTML = dubHTML.replace(lang, '<b style="color:orange">'+lang+'</b>');
+      });
+    }
+    metaTagsEl.innerHTML = 'Dub: ' + dubHTML;
   }
   repeatIfCondition(method, condition, { pauseInBg: false });
 }
@@ -2173,10 +2184,10 @@ function addCrunchySkipOptionListener() {
 
 const _crunchyhook_setPlayerValue = (val, playBackInput) => {
   if (isNaN(val)) return;
-  lastVideoUrl = document.querySelector('video').src; // this line does not do anything, since on next episode iframe reloads and entire script is reapplied
+  lastVideoUrl = query('video').src; // this line does not do anything, since on next episode iframe reloads and entire script is reapplied
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
-  document.getElementById('player0').playbackRate = val;
+  byId('player0').playbackRate = val;
 }
 const _crunchyhook_adjustVal = (playBackInput) => {
   if (isNaN(playBackInput.value)) return;
@@ -2185,7 +2196,7 @@ const _crunchyhook_adjustVal = (playBackInput) => {
 }
 let lastVideoUrl = '';
 function videoChanged() {
-  return lastVideoUrl !== document.querySelector('video').src;
+  return lastVideoUrl !== query('video').src;
 }
 function initPlaybackOptionListener() {
   // --- prepare input Element to insert ---
@@ -2243,7 +2254,7 @@ function startCrunchySkipInterval() {
     _crunchySkipInterval?.pause();
     return;
   }
-  const getSkipBtn = () => document.querySelector('[data-testid="skipButton"] div');
+  const getSkipBtn = () => query('[data-testid="skipButton"] div');
   const skipWithDelay = () => {
     initSkip = true;
     setTimeout(() => {
@@ -2442,7 +2453,7 @@ function startListenerForOpenedPrimePanel() {
   // TODO#1: Add Information Bubbles on screen to inform how many items have been removed.
   // TODO#1: Below feature, add another feature, to filter rewards, by selecting a checkbox
   const listener = () => {
-    const header = document.getElementById('PrimeOfferPopover-header');
+    const header = byId('PrimeOfferPopover-header');
     const isOpen = !!header;
     if (isOpen !== twitchPrimeRewardPanelIsOpened) {
       twitchPrimeRewardPanelIsOpened = isOpen;
@@ -2677,8 +2688,8 @@ function fextraLifeAddSortIcon() {
 function fextralifeRemoveTwitchPlayer() {
   if (!isAllowed(userOptions.fextralife.featureRemoveMiniPlayer.isEnabled)) return;
 
-  const wrapper = document.getElementById('wrapper');
-  const sidebar = document.getElementById('sidebar-wrapper');
+  const wrapper = byId('wrapper');
+  const sidebar = byId('sidebar-wrapper');
 
   wrapper.style.paddingLeft = '5px';
   sidebar.remove();
@@ -2727,7 +2738,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.030,
+  version: 1.033,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2957,6 +2968,22 @@ let userOptions = { // key must be match.site (saved as matcher globally)
         subFeatures: {
           profilename: {
             label: 'Profilename',
+            value: ''
+          }
+        }
+      }
+    },
+    featureHighlightLanguage: {
+      featureName: 'HighlightLanguage',
+      featureDescription: 'this feature will highlight the language in the episode/series overview if it has dub',
+      isEnabled: {
+        value: true,
+        label: 'Enable Feature',
+        subFeatures: {
+          profilename: {
+            label: 'Languages',
+            description: 'enter Languages to highlight. Multiple highlight possible, seperate with ";". Must match language on crunchyroll',
+            featureDescription: 'enter Languages to highlight. Multiple highlight possible, seperate with ";". Must match language on crunchyroll',
             value: ''
           }
         }

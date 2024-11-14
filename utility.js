@@ -1407,7 +1407,7 @@ const getAmazonSkipNextBtn = () => query('.dv-player-fullscreen .atvwebplayersdk
 const getAmazonBackwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekback-button');
 const getAmazonPlayPauseBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-playpause-button');
 const getAmazonForwardsBtn = () => query('.dv-player-fullscreen .atvwebplayersdk-fastseekforward-button');
-function toggleAmazonSkip() { !amazonSkipLoop.isPlaying ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
+function toggleAmazonSkip() { userOptions.amazon.featureAutoSkip.isEnabled.value ? amazonSkipLoop.play() : amazonSkipLoop.pause() }
 function fixAmazon() {  
   // feature skip recap / ad / click next episode
   const condition = () => getAmazonSkipRecapBtn2() || getAmazonSkipRecapBtn() || getAmazonSkipNextBtn() || getAmazonSkipAdvertBtn() || getAmazonSkipAdvertBtn2() || getAmazonSkipAdvertBtn3();

@@ -1428,6 +1428,74 @@ function fixAmazon() {
 
   // feature: remove xray when mouse leaves window immidiatly (no fade-out animation or delay)
   immidiatlyRemoveUiWhenLeavingMouse();
+
+  // feature: Make xray toggleable
+  xrayToggle();
+
+  // feature: remove backdrop shadow
+  removeBackdropShadow();
+
+  // feature: move video-action buttons lower
+  moveVideoActionsLower();
+}
+
+function moveVideoActionsLower() {
+  insertCSS(`
+    .cu-moved-lower {
+      bottom: 6px;
+      left: 36%;
+      position: fixed;
+      zoom: 0.6;
+      z-index: 9999999;
+    }
+  `, 'cu-move-lower');
+  repeatIfCondition(() => {
+    const btn = query('.atvwebplayersdk-fastseekback-button');
+    btn.parentElement.parentElement.parentElement.classList.add('cu-moved-lower');
+  }, () => {
+    const btn = query('.atvwebplayersdk-fastseekback-button');
+    return btn && !btn.parentElement.parentElement.parentElement.classList.contains('cu-moved-lower')
+  })
+}
+
+function removeBackdropShadow() {
+  insertCSS(`
+    .atvwebplayersdk-overlays-container > div:nth-child(1) {
+      background: transparent !important;
+    }
+  `,'cu-remove-backdrop-shadow')
+}
+
+function xrayToggle() {
+  insertCSS(`
+    .cu-xray-button {
+      background-color: transparent;
+      border-radius: 20px;
+      color: white;
+      font-size: 24px;
+      padding: 1px 6px 7px 6px;
+      margin-top: 22px;
+      border: 3px solid white;
+      position: fixed;
+      left: 10px;
+      top: -10px;
+      z-index: 99999999999;
+    }
+  `, 'cu-xray-button');
+  repeatIfCondition(() => {
+    const xrayContainer = query('.xrayQuickView');
+    const xrayContent = xrayContainer.firstElementChild;
+    xrayContent.classList.add('cu-hide');
+    xrayContainer.classList.add('cu-xray-toggle');
+    const btn = create('button', { textContent: 'x-ray', className: 'cu-xray-button' });
+    btn.onclick = ev => {
+      xrayContent.classList.toggle('cu-hide');
+    };
+    query('.cu-playback-rate').parentElement.insertAdjacentElement('afterbegin', btn);
+  }, () => {
+    const xray = query('.xrayQuickView')
+    return xray?.firstElementChild && !xray.classList.contains('cu-xray-toggle') && query('.cu-playback-rate');
+  }, { pauseInBg: false, interval: 1000 });
 }
 
 const _amazon_setPlayerValue = (val, playBackInput) => {

@@ -2371,6 +2371,16 @@ function fixTwitch() {
   // adBlockTwitch(); TODO: Implement
   addPokemonRewardHotkeys();
   styleAdjustTwitch();
+  linkPrimeGaming(); // https://gaming.amazon.com/home
+}
+
+function linkPrimeGaming() {
+  const popover = () => byId('PrimeOfferPopover-header')?.parentElement.querySelector('[aria-label="Prime Gaming Logo"]:not(.cu-link-added)');
+  repeatIfCondition(() => {
+    const el = popover();
+    el.classList.add('cu-link-added');
+    el.onclick = () => window.open('https://gaming.amazon.com/home');
+  }, () => popover(), { pauseInBg: false, interval: 1000 });
 }
 
 function styleAdjustTwitch() {

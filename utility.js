@@ -1483,6 +1483,8 @@ function xrayToggle() {
     }
   `, 'cu-xray-button');
   repeatIfCondition(() => {
+    const elX = query('.cu-playback-rate')?.parentElement?.children;
+    if (elX && Array.from(elX)?.some(child => child.classList.contains('cu-xray-button'))) return;
     const xrayContainer = query('.xrayQuickView');
     const xrayContent = xrayContainer.firstElementChild;
     xrayContent.classList.add('cu-hide');
@@ -1522,24 +1524,32 @@ function addPlayBackRateButton() {
   const amazonVideoPlaying = () => query('.dv-player-fullscreen');
   const _addPlayBackRateButton = () => {
     const container = query('.atvwebplayersdk-hideabletopbuttons-container div');
-    const div = create('div', { className: 'cu-playback-rate' });
-    const svg = `<svg fill="#82bf9a" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="20px" height="20px" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve" transform="rotate(60)" stroke="#82bf9a">
-    <g id="SVGRepo_bgCarrier" stroke-width="0"/>
-    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="1.024"/>
-    <g id="SVGRepo_iconCarrier"> <g> <path d="M256,0C114.609,0,0,114.609,0,256s114.609,256,256,256s256-114.609,256-256S397.391,0,256,0z M256,472 c-119.297,0-216-96.703-216-216S136.703,40,256,40s216,96.703,216,216S375.297,472,256,472z"/> <g> <path d="M350.281,169.609l-23.594,21.625C343.016,209.047,352,232.047,352,256c0,52.938-43.062,96-96,96s-96-43.062-96-96 s43.062-96,96-96v-32c-70.578,0-128,57.422-128,128s57.422,128,128,128s128-57.422,128-128 C384,224.016,372.031,193.344,350.281,169.609z"/> <polygon points="272,262.391 307.188,138.688 240,249.609 248,272 "/> </g> </g> </g>
-    </svg>`;
+    const div = create('div', { className: 'cu-playback-rate cu-el' });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
+        <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
     insertCSS(`
-      .cu-playback-rate { margin-right: 20px; }
+      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; }
+      .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
       .cu-playback-rate:hover { cursor: pointer; }
+      .cu_playback { background: black !important; color: white;  }
+      input.cu_playback[type=number]::-webkit-inner-spin-button { opacity: 1 }
+      .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
+      .cu-is-open { margin-right: 10px; }
     `, 'cu-playback-rate');
     const playbackSettings = create('div', { className: 'cu-hide cu-playback-settings' });
     const value = userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
-    const playbackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback' });
+    const playbackInput = create('input', { type: 'number', step: '0.1', min: '0.2', max: '5', value, className: 'cu_playback cu-el', id: 'cu_playback' });
     updateAmznVideoPlayrate(value);
     playbackInput.addEventListener('keydown', e => _amazon_adjustVal(e, playbackInput));
     playbackInput.addEventListener('input', e => _amazon_adjustVal(e, playbackInput));
-    playbackSettings.prepend(playbackInput)
-    div.onclick = () => playbackSettings.classList.toggle('cu-hide');
+    const playbackLabel = create('label', { textContent: 'Speed:', for: 'cu_playback', className: 'cu-el' });
+    playbackSettings.prepend(playbackInput);
+    playbackSettings.prepend(playbackLabel);
+    div.onclick = () => {
+      playbackSettings.classList.toggle('cu-hide');
+      div.classList.toggle('cu-is-open');
+    }
     div.insertAdjacentHTML('afterbegin', svg);
     container.prepend(div, playbackSettings);
   }

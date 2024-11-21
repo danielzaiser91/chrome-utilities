@@ -313,7 +313,7 @@ function prepareActionBar() {
   const settingsBtn = actionBar.querySelector('button');
   settingsOverlay = query('.cu-settings');
   const _prepareActionBar = () => {
-    const actionBarShowCondition = userOptions[matcher.site.toLowerCase()]?.actionBarShowCondition?.() ?? true;
+    const actionBarShowCondition = window[userOptions[matcher.site.toLowerCase()]?.actionBarShowCondition]?.() ?? true;
     if (mouseOver && actionBarShowCondition) {
       actionBar.classList.remove('cu-hide');
     } else {
@@ -514,7 +514,7 @@ function renderOptions() {
   const settingsEl = settingsOverlay.querySelector('.cu-settings-options');
   settingsEl.innerHTML = '';
   if (options) {
-    Object.entries(options).forEach(([key, value]) => {
+    Object.entries(options).filter(([k])=>k!=='actionBarShowCondition').forEach(([key, value]) => {
       const featureSelector = key;
       const feature = Object.assign({}, value);
       const featureName = feature.featureName;
@@ -2816,7 +2816,7 @@ let ascending = false;
 let sortButton;
 let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.033,
+  version: 1.034,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -2913,7 +2913,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     }
   },
   amazon: {
-    actionBarShowCondition: amazonshowCondition,
+    actionBarShowCondition: 'amazonshowCondition',
     featurePlayBackSpeed: {
       featureName: 'PlayBackSpeed',
       featureDescription: 'this feature will set the speed for video playback',

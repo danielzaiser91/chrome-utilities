@@ -822,6 +822,16 @@ function fixChessDotCom() {
   fixCSSGameReviewBtn();
   removeNewTag();
   moveDailyPuzzleUp();
+  fixBuggedTooltipCSS();
+}
+
+function fixBuggedTooltipCSS() {
+  insertCSS(`
+    .cc-tooltip-top.cc-tooltip-visible {
+      left: -40px !important;
+      bottom: 0 !important;
+    }
+  `,'flag-tooltip');
 }
 
 function moveDailyPuzzleUp() {

@@ -823,6 +823,32 @@ function fixChessDotCom() {
   removeNewTag();
   moveDailyPuzzleUp();
   fixBuggedTooltipCSS();
+  infoDailyPuzzle();
+}
+
+function infoDailyPuzzle() {
+  const options = { pauseInBg: false, interval: 500 };
+  const condition = () => query('.daily-puzzle-streak-subtitle') && !query('.daily-puzzle-streak-subtitle').classList.contains('cu-daily-cd-added');
+  const whenIsNextDailyPuzzle = () => {
+    const wonToday = !query('.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]');
+    const targetEl = query('.daily-puzzle-streak-subtitle');
+    if (wonToday && targetEl) {
+      // show Countdown Interval
+      setInterval(() => {
+        const text = 'next Daily Puzzle in:';
+        const [h,m,s] = new Date(Date.now()).toUTCString().match(/\d\d:\d\d:\d\d/)[0].split(':');
+        const localeH = new Date().getHours();
+        const dailyPuzzleHour = 8 + (new Date().getHours() - h);
+        const dh = dailyPuzzleHour - parseInt(localeH) < 1 ? dailyPuzzleHour + 23 - parseInt(localeH) : dailyPuzzleHour - 1 - parseInt(localeH);
+        const dm = 59 - parseInt(m);
+        const ds = 60 - parseInt(s);
+        const timeDiff = (dh !== 0 ? (dh + 'h ') : '') + dm + 'm ' + ds + 's';
+        targetEl.textContent = text + ' ' + timeDiff;
+      }, 1000);
+      targetEl.classList.add('cu-daily-cd-added');
+    }
+  };
+  repeatIfCondition(whenIsNextDailyPuzzle, condition, options);
 }
 
 function fixBuggedTooltipCSS() {

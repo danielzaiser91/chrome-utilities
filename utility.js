@@ -1521,13 +1521,13 @@ function xrayToggle() {
   repeatIfCondition(() => {
     const elX = query('.cu-playback-rate')?.parentElement?.children;
     if (elX && Array.from(elX)?.some(child => child.classList.contains('cu-xray-button'))) return;
-    const xrayContainer = query('.xrayQuickView');
-    const xrayContent = xrayContainer.firstElementChild;
-    xrayContent.classList.add('cu-hide');
-    xrayContainer.classList.add('cu-xray-toggle');
+    const xrayContainer = () => query('.xrayQuickView');
+    const xrayContent = () => xrayContainer().firstElementChild;
+    xrayContent().classList.add('cu-hide');
+    xrayContainer().classList.add('cu-xray-toggle');
     const btn = create('button', { textContent: 'x-ray', className: 'cu-xray-button' });
     btn.onclick = ev => {
-      xrayContent.classList.toggle('cu-hide');
+      xrayContent().classList.toggle('cu-hide');
     };
     query('.cu-playback-rate').parentElement.insertAdjacentElement('afterbegin', btn);
   }, () => {

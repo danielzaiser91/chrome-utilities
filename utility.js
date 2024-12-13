@@ -1598,11 +1598,6 @@ function addPlayBackRateButton() {
   repeatIfCondition(checkIfNeedToAddIcon, amazonVideoPlaying);
 }
 
-function cleanupATV() {
-  document.removeEventListener('mouseleave', toggleRemove);
-  document.removeEventListener('mouseenter', toggleAdd);
-}
-
 const toggleUIVisible = (op) => {
   if (disableFeature) return;
   // const subtitlesEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
@@ -1625,7 +1620,7 @@ function immidiatlyRemoveUiWhenLeavingMouse() {
   document.addEventListener('mouseenter', toggleAdd);
 
   const amazonVideoPlaying = () => query('.dv-player-fullscreen');
-  repeatIfCondition(() => disableFeature = !amazonVideoPlaying(), amazonVideoPlaying, { interval: 1000 });
+  repeatIfCondition(() => disableFeature = !amazonVideoPlaying(), amazonVideoPlaying, { interval: 300 });
 }
 
 let executionBlock = {

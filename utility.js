@@ -1917,7 +1917,10 @@ function hideYoutubeAds() {
 }
 
 function initYTCSS() {
-  insertCSS('[id$="-ad"] { display: none !important }', 'yt-anti-ad');
+  insertCSS(`
+    [id$="-ad"] { display: none !important }
+    [darker-dark-theme] #contenteditable-root { color: white !important }
+  `, 'yt-anti-ad');
 }
 
 function ytAutoskipAdd() {

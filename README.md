@@ -4,10 +4,14 @@ Browser-Extension, that provides UI/UX improvements for many different websites 
 Screenshot of all websites currently a fix of some sort will be provided.
 In the screenshot you can also see websites that will have options for you to customize (3rd parameter, all lines with "true" will have customizable user-options)
 
+---
+
 # Security
 All info is on your local pc, nothing is shared online, no data at all will be tracked.
 
 If you are sharing your pc, then keep in mind, that the options you set will be the same for the next person (if you set netflix to 1.5 speed for example, next person has this as their default setting)
+
+---
 
 # Installation Instructions
 

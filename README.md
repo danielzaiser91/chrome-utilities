@@ -9,7 +9,7 @@ All info is on your local pc, nothing is shared online, no data at all will be t
 
 If you are sharing your pc, then keep in mind, that the options you set will be the same for the next person (if you set netflix to 1.5 speed for example, next person has this as their default setting)
 
-
+# Installation Instructions
 
 1. download zip, like so:
  ![image](https://github.com/user-attachments/assets/2a43e5e6-efb6-4f94-96a4-2ffb82ee48ad)

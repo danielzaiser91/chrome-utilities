@@ -2897,7 +2897,7 @@ function amazonshowCondition() {
 let ascending = false;
 let sortButton;
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.034,
+  version: 1.035,
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',
@@ -3029,7 +3029,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
           },
           skipAdverts: {
             value: true,
-            label: 'Adverts',
+            label: 'Trailer-Adverts',
             description: 'will skip Trailer Advertisements that play before Videos'
           },
           skipNext: {

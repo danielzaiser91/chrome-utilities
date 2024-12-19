@@ -3015,7 +3015,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
     },
     featureAutoSkip: {
       featureName: 'AutoSkip',
-      featureDescription: 'automatically skip Intro, Recaps and Adverts',
+      featureDescription: 'automatically skip Intro, Recaps and Trailer-Adverts',
       isEnabled: {
         value: true,
         label: 'Activate',
@@ -3030,7 +3030,7 @@ let userOptions = { // key must be match.site (saved as matcher globally)
           skipAdverts: {
             value: true,
             label: 'Adverts',
-            description: 'will skip Adverts that play before Videos'
+            description: 'will skip Trailer Advertisements that play before Videos'
           },
           skipNext: {
             value: true,

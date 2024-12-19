@@ -3,6 +3,7 @@ Browser-Extension, that provides UI/UX improvements for many different websites 
 ![image](https://github.com/user-attachments/assets/8bc7bc43-391a-4aa8-9b41-8a0b6de3f1c5)
 Screenshot of all websites currently a fix of some sort will be provided.
 In the screenshot you can also see websites that will have options for you to customize (3rd parameter, all lines with "true" will have customizable user-options)
+--- Screenshot taken on 19th of December 2024, new websites might be covered since then, check the changelog / versions
 
 ---
 

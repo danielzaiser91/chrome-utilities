@@ -773,6 +773,7 @@ function websiteSelector() {
     new Matcher('netflix.com', fixNetflix, true),
     new Matcher('1movies.life', fix1movies, true),
     new Matcher('amazon.de', fixAmazon, true),
+    new Matcher('primevideo.com', fixAmazon, true, 'amazon'),
     new Matcher('playerwatchlm24.xyz', fixPlayerWatch24, true),
     new Matcher('fandom.com', fixFandom),
     new Matcher('zkjellberg.github.io/dark-souls-3-cheat-sheet', fixDarkSouls3CheatSheet, true, 'ds3CheatSheet'),
@@ -2888,7 +2889,7 @@ function info(val) {
   console.warn(val);
 }
 function amazonshowCondition() {
-  return location.href.includes('gp/video');
+  return location.href.includes('gp/video') || location.host.includes('primevideo.com');
 }
 
 // Options

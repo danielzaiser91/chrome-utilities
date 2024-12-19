@@ -181,10 +181,26 @@ class Interval {
     this.isPlaying = false;
     this.finished = false;
     this.pause = () => {
-      clearInterval(this.currentInterval);
+      if (this.isDeleted) throw 'Interval is Deleted...';
+      if (this.currentInterval) {
+        clearInterval(this.currentInterval);
+        this.currentInterval = undefined;
+      }
       this.isPlaying = false;
     };
+    this.isDeleted = false;
+    this.uuid = getUuid();
+    this.delete = () => {
+      const index = registeredIntervals.findIndex(i => i.uuid === this.uuid);
+      const interval = registeredIntervals[index];
+      if (!interval) return;
+      interval.pause();
+      interval.currentInterval = undefined;
+      interval.isDeleted = true;
+      registeredIntervals.splice(index, 1);
+    }
     this.play = () => {
+      if (this.isDeleted) throw 'Interval is Deleted...';
       if (this.currentInterval) clearInterval(this.currentInterval);
       this.currentInterval = setInterval(this.handler, this.timeout);
       this.isPlaying = true;
@@ -194,6 +210,18 @@ class Interval {
     registeredIntervals.push(this);
   }
 }
+
+const uuids = new Set();
+
+function getUuid() {
+  for (let i = 1; i>0; i++) {
+    if (!uuids.has(i)) {
+      uuids.add(i);
+      return i;
+    }
+  }
+}
+
 function insertCSS(css, id = 'alreadyAddedCss', overwrite = false) {
   const alreadyExists = byId(id);
   if (alreadyExists) {
@@ -313,6 +341,10 @@ function prepareActionBar() {
   const settingsBtn = actionBar.querySelector('button');
   settingsOverlay = query('.cu-settings');
   const _prepareActionBar = () => {
+    if (!query('.cu-settings')) {
+      if (Interval.exists('_prepareActionBar')) getInterval('_prepareActionBar')?.delete();
+      prepareActionBar();
+    }
     const actionBarShowCondition = window[userOptions[matcher.site.toLowerCase()]?.actionBarShowCondition]?.() ?? true;
     if (mouseOver && actionBarShowCondition) {
       actionBar.classList.remove('cu-hide');
@@ -695,6 +727,11 @@ function whenLeavingTab() {
 function whenFocusingTab() {
   console.info(green('Returning to Tab'));
   resumeIntervals();
+}
+function getInterval(name) {
+  const [interval, extra] = registeredIntervals.filter(i => i.handler.name === name);
+  if (extra) throw 'Ambigous interval-name...';
+  return interval;
 }
 function stopIntervals(includeAllIntervals = false) {
   const intervals = includeAllIntervals ? registeredIntervals : registeredIntervals.filter(reg => reg.pauseInBg);
@@ -2858,7 +2895,6 @@ function amazonshowCondition() {
 // globalVars
 let ascending = false;
 let sortButton;
-let getInterval = (name) => registeredIntervals.find(reg => reg.handler.name === name);
 let userOptions = { // key must be match.site (saved as matcher globally)
   version: 1.034,
   'ds3cheatsheet': {

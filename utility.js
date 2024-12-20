@@ -2909,7 +2909,7 @@ function amazonshowCondition() {
 let ascending = false;
 let sortButton;
 let userOptions = { // key must be match.site (saved as matcher globally)
-  version: 1.035,
+  version: '1.036',
   'ds3cheatsheet': {
     featureDarkMode: {
       featureName: 'DarkMode',

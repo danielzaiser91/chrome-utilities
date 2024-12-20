@@ -24,3 +24,8 @@ If you are sharing your pc, then keep in mind, that the options you set will be 
 4. add the extension, like so:
  ![image](https://github.com/user-attachments/assets/c28f860e-7513-4367-bc3b-e18be17b7c64)
 5. Enjoy
+
+# Updating your version to a new version
+1. check if there is a newer version, than what you are using
+2. do the exact same steps as the installation instruction, replacing your previously downloaded files
+3. Enjoy

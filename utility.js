@@ -772,7 +772,7 @@ function websiteSelector() {
     new Matcher('youtube.com', fixYoutube),
     new Matcher('netflix.com', fixNetflix, true),
     new Matcher('1movies.life', fix1movies, true),
-    new Matcher('amazon.de', fixAmazon, true),
+    new Matcher('.amazon.', fixAmazon, true),
     new Matcher('primevideo.com', fixAmazon, true, 'amazon'),
     new Matcher('playerwatchlm24.xyz', fixPlayerWatch24, true),
     new Matcher('fandom.com', fixFandom),

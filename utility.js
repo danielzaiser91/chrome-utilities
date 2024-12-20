@@ -426,9 +426,6 @@ function prepareActionBar() {
       z-index: 100000000;
       box-shadow: 1px 1px 11px #000;
     }
-    .cu-actions-container.cu-hide {
-      display: none;
-    }
     .cu-actions-container.twitch {
       left: 70%;
     }
@@ -788,6 +785,11 @@ function websiteSelector() {
 }
 
 function startFixing() {
+  insertCSS(`
+    .cu-hide {
+      display: none !important;
+    }
+  `,'cu-global');
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
@@ -911,11 +913,6 @@ function moveDailyPuzzleUp() {
 }
 
 function removeNewTag() {
-  insertCSS(`
-    .cu-hide {
-      display: none !important;
-    }
-  `, 'cu-remove-new-tag');
   const condition = () => query('.nav-tag');
   const remove = () => {
     const el = Array.from(queryAll('.nav-tag')).find(el=>el.textContent === 'new');
@@ -1135,7 +1132,6 @@ function fixFandom() {
         width: 100%;
         background-position-x: 60%;
       }
-      .cu-hide { display: none }
       .cu-btn {
         background: var(--theme-page-background-color--secondary);
         border: 1px solid var(--theme-border-color);
@@ -1653,7 +1649,6 @@ let disableFeature = true;
 function immidiatlyRemoveUiWhenLeavingMouse() {
   const toggleAdd = () => setTimeout(toggleUIVisible('add'));
   const toggleRemove = () => setTimeout(toggleUIVisible('remove'));
-  insertCSS('.cu-hide { display: none !important; }', 'fixAmazonVideo');
   document.addEventListener('mouseleave', toggleRemove);
   document.addEventListener('mouseenter', toggleAdd);
 
@@ -2211,6 +2206,23 @@ function fixCrunchyroll() {
   autoLogin();
   showDub();
   watchListColors();
+  removeNotificationBubbleOnClick();
+}
+
+function removeNotificationBubbleOnClick() {
+  const fn = () => {
+    const el = query('.erc-authenticated-user-menu');
+    el.classList.add('cu-added');
+    el.addEventListener('click', e=>{
+      const el2 = query(('[data-t="red-notification-sign"]'));
+      if (el2) el2.classList.add('cu-hide');
+    });
+  };
+  const alreadyAdded = () => {
+    const el = query('.erc-authenticated-user-menu');
+    return el && !el.classList.contains('cu-added');
+  };
+  repeatIfCondition(fn,alreadyAdded);
 }
 
 function watchListColors() {

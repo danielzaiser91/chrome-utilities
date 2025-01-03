@@ -1003,18 +1003,16 @@ function fixChessDotCom() {
 function infoDailyPuzzle() {
   const options = { pauseInBg: false, interval: 500 };
   const condition = () =>
-    query(".daily-puzzle-streak-subtitle") &&
-    !query(".daily-puzzle-streak-subtitle").classList.contains(
-      "cu-daily-cd-added"
-    );
+    query('.daily-puzzle-streak-subtitle') &&
+    !query('.daily-puzzle-streak-subtitle').classList.contains('cu-daily-cd-added');
   const whenIsNextDailyPuzzle = () => {
-    const wonToday = !query(
-      '.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]'
-    );
-    const targetEl = query(".daily-puzzle-streak-subtitle");
+    const wonToday = !query('.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]');
+    const targetEl = query('.daily-puzzle-streak-subtitle');
+    const dailyWrapper = query('.daily-puzzle-streak-wrapper');
+    const dailyPuzzleBtnHTML = `<a href="https://www.chess.com/daily-chess-puzzle" class="cc-button-component cc-button-primary cc-button-medium cc-button-full   daily-puzzle-streak-button" data-log-selection-to-amplitude="true" data-log-home-action-to-amplitude="true" data-category="dailyPuzzle" data-name="Home Button Clicked" data-page="home" data-section="dailyPuzzle" data-button="solveDailyPuzzle"><span>Solve the Daily Puzzle</span></a>`;
     if (wonToday && targetEl) {
       // show Countdown Interval
-      setInterval(() => {
+      let interval = setInterval(() => {
         const text = "next Daily Puzzle in:";
         const [h, m, s] = new Date(Date.now())
           .toUTCString()
@@ -1029,6 +1027,11 @@ function infoDailyPuzzle() {
         const dm = 59 - parseInt(m);
         const ds = 60 - parseInt(s);
         const timeDiff = (dh !== 0 ? dh + "h " : "") + dm + "m " + ds + "s";
+        if (dh === 0 && dm === 0 && ds === 0) {
+          dailyWrapper.innerHTML = dailyPuzzleBtnHTML;
+          clearInterval(interval);
+          return;
+        }
         targetEl.textContent = text + " " + timeDiff;
       }, 1000);
       targetEl.classList.add("cu-daily-cd-added");
@@ -3615,8 +3618,8 @@ function amazonshowCondition() {
 let ascending = false;
 let sortButton;
 let userOptions = {
-  // key must be match.site (saved as matcher globally)
-  version: "1.037",
+  // key must be match.site lowercased (saved as matcher globally)
+  version: "1.037b",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -3748,7 +3751,7 @@ let userOptions = {
         subFeatures: {
           skipRecaps: {
             value: true,
-            label: "Recaps",
+            label: "Intros / Recaps",
             description: "will skip Intros / Recaps at the beginning of Videos",
           },
           skipAdverts: {

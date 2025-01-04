@@ -1919,6 +1919,7 @@ function addPlayBackRateButton() {
       .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
       .cu-playback-rate:hover { cursor: pointer; }
       .cu_playback { background: black !important; color: white;  }
+      .cu_playback::-webkit-inner-spin-button { transform: scale(1.5); }
       input.cu_playback[type=number]::-webkit-inner-spin-button { opacity: 1 }
       .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
       .cu-is-open { margin-right: 10px; }
@@ -2004,8 +2005,8 @@ const toggleUIVisible = (op) => {
 };
 let disableFeature = true;
 function immidiatlyRemoveUiWhenLeavingMouse() {
-  const toggleAdd = () => setTimeout(toggleUIVisible("add"));
-  const toggleRemove = () => setTimeout(toggleUIVisible("remove"));
+  const toggleAdd = () => setTimeout(() => toggleUIVisible("add"));
+  const toggleRemove = () => setTimeout(() => toggleUIVisible("remove"));
   document.addEventListener("mouseleave", toggleRemove);
   document.addEventListener("mouseenter", toggleAdd);
 

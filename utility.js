@@ -855,6 +855,7 @@ let matcher;
 function websiteSelector() {
   const websiteMatcher = [
     new Matcher("www.keyforsteam.", fixKeyForSteam),
+    new Matcher("www.wowtv.", fixWowTV, true),
     new Matcher("/twweb/twwebclient", fixTisoware),
     new Matcher("chess.com", fixChessDotCom),
     new Matcher("wiki.fextralife.com", fixFextralife, true),
@@ -904,6 +905,135 @@ function startFixing() {
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
   matcher.fix();
+}
+
+// ----
+// fix www.wowtv.
+// ---
+function fixWowTV() {
+  wowTVSkip();
+  addPlayBackRateButton_wowTv();
+}
+
+let wowTVSkipLoop = null;
+function wowTVSkip() {
+  const skipBtn = () => query(".skip-button-wowtv");
+  wowTVSkipLoop = repeatIfCondition(skipWowTV, skipBtn, {
+    pauseInBg: false,
+  });
+}
+function toggleWowTvSkip() {
+  userOptions.wowtv.featureAutoSkip.isEnabled.value
+    ? wowTVSkipLoop.play()
+    : wowTVSkipLoop.pause();
+}
+
+function skipWowTV() {
+  const skipFeature = userOptions.wowtv.featureAutoSkip.isEnabled;
+  if (!isAllowed(skipFeature)) return;
+  const skipNext = isAllowed(skipFeature.subFeatures.skipNext);
+  if (skipNext) {
+    const skipNextBtn = query(".skip-button-wowtv");
+    if (skipNextBtn) {
+      skipNextBtn.click();
+    }
+  }
+}
+
+const enable_wowtv_playback_option = () => {
+  updateWowtvVideoPlayrate(
+    userOptions.wowtv.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+      .value
+  );
+};
+const _wowtv_setPlayerValue = (val, playBackInput) => {
+  if (Number.isNaN(val)) return;
+  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
+  userOptions.wowtv.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
+    val;
+  updateWowtvVideoPlayrate(val);
+};
+const _wowtv_adjustVal = (e, playBackInput) => {
+  e.stopPropagation();
+  if (!e.srcElement?.value) return;
+  const newValue = +(+e.srcElement.value)?.toFixed(2);
+  _wowtv_setPlayerValue(newValue, playBackInput);
+};
+function updateWowtvVideoPlayrate(val) {
+  /** @type {HTMLVideoElement} */
+  const video = query("video");
+  const allowed = isAllowed(userOptions.wowtv.featurePlayBackSpeed.isEnabled);
+  if (video) {
+    video.playbackRate = !allowed ? 1 : val;
+  }
+}
+function addPlayBackRateButton_wowTv() {
+  const condition = () => {
+    const container = query('[data-test-id="volume"]')?.parentElement;
+    return (
+      location.href.includes("/watch/") &&
+      container &&
+      !container.classList.contains("cu-playbackrate-added")
+    );
+  };
+  const _addPlayBackRateButton = () => {
+    const container = query('[data-test-id="volume"]')?.parentElement;
+    const div = create("div", { className: "cu-playback-rate cu-el" });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
+        <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    insertCSS(
+      `
+      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; }
+      .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
+      .cu-playback-rate:hover { cursor: pointer; }
+      .cu_playback { background: black !important; color: white;  }
+      .cu_playback::-webkit-inner-spin-button { transform: scale(1.5); }
+      input.cu_playback[type=number]::-webkit-inner-spin-button { opacity: 1 }
+      .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
+      .cu-is-open { margin-right: 10px; }
+    `,
+      "cu-playback-rate"
+    );
+    const playbackSettings = create("div", {
+      className: "cu-hide cu-playback-settings",
+    });
+    const value =
+      userOptions.wowtv.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+        .value;
+    const playbackInput = create("input", {
+      type: "number",
+      step: "0.1",
+      min: "0.2",
+      max: "5",
+      value,
+      className: "cu_playback cu-el",
+      id: "cu_playback",
+    });
+    updateWowtvVideoPlayrate(value);
+    playbackInput.addEventListener("keydown", (e) =>
+      _wowtv_adjustVal(e, playbackInput)
+    );
+    playbackInput.addEventListener("input", (e) =>
+      _wowtv_adjustVal(e, playbackInput)
+    );
+    const playbackLabel = create("label", {
+      textContent: "Speed:",
+      for: "cu_playback",
+      className: "cu-el",
+    });
+    playbackSettings.prepend(playbackInput);
+    playbackSettings.prepend(playbackLabel);
+    div.onclick = () => {
+      playbackSettings.classList.toggle("cu-hide");
+      div.classList.toggle("cu-is-open");
+    };
+    div.insertAdjacentHTML("afterbegin", svg);
+    container.classList.add("cu-playbackrate-added");
+    container.prepend(div, playbackSettings);
+  };
+  // repeat until there is a video, then check if the element already has the playback button added
+  repeatIfCondition(_addPlayBackRateButton, condition, { interval: 1000 });
 }
 
 // ----
@@ -1003,12 +1133,16 @@ function fixChessDotCom() {
 function infoDailyPuzzle() {
   const options = { pauseInBg: false, interval: 500 };
   const condition = () =>
-    query('.daily-puzzle-streak-subtitle') &&
-    !query('.daily-puzzle-streak-subtitle').classList.contains('cu-daily-cd-added');
+    query(".daily-puzzle-streak-subtitle") &&
+    !query(".daily-puzzle-streak-subtitle").classList.contains(
+      "cu-daily-cd-added"
+    );
   const whenIsNextDailyPuzzle = () => {
-    const wonToday = !query('.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]');
-    const targetEl = query('.daily-puzzle-streak-subtitle');
-    const dailyWrapper = query('.daily-puzzle-streak-wrapper');
+    const wonToday = !query(
+      '.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]'
+    );
+    const targetEl = query(".daily-puzzle-streak-subtitle");
+    const dailyWrapper = query(".daily-puzzle-streak-wrapper");
     const dailyPuzzleBtnHTML = `<a href="https://www.chess.com/daily-chess-puzzle" class="cc-button-component cc-button-primary cc-button-medium cc-button-full   daily-puzzle-streak-button" data-log-selection-to-amplitude="true" data-log-home-action-to-amplitude="true" data-category="dailyPuzzle" data-name="Home Button Clicked" data-page="home" data-section="dailyPuzzle" data-button="solveDailyPuzzle"><span>Solve the Daily Puzzle</span></a>`;
     if (wonToday && targetEl) {
       // show Countdown Interval
@@ -1882,6 +2016,12 @@ function xrayToggle() {
   );
 }
 
+const enable_amazon_playback_option = () => {
+  updateAmznVideoPlayrate(
+    userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+      .value
+  );
+};
 const _amazon_setPlayerValue = (val, playBackInput) => {
   if (Number.isNaN(val)) return;
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
@@ -1898,8 +2038,9 @@ const _amazon_adjustVal = (e, playBackInput) => {
 function updateAmznVideoPlayrate(val) {
   /** @type {HTMLVideoElement} */
   const video = query(".rendererContainer video");
+  const allowed = isAllowed(userOptions.amazon.featurePlayBackSpeed.isEnabled);
   if (video) {
-    video.playbackRate = val;
+    video.playbackRate = !allowed ? 1 : val;
   }
 }
 
@@ -2073,7 +2214,7 @@ function skipAmazonRecap() {
     }
   }
   const skipNext =
-    isAllowed(amazonFeature.subFeatures.skipRecaps) &&
+    isAllowed(amazonFeature.subFeatures.skipNext) &&
     !executionBlock.skipAmazonNext;
   if (skipNext) {
     const skipNextBtn = getAmazonSkipNextBtn();
@@ -3620,7 +3761,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.038",
+  version: "1.039",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -3720,6 +3861,50 @@ let userOptions = {
       },
     },
   },
+  wowtv: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_wowtv_playback_option,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _wowtv_adjustVal(e, input),
+          },
+        },
+      },
+    },
+    featureAutoSkip: {
+      featureName: "AutoSkip",
+      featureDescription:
+        "clicks the \"play next episode\" button, in 1 second instead of the default 10 seconds",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "turn skipping on or off",
+        toggle: toggleWowTvSkip,
+        disabled: true,
+        disabledReason:
+          "does not work as expected, will be fixed in a future update",
+        subFeatures: {
+          skipNext: {
+            disabled: true,
+            value: true,
+            label: "Next",
+            description:
+              "will click the next episode button immidiatly for you",
+          },
+        },
+      },
+    },
+  },
   amazon: {
     actionBarShowCondition: "amazonshowCondition",
     featurePlayBackSpeed: {
@@ -3729,6 +3914,7 @@ let userOptions = {
         value: true,
         label: "PlayBackSpeed",
         description: "set your desired PlayBackSpeed",
+        toggle: enable_amazon_playback_option,
         subFeatures: {
           playBackSpeed: {
             value: 1,

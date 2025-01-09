@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Web Utility Plugin",
   "description": "This extension will fix some anoying things about multiple websites",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "icons": {
     "128": "icon.png"
   },

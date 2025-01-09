@@ -913,6 +913,17 @@ function startFixing() {
 function fixWowTV() {
   wowTVSkip();
   addPlayBackRateButton_wowTv();
+  betterui_wowtv();
+}
+
+function betterui_wowtv() {
+  insertCSS(`
+    #video-player-controls > div { background-color: transparent; }
+    #video-player-controls > div:nth-child(3) { height: 80px; }
+    #video-player-controls > div:nth-child(1) > div { padding: 12px 20px; background-color: rgb(0, 18, 17); }
+    #video-player-controls > div:nth-child(1) > div:nth-child(1) {border-radius: 0 0 30px 0;}
+    #video-player-controls > div:nth-child(1) > div:nth-child(2) {border-radius: 0 0 0 30px;}
+  `,'cu-wowtv-betterui');
 }
 
 let wowTVSkipLoop = null;

@@ -928,9 +928,9 @@ function betterui_wowtv() {
 }
 
 let wowTVSkipLoop = null;
+const skipBtn_wowTV = () => query('[data-test-id="next-episode"');
 function wowTVSkip() {
-  const skipBtn = () => query(".skip-button-wowtv");
-  wowTVSkipLoop = repeatIfCondition(skipWowTV, skipBtn, {
+  wowTVSkipLoop = repeatIfCondition(skipWowTV, skipBtn_wowTV, {
     pauseInBg: false,
   });
 }
@@ -940,15 +940,19 @@ function toggleWowTvSkip() {
     : wowTVSkipLoop.pause();
 }
 
+let skipWowTV_click_progress = false;
 function skipWowTV() {
   const skipFeature = userOptions.wowtv.featureAutoSkip.isEnabled;
   if (!isAllowed(skipFeature)) return;
-  const skipNext = isAllowed(skipFeature.subFeatures.skipNext);
-  if (skipNext) {
-    const skipNextBtn = query(".skip-button-wowtv");
-    if (skipNextBtn) {
-      skipNextBtn.click();
-    }
+  if (isAllowed(skipFeature.subFeatures.skipNext) && !skipWowTV_click_progress) {
+    skipWowTV_click_progress = true;
+    setTimeout(() => {
+      const skipNextBtn = skipBtn_wowTV();
+      if (skipNextBtn) {
+        skipNextBtn.click();
+      }
+      skipWowTV_click_progress = false;
+    },1000);
   }
 }
 
@@ -3898,16 +3902,12 @@ let userOptions = {
       featureDescription:
         "clicks the \"play next episode\" button, in 1 second instead of the default 10 seconds",
       isEnabled: {
-        value: true,
+        value: false,
         label: "Activate",
         description: "turn skipping on or off",
         toggle: toggleWowTvSkip,
-        disabled: true,
-        disabledReason:
-          "does not work as expected, will be fixed in a future update",
         subFeatures: {
           skipNext: {
-            disabled: true,
             value: true,
             label: "Next",
             description:

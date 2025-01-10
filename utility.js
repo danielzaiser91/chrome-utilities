@@ -933,7 +933,7 @@ function betterui_wowtv() {
 }
 
 let wowTVSkipLoop = null;
-const skipBtn_wowTV = () => query('[data-test-id="next-episode"');
+const skipBtn_wowTV = () => query('[data-test-id="next-episode"') || query('[data-test-id="autoplay-countdown"] ~ [role="button"]');
 function wowTVSkip() {
   wowTVSkipLoop = repeatIfCondition(skipWowTV, skipBtn_wowTV, {
     pauseInBg: false,

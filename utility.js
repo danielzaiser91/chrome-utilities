@@ -920,12 +920,14 @@ function betterui_wowtv() {
   insertCSS(`
     #video-player-controls > div { background-color: transparent; }
     #video-player-controls > div:nth-child(1) { padding: 0 }
-    #video-player-controls > div:nth-child(3) { display: flex; flex-wrap: wrap; padding: 1px; height: auto; }
+    #video-player-controls > div:nth-child(3) { display: flex; flex-wrap: wrap; padding: 1px; height: 52px; justify-content: space-between; }
     #video-player-controls > div:nth-child(1) > div { padding: 12px 20px; background-color: rgb(0, 18, 17); }
     #video-player-controls > div:nth-child(1) > div:nth-child(1) {border-radius: 0 0 30px 0;}
     #video-player-controls > div:nth-child(1) > div:nth-child(2) {border-radius: 0 0 0 30px;}
-    #video-player-controls > div:nth-child(3) > div:nth-child(n+2) { margin: 0; padding: 0; flex: 0; margin-left: 10px; }
-    #video-player-controls > div:nth-child(3) > div:nth-child(1) { flex: 1 100%; margin: 20px 20px; height: 10px; }
+    #video-player-controls > div:nth-child(3) > div:nth-child(n+2) { margin: 0; padding: 0; flex: 0; margin-left: 10px; align-items: center; }
+    #video-player-controls > div:nth-child(3) > div:nth-child(1) { flex: 1 100%; height: 10px; }
+    #video-player-controls > div:nth-child(3) > div:nth-child(3) button { line-height: unset; padding: 8px; }
+    #video-player-controls > div:nth-child(3) > div:nth-child(3) [data-test-id="episode-change-modal"] { bottom: 88px; }
   `,'cu-wowtv-betterui');
 }
 

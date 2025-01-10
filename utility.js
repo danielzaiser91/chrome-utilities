@@ -924,10 +924,11 @@ function betterui_wowtv() {
     #video-player-controls > div:nth-child(1) > div { padding: 12px 20px; background-color: rgb(0, 18, 17); }
     #video-player-controls > div:nth-child(1) > div:nth-child(1) {border-radius: 0 0 30px 0;}
     #video-player-controls > div:nth-child(1) > div:nth-child(2) {border-radius: 0 0 0 30px;}
-    #video-player-controls > div:nth-child(3) > div:nth-child(n+2) { margin: 0; padding: 0; flex: 0; margin-left: 10px; align-items: center; }
-    #video-player-controls > div:nth-child(3) > div:nth-child(1) { flex: 1 100%; height: 10px; }
-    #video-player-controls > div:nth-child(3) > div:nth-child(3) button { line-height: unset; padding: 8px; }
-    #video-player-controls > div:nth-child(3) > div:nth-child(3) [data-test-id="episode-change-modal"] { bottom: 88px; }
+    #video-player-controls > div:nth-child(3) > div:nth-last-child(-n+2) { margin: 0; padding: 0; flex: 0; margin-left: 10px; align-items: center; }
+    #video-player-controls > div:nth-child(3) > div:nth-last-child(3) { flex: 1 100%; height: 10px; }
+    #video-player-controls > div:nth-child(3) > div:nth-last-child(2) button { line-height: unset; padding: 8px; }
+    #video-player-controls > div:nth-child(3) > div:nth-last-child(2) [data-test-id="episode-change-modal"] { bottom: 88px; }
+    [data-test-id="autoplay-container"] { bottom: 80px !important; }
   `,'cu-wowtv-betterui');
 }
 

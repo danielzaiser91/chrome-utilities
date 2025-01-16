@@ -920,7 +920,7 @@ function betterui_wowtv() {
   insertCSS(`
     #video-player-controls > div { background-color: transparent; }
     #video-player-controls > div:nth-child(1) { padding: 0 }
-    #video-player-controls > div:nth-child(3) { display: flex; flex-wrap: wrap; padding: 2px 16px; height: auto; justify-content: space-between; }
+    #video-player-controls > div:nth-child(3) { display: flex; flex-wrap: wrap; padding: 2px 16px; height: auto; justify-content: space-between; flex-direction: column; min-height: 42px; }
     #video-player-controls > div:nth-child(1) > div { padding: 12px 20px; background-color: rgb(0, 18, 17); }
     #video-player-controls > div:nth-child(1) > div:nth-child(1) {border-radius: 0 0 30px 0;}
     #video-player-controls > div:nth-child(1) > div:nth-child(2) {border-radius: 0 0 0 30px;}

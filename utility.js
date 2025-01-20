@@ -2936,7 +2936,8 @@ function watchListColors() {
 }
 function cr_dubMethod() {
   const metaTagsEl = cr_getDubTagsEl();
-  const dubEl = query(
+  const isOverview = location.href.includes('/series/');
+  const dubEl = isOverview ? cr_getDubTagsEl() : query(
     '[data-t="detail-row-audio-language"] [data-t="details-table-description"]'
   );
   if (!dubEl) return;
@@ -2955,9 +2956,12 @@ function cr_dubMethod() {
       );
     });
   }
-  metaTagsEl.innerHTML = "Dub: " + dubHTML;
+  metaTagsEl.innerHTML = (isOverview ? '' : "Dub: ") + dubHTML;
 }
 function cr_getDubTagsEl() {
+  if (location.href.includes('/series/')) {
+    return query('[data-t="detail-row-audio-language"] [data-t="details-item-description"]');
+  }
   return query('[data-t="meta-tags"] > :nth-child(2)');
 }
 function cr_dubCondition() {
@@ -2969,7 +2973,6 @@ function cr_dubCondition() {
 
 function cr_showDub_again() {
   cr_getDubTagsEl()?.classList?.remove("cu-dub-added");
-  cr_showDub();
 }
 
 function cr_showDub() {

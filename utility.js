@@ -1180,7 +1180,7 @@ function infoDailyPuzzle() {
             ? dailyPuzzleHour + 23 - parseInt(localeH)
             : dailyPuzzleHour - 1 - parseInt(localeH);
         const dm = 59 - parseInt(m);
-        const ds = 60 - parseInt(s);
+        const ds = 59 - parseInt(s);
         const timeDiff = (dh !== 0 ? dh + "h " : "") + dm + "m " + ds + "s";
         if (dh === 0 && dm === 0 && ds === 0) {
           dailyWrapper.innerHTML = dailyPuzzleBtnHTML;

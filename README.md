@@ -1,18 +1,18 @@
 # What is this?
 Browser-Extension, that provides UI/UX improvements for many different websites (dark mode, additional video-player options, etc...)
 
-currently supported websites
-KeyForSteam
-chess.com
-Fextralife
-Twitch
-Crunchyroll
-Youtube
-Netflix
-Amazon Prime
-DisneyPlus
-Steam
-...Other
+# currently supported websites
+- KeyForSteam
+- chess.com
+- Fextralife
+- Twitch
+- Crunchyroll
+- Youtube
+- Netflix
+- Amazon Prime
+- DisneyPlus
+- Steam
+- ...Other
 ---
 
 # Security

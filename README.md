@@ -13,6 +13,8 @@ Browser-Extension, that provides UI/UX improvements for many different websites 
 - DisneyPlus
 - Steam
 - ...Other
+
+See more Details: https://github.com/danielzaiser91/chrome-utilities/releases#hd-4fe6dd83
 ---
 
 # Security

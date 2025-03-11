@@ -301,6 +301,7 @@ function showExtensionInfoInLog() {
     )
   );
 }
+        
 document.addEventListener(
   "DOMContentLoaded",
   function () {
@@ -854,7 +855,9 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
+    // new Matcher("dooodster.com", fixDoodster),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
+    new Matcher("new-fmovies.cam", fixFmoviesCam),
     new Matcher("www.wowtv.", fixWowTV, true),
     new Matcher("/twweb/twwebclient", fixTisoware),
     new Matcher("chess.com", fixChessDotCom),
@@ -907,6 +910,26 @@ function startFixing() {
   matcher.fix();
 }
 
+// ---
+// fix dooodster
+// ANTI DEV Protection, is too strong .... . . . . . . . . 
+// ---
+function fixDoodster() {
+  // addPlaybackButton_Dooodster();
+  // removeAntiDebugger();
+}
+// function removeAntiDebugger() {
+//   [...document.body.querySelectorAll('script')].find(src => src.innerHTML.includes('check()'))?.remove?.();
+// }
+function addPlaybackButton_Dooodster() {
+  const getContainer = () => query(".vjs-control-bar");
+  const condition = () => {
+    const container = getContainer();
+    return container && !container.classList.contains("cu-playbackrate-added");
+  };
+  addPlaybackRateButton__generic(getContainer, condition);
+}
+
 // ----
 // fix www.wowtv.
 // ---
@@ -917,7 +940,8 @@ function fixWowTV() {
 }
 
 function betterui_wowtv() {
-  insertCSS(`
+  insertCSS(
+    `
     #video-player-controls > div { background-color: transparent; }
     #video-player-controls > div:nth-child(1) { padding: 0 }
     #video-player-controls > div:nth-child(3) { display: flex; flex-wrap: wrap; padding: 2px 16px; height: auto; justify-content: space-between; flex-direction: column; min-height: 42px; }
@@ -929,11 +953,15 @@ function betterui_wowtv() {
     #video-player-controls > div:nth-child(3) > div:nth-last-child(2) button { line-height: unset; padding: 8px; }
     #video-player-controls > div:nth-child(3) > div:nth-last-child(2) [data-test-id="episode-change-modal"] { bottom: 88px; }
     [data-test-id="autoplay-container"] { bottom: 80px !important; }
-  `,'cu-wowtv-betterui');
+  `,
+    "cu-wowtv-betterui"
+  );
 }
 
 let wowTVSkipLoop = null;
-const skipBtn_wowTV = () => query('[data-test-id="next-episode"') || query('[data-test-id="autoplay-countdown"] ~ [role="button"]');
+const skipBtn_wowTV = () =>
+  query('[data-test-id="next-episode"') ||
+  query('[data-test-id="autoplay-countdown"] ~ [role="button"]');
 function wowTVSkip() {
   wowTVSkipLoop = repeatIfCondition(skipWowTV, skipBtn_wowTV, {
     pauseInBg: false,
@@ -949,7 +977,10 @@ let skipWowTV_click_progress = false;
 function skipWowTV() {
   const skipFeature = userOptions.wowtv.featureAutoSkip.isEnabled;
   if (!isAllowed(skipFeature)) return;
-  if (isAllowed(skipFeature.subFeatures.skipNext) && !skipWowTV_click_progress) {
+  if (
+    isAllowed(skipFeature.subFeatures.skipNext) &&
+    !skipWowTV_click_progress
+  ) {
     skipWowTV_click_progress = true;
     setTimeout(() => {
       const skipNextBtn = skipBtn_wowTV();
@@ -957,7 +988,7 @@ function skipWowTV() {
         skipNextBtn.click();
       }
       skipWowTV_click_progress = false;
-    },1000);
+    }, 1000);
   }
 }
 
@@ -1055,6 +1086,174 @@ function addPlayBackRateButton_wowTv() {
   };
   // repeat until there is a video, then check if the element already has the playback button added
   repeatIfCondition(_addPlayBackRateButton, condition, { interval: 1000 });
+
+  // const conditionFn = () => {
+  //   const container = query('[data-test-id="volume"]')?.parentElement;
+  //   return (
+  //     location.href.includes("/watch/") &&
+  //     container &&
+  //     !container.classList.contains("cu-playbackrate-added")
+  //   );
+  // };
+  // const containerQuery = () => query('[data-test-id="volume"]')?.parentElement;
+  // addPlaybackRateButton_Generic(containerQuery, conditionFn);
+}
+
+function enable_playback_option__generic() {
+  updateVideoPlayrate__generic(
+    userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+      .value
+  );
+};
+function _setPlayerValue__generic(val, playBackInput) {
+  if (Number.isNaN(val)) return;
+  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
+  userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
+    val;
+  updateVideoPlayrate__generic(val);
+};
+function _adjustVal__generic(e, playBackInput) {
+  e.stopPropagation();
+  if (!e.srcElement?.value) return;
+  const newValue = +(+e.srcElement.value)?.toFixed(2);
+  _setPlayerValue__generic(newValue, playBackInput);
+};
+function updateVideoPlayrate__generic () {
+  /** @type {HTMLVideoElement} */
+  const video = query("video");
+  const allowed = isAllowed(userOptions[matcher.site].featurePlayBackSpeed.isEnabled);
+  if (video) {
+    video.playbackRate = !allowed ? 1 : val;
+  }
+}
+
+/**
+ * generic method to add a playbackrate button
+ * @param {() => HTMLElement} containerQuery 
+ * @param {() => boolean} conditionFn
+ */
+function addPlaybackRateButton__generic(containerQuery, conditionFn) {
+  const _addPlayBackRateButton = () => {
+    const container = containerQuery();
+    const div = create("div", { className: "cu-playback-rate cu-el" });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
+        <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    insertCSS(
+      `
+      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; }
+      .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
+      .cu-playback-rate:hover { cursor: pointer; }
+      .cu_playback { background: black !important; color: white;  }
+      .cu_playback::-webkit-inner-spin-button { transform: scale(1.5); }
+      input.cu_playback[type="number"]::-webkit-inner-spin-button { opacity: 1 }
+      .cu-is-open { margin-right: 10px; }
+    `,
+      "cu-playback-rate"
+    );
+    const playbackSettings = create("div", {
+      className: "cu-hide cu-playback-settings",
+    });
+    const value = userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed;
+    const playbackInput = create("input", {
+      type: "number",
+      step: "0.1",
+      min: "0.2",
+      max: "5",
+      value,
+      className: "cu_playback cu-el",
+      id: "cu_playback",
+    });
+    updateVideoPlayrate__generic(value);
+    playbackInput.addEventListener("keydown", (e) =>
+      _adjustVal__generic(e, playbackInput)
+    );
+    playbackInput.addEventListener("input", (e) =>
+      _adjustVal__generic(e, playbackInput)
+    );
+    const playbackLabel = create("label", {
+      textContent: "Speed:",
+      for: "cu_playback",
+      className: "cu-el",
+    });
+    playbackSettings.prepend(playbackInput);
+    playbackSettings.prepend(playbackLabel);
+    div.onclick = () => {
+      playbackSettings.classList.toggle("cu-hide");
+      div.classList.toggle("cu-is-open");
+    };
+    div.insertAdjacentHTML("afterbegin", svg);
+    container.classList.add("cu-playbackrate-added");
+    container.prepend(div, playbackSettings);
+  };
+  // repeat until there is a video, then check if the element already has the playback button added
+  repeatIfCondition(_addPlayBackRateButton, conditionFn, { interval: 1000 });
+}
+
+
+// ----
+// fix https://www.new-fmovies.cam
+// ---
+function fixFmoviesCam() {
+  fixSubtitlesFmoviesCam();
+  // removeAds
+  insertCSS(`
+    .jw-logo,
+    [id="info"] +div,
+    [src="/addons/1gfdhfghfghfgh.gif"],
+    div:has(.close.ico),
+    .jw-controls.jw-reset+div
+    {
+      display: none;
+    }
+
+    div>div>div:has(+.fas.fa-info),
+    div>div:has(div>.fas.fa-download):has(~[id="actors"]) {
+      display: none !important;!i;!;
+    }
+  `,'anti-ad');
+}
+
+function fixSubtitlesFmoviesCam() {
+  if (window.fixSubtitles) clearInterval(window.fixSubtitles);
+  window.fixSubtitles = setInterval(() => {
+    const subEl = document.querySelector('.jw-text-track-cue');
+    let subRp = document.getElementById('sub-here');
+    if (!subEl) {
+      if (subRp) subRp.style.display = 'none';
+      return;
+    };
+    if (!window.__fix_init) {
+      window.__fix_init = true;
+      const player = subEl.closest('.jwplayer');
+      player.insertAdjacentHTML('afterbegin', `<div style="
+        position: absolute;
+        bottom: 80px;
+        width: 100%;
+        height: 100px;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+        pointer-events: none;
+      " id="my-sub"><div style="
+        font-size: 32px;
+        background: rgba(255, 255, 255, 0.41);
+        padding: 0 12px;
+        display: block;
+        line-height: 1.2;
+        text-align: center;
+        font-family: Arial;
+        " id="sub-here"></div></div>`);
+      insertCSS('.jw-captions.jw-captions-enabled {display:none !important}','fixSubtitlesFmoviesCam');
+      subRp = document.getElementById('sub-here');
+    }
+    const text = subEl.innerText.replace(/{\\\w\w\d}/,'');
+    if (subRp.innerText.replaceAll(/[\n\r]/g,'') === text.replaceAll(/[\n\r]/g,'')) return;
+    subRp.innerText = text;
+    subRp.style.display = 'block';
+  }, 100);
 }
 
 // ----
@@ -1174,7 +1373,7 @@ function infoDailyPuzzle() {
           .match(/\d\d:\d\d:\d\d/)[0]
           .split(":");
         const localeH = new Date().getHours();
-        const dailyPuzzleHour = 8 + (new Date().getHours() - h);
+        const dailyPuzzleHour = 7 + (new Date().getHours() - h);
         const dh =
           dailyPuzzleHour - parseInt(localeH) < 1
             ? dailyPuzzleHour + 23 - parseInt(localeH)
@@ -2936,10 +3135,12 @@ function watchListColors() {
 }
 function cr_dubMethod() {
   const metaTagsEl = cr_getDubTagsEl();
-  const isOverview = location.href.includes('/series/');
-  const dubEl = isOverview ? cr_getDubTagsEl() : query(
-    '[data-t="detail-row-audio-language"] [data-t="details-table-description"]'
-  );
+  const isOverview = location.href.includes("/series/");
+  const dubEl = isOverview
+    ? cr_getDubTagsEl()
+    : query(
+        '[data-t="detail-row-audio-language"] [data-t="details-table-description"]'
+      );
   if (!dubEl) return;
   metaTagsEl.classList.add("cu-dub-added");
   const languages = dubEl.textContent;
@@ -2956,11 +3157,13 @@ function cr_dubMethod() {
       );
     });
   }
-  metaTagsEl.innerHTML = (isOverview ? '' : "Dub: ") + dubHTML;
+  metaTagsEl.innerHTML = (isOverview ? "" : "Dub: ") + dubHTML;
 }
 function cr_getDubTagsEl() {
-  if (location.href.includes('/series/')) {
-    return query('[data-t="detail-row-audio-language"] [data-t="details-item-description"]');
+  if (location.href.includes("/series/")) {
+    return query(
+      '[data-t="detail-row-audio-language"] [data-t="details-item-description"]'
+    );
   }
   return query('[data-t="meta-tags"] > :nth-child(2)');
 }
@@ -3908,7 +4111,7 @@ let userOptions = {
     featureAutoSkip: {
       featureName: "AutoSkip",
       featureDescription:
-        "clicks the \"play next episode\" button, in 1 second instead of the default 10 seconds",
+        'clicks the "play next episode" button, in 1 second instead of the default 10 seconds',
       isEnabled: {
         value: false,
         label: "Activate",

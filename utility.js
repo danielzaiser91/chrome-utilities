@@ -2257,7 +2257,7 @@ const _amazon_adjustVal = (e, playBackInput) => {
 };
 function updateAmznVideoPlayrate(val) {
   /** @type {HTMLVideoElement} */
-  const video = query(".rendererContainer video");
+  const video = query("video");
   const allowed = isAllowed(userOptions.amazon.featurePlayBackSpeed.isEnabled);
   if (video) {
     video.playbackRate = !allowed ? 1 : val;

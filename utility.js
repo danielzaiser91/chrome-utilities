@@ -2293,6 +2293,7 @@ function addPlayBackRateButton() {
     const value =
       userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
         .playBackSpeed.value;
+    /** @type {HTMLInputElement} */
     const playbackInput = create("input", {
       type: "number",
       step: "0.1",
@@ -2302,7 +2303,12 @@ function addPlayBackRateButton() {
       className: "cu_playback cu-el",
       id: "cu_playback",
     });
-    updateAmznVideoPlayrate(value);
+    repeatIfCondition(() => {
+      const currVal = userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
+      .playBackSpeed.value;
+      if (document.hasFocus(playbackInput)) return;
+      updateAmznVideoPlayrate(currVal);
+    }, () => query('video'), { pauseInBg: false, interval: 1000 });
     playbackInput.addEventListener("keydown", (e) =>
       _amazon_adjustVal(e, playbackInput)
     );

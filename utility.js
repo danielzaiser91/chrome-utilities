@@ -301,7 +301,7 @@ function showExtensionInfoInLog() {
     )
   );
 }
-        
+
 document.addEventListener(
   "DOMContentLoaded",
   function () {
@@ -495,13 +495,12 @@ function prepareActionBar() {
         right: 40%;
       }
     }
-
+    .cu-action svg { fill: #000 }
     .cu-action {
       height: 100%;
       position: relative;
       background: white;
       border-color: transparent;
-      fill: black;
       display: flex;
       border-radius: 5px;
       justify-content: center;
@@ -856,6 +855,8 @@ let matcher;
 function websiteSelector() {
   const websiteMatcher = [
     // new Matcher("dooodster.com", fixDoodster),
+    new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
+    new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
     new Matcher("www.wowtv.", fixWowTV, true),
@@ -912,7 +913,7 @@ function startFixing() {
 
 // ---
 // fix dooodster
-// ANTI DEV Protection, is too strong .... . . . . . . . . 
+// ANTI DEV Protection, is too strong .... . . . . . . . .
 // ---
 function fixDoodster() {
   // addPlaybackButton_Dooodster();
@@ -1101,35 +1102,39 @@ function addPlayBackRateButton_wowTv() {
 
 function enable_playback_option__generic() {
   updateVideoPlayrate__generic(
-    userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
-      .value
+    userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures
+      .playBackSpeed.value
   );
-};
+}
 function _setPlayerValue__generic(val, playBackInput) {
   if (Number.isNaN(val)) return;
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
-  userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
-    val;
+  userOptions[
+    matcher.site
+  ].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
   updateVideoPlayrate__generic(val);
-};
+}
 function _adjustVal__generic(e, playBackInput) {
   e.stopPropagation();
   if (!e.srcElement?.value) return;
   const newValue = +(+e.srcElement.value)?.toFixed(2);
   _setPlayerValue__generic(newValue, playBackInput);
-};
-function updateVideoPlayrate__generic () {
+}
+function updateVideoPlayrate__generic() {
   /** @type {HTMLVideoElement} */
-  const video = query("video");
-  const allowed = isAllowed(userOptions[matcher.site].featurePlayBackSpeed.isEnabled);
-  if (video) {
+  const videos = queryAll("video");
+  const allowed = isAllowed(
+    userOptions[matcher.site].featurePlayBackSpeed.isEnabled
+  );
+  if (videos.length === 0) return;
+  for (const video of videos) {
     video.playbackRate = !allowed ? 1 : val;
   }
 }
 
 /**
  * generic method to add a playbackrate button
- * @param {() => HTMLElement} containerQuery 
+ * @param {() => HTMLElement} containerQuery
  * @param {() => boolean} conditionFn
  */
 function addPlaybackRateButton__generic(containerQuery, conditionFn) {
@@ -1154,7 +1159,9 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
     const playbackSettings = create("div", {
       className: "cu-hide cu-playback-settings",
     });
-    const value = userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed;
+    const value =
+      userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures
+        .playBackSpeed;
     const playbackInput = create("input", {
       type: "number",
       step: "0.1",
@@ -1190,14 +1197,14 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
   repeatIfCondition(_addPlayBackRateButton, conditionFn, { interval: 1000 });
 }
 
-
 // ----
 // fix https://www.new-fmovies.cam
 // ---
 function fixFmoviesCam() {
   fixSubtitlesFmoviesCam();
   // removeAds
-  insertCSS(`
+  insertCSS(
+    `
     .jw-logo,
     [id="info"] +div,
     [src="/addons/1gfdhfghfghfgh.gif"],
@@ -1211,22 +1218,26 @@ function fixFmoviesCam() {
     div>div:has(div>.fas.fa-download):has(~[id="actors"]) {
       display: none !important;!i;!;
     }
-  `,'anti-ad');
+  `,
+    "anti-ad"
+  );
 }
 
 function fixSubtitlesFmoviesCam() {
   if (window.fixSubtitles) clearInterval(window.fixSubtitles);
   window.fixSubtitles = setInterval(() => {
-    const subEl = document.querySelector('.jw-text-track-cue');
-    let subRp = document.getElementById('sub-here');
+    const subEl = document.querySelector(".jw-text-track-cue");
+    let subRp = document.getElementById("sub-here");
     if (!subEl) {
-      if (subRp) subRp.style.display = 'none';
+      if (subRp) subRp.style.display = "none";
       return;
-    };
+    }
     if (!window.__fix_init) {
       window.__fix_init = true;
-      const player = subEl.closest('.jwplayer');
-      player.insertAdjacentHTML('afterbegin', `<div style="
+      const player = subEl.closest(".jwplayer");
+      player.insertAdjacentHTML(
+        "afterbegin",
+        `<div style="
         position: absolute;
         bottom: 80px;
         width: 100%;
@@ -1245,15 +1256,171 @@ function fixSubtitlesFmoviesCam() {
         line-height: 1.2;
         text-align: center;
         font-family: Arial;
-        " id="sub-here"></div></div>`);
-      insertCSS('.jw-captions.jw-captions-enabled {display:none !important}','fixSubtitlesFmoviesCam');
-      subRp = document.getElementById('sub-here');
+        " id="sub-here"></div></div>`
+      );
+      insertCSS(
+        ".jw-captions.jw-captions-enabled {display:none !important}",
+        "fixSubtitlesFmoviesCam"
+      );
+      subRp = document.getElementById("sub-here");
     }
-    const text = subEl.innerText.replace(/{\\\w\w\d}/,'');
-    if (subRp.innerText.replaceAll(/[\n\r]/g,'') === text.replaceAll(/[\n\r]/g,'')) return;
+    const text = subEl.innerText.replace(/{\\\w\w\d}/, "");
+    if (
+      subRp.innerText.replaceAll(/[\n\r]/g, "") ===
+      text.replaceAll(/[\n\r]/g, "")
+    )
+      return;
     subRp.innerText = text;
-    subRp.style.display = 'block';
+    subRp.style.display = "block";
   }, 100);
+}
+
+// ----
+// fix filemoon.to (video iframe url https://zpjid.com/bkg)
+// ---
+function fixFilemoon() {
+  repeatIfCondition(
+    () => {
+      const video = query("video");
+      const speed =
+        userOptions.filemoon.featurePlayBackSpeed.isEnabled.subFeatures
+          .playBackSpeed.value || 1;
+      if (video.playbackRate === speed) return;
+      video.playbackRate = speed;
+    },
+    () => query("video"),
+    { interval: 1000, pauseInBg: false }
+  );
+}
+
+// ----
+// fix Luluvdo.to (https://luluvdo.com/dl)
+// ---
+function fixLuluvdo() {
+  repeatIfCondition(
+    () => {
+      const video = query("video");
+      const speed =
+        userOptions.luluvdo.featurePlayBackSpeed.isEnabled.subFeatures
+          .playBackSpeed.value || 1;
+      if (video.playbackRate === speed) return;
+      video.playbackRate = speed;
+    },
+    () => query("video"),
+    { interval: 1000, pauseInBg: false }
+  );
+  repeatUntilCondition(_rememberVideoPosition, () => !!query("video")?.src, {
+    pauseInBg: false,
+  });
+  document.body.insertAdjacentHTML(
+    "afterbegin",
+    `<div id="remember-video-position" class="cu-hide">want to continue where you left off?<span id="video-position-timestamp">22:30</span><div id="question-container" style="
+"><button id="cu-yes">Yes</button><button id="cu-no">No</button></div></div>`
+  );
+  insertCSS(`
+  .cu-action svg {
+    fill: black;
+}
+
+div#remember-video-position {
+    position: fixed;
+    bottom: 120px;
+    right: 20px;
+    width: 230px;
+    font-size: 1.3rem;
+    background: #ffff94;
+    border-radius: 10px;
+    z-index: 1;
+    padding: .5rem 1rem;
+    border: 4px #ff8888 solid;
+}
+
+span#video-position-timestamp {
+    color: blue;
+    margin-left: 10px;
+}
+
+div#question-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.6rem;
+}
+
+div#question-container button {
+    font-size: 1.3rem;
+}
+`);
+  query("#cu-yes").addEventListener("click", _onContinueVideo);
+  query("#cu-no").addEventListener("click", () => {
+    query("#remember-video-position").classList.add("cu-hide");
+  });
+}
+
+function _onContinueVideo() {
+  const video = query("video");
+  if (!video) return;
+  const title = document.head.querySelector("title").textContent;
+  const savedTime = localStorage.getItem("luluvdo-video-time:" + title);
+  if (savedTime) {
+    video.currentTime = +savedTime;
+  }
+  query("#remember-video-position").classList.add("cu-hide");
+}
+
+function _rememberVideoPosition() {
+  /** @type {HTMLVideoElement} */
+  const video = query("video");
+  if (!video) return;
+  const title = document.head.querySelector("title").textContent;
+  const savedTime = localStorage.getItem("luluvdo-video-time:" + title);
+  if (savedTime) {
+    query("#remember-video-position").classList.remove("cu-hide");
+    query("#video-position-timestamp").textContent =
+      +savedTime > 60
+        ? (+savedTime / 60).toFixed(0) +
+          ":" +
+          (+savedTime % 60).toFixed(0).padStart(2, "0")
+        : "0:" + (+savedTime % 60).toFixed(0).padStart(2, "0");
+    // continue where left off auto... TODO
+    // if (userOptions.luluvdo.featurePlayBackSpeed.isEnabled.subFeatures.autoPlay.value) video.currentTime = +savedTime;
+  }
+  repeatUntilUserInteracted(() => {
+    const _title = localStorage.getItem("luluvdo-video-muted:" + title);
+    if (_title && video.muted !== _title) {
+      document.querySelector('[aria-label="Mute button"]')?.click();
+      // video.muted =
+      //   localStorage.getItem("luluvdo-video-muted:" + title) === "true";
+    }
+  });
+
+  let waitCoupleSeconds = 0;
+  let interval;
+  interval = setInterval(() => {
+    waitCoupleSeconds++;
+    if (waitCoupleSeconds >= 5) {
+      clearInterval(interval);
+      return;
+    }
+  }, 1000);
+  window.addEventListener("beforeunload", () => {
+    localStorage.setItem("luluvdo-video-muted:" + title, video.muted);
+  });
+  video.addEventListener("timeupdate", () => {
+    if (savedTime) {
+      if (
+        waitCoupleSeconds < 5 ||
+        !query("#remember-video-position")?.classList.contains("cu-hide")
+      )
+        return;
+    }
+    localStorage.setItem("luluvdo-video-time:" + title, video.currentTime);
+  });
+}
+
+function repeatUntilUserInteracted(callback) {
+  repeatUntilCondition(callback, () => navigator.userActivation.hasBeenActive);
 }
 
 // ----
@@ -1679,9 +1846,9 @@ function fixFandom() {
     const rightEl = rightSidePanel();
     const wikibar = query("#WikiaBar");
     const adContainer = query(".bottom-ads-container");
-    adContainer.remove();
-    wikibar.remove();
-    rightEl.remove();
+    adContainer?.remove();
+    wikibar?.remove();
+    rightEl?.remove();
     insertCSS(
       `
       *::-webkit-scrollbar {
@@ -2257,9 +2424,10 @@ const _amazon_adjustVal = (e, playBackInput) => {
 };
 function updateAmznVideoPlayrate(val) {
   /** @type {HTMLVideoElement} */
-  const video = query("video");
+  const videos = queryAll("video");
   const allowed = isAllowed(userOptions.amazon.featurePlayBackSpeed.isEnabled);
-  if (video) {
+  if (videos.length === 0) return;
+  for (const video of videos) {
     video.playbackRate = !allowed ? 1 : val;
   }
 }
@@ -2303,11 +2471,16 @@ function addPlayBackRateButton() {
       className: "cu_playback cu-el",
       id: "cu_playback",
     });
-    repeatIfCondition(() => {
-      const currVal = userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
-      .playBackSpeed.value;
-      updateAmznVideoPlayrate(currVal);
-    }, () => query('video'), { pauseInBg: false, interval: 1000 });
+    repeatIfCondition(
+      () => {
+        const currVal =
+          userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
+            .playBackSpeed.value;
+        updateAmznVideoPlayrate(currVal);
+      },
+      () => query("video"),
+      { pauseInBg: false, interval: 1000 }
+    );
     playbackInput.addEventListener("keydown", (e) =>
       _amazon_adjustVal(e, playbackInput)
     );
@@ -2719,16 +2892,19 @@ function fixYoutube() {
   initYTCSS();
   initDateVisibilityListener();
   noInterestButton();
-  noYTBanner(); // make toggleable, let user decide
-  noYTAdBlockBanner();
-  hideYoutubeAds();
-  hideYoutubeAdsReels();
-  initListenerForAdEnforcer();
+  // hideYoutubeAds();
+  // hideYoutubeAdsReels();
+  
+  // disable reload on ad enforcer, because youtube added blocker
+  // noYTBanner(); // make toggleable, let user decide
+  // noYTAdBlockBanner();
+  // initListenerForAdEnforcer();
+
   /* FIXME: work in progress...
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
-  ytAutoskipAdd();
+  // ytAutoskipAdd();
   // initShortsControl();
 }
 
@@ -2761,8 +2937,8 @@ function hideYoutubeAds() {
 
 function initYTCSS() {
   insertCSS(
+    // [id$="-ad"] { display: none !important }
     `
-    [id$="-ad"] { display: none !important }
     [darker-dark-theme] #contenteditable-root { color: white !important }
   `,
     "yt-anti-ad"
@@ -3993,7 +4169,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.039",
+  version: "1.040c",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -4090,6 +4266,44 @@ let userOptions = {
         disabledReason: "will be coming soon, not yet implemented",
         label: "Activate",
         description: "",
+      },
+    },
+  },
+  luluvdo: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+          },
+        },
+      },
+    },
+  },
+  filemoon: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+          },
+        },
       },
     },
   },

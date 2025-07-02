@@ -2894,7 +2894,7 @@ function fixYoutube() {
   noInterestButton();
   // hideYoutubeAds();
   // hideYoutubeAdsReels();
-  
+
   // disable reload on ad enforcer, because youtube added blocker
   // noYTBanner(); // make toggleable, let user decide
   // noYTAdBlockBanner();
@@ -3473,8 +3473,11 @@ const _crunchyhook_adjustVal = (playBackInput) => {
   _crunchyhook_setPlayerValue(newValue, playBackInput);
 };
 let lastVideoUrl = "";
-function videoChanged() {
-  return lastVideoUrl !== query("video").src;
+function incorrectPlaybackRate() {
+  return (
+    userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures
+      .playBackSpeed.value !== query("video").playbackRate
+  );
 }
 function initPlaybackOptionListener() {
   // --- prepare input Element to insert ---
@@ -3497,7 +3500,7 @@ function initPlaybackOptionListener() {
           .playBackSpeed.value,
         playBackInput
       ),
-    videoChanged,
+    incorrectPlaybackRate,
     { pauseInBg: false, interval: 500 }
   );
   const playBackContainer = create("div", {

@@ -2940,6 +2940,7 @@ function initYTCSS() {
     // [id$="-ad"] { display: none !important }
     `
     [darker-dark-theme] #contenteditable-root { color: white !important }
+    ytd-page-manager { overflow-x: auto !important; }
   `,
     "yt-anti-ad"
   );

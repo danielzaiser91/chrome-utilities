@@ -1,5 +1,6 @@
 init = true;
 const isPopup = location.pathname.split("/").includes("popout");
+const getSiteName = () => matcher.site.toLowerCase();
 /**
  * Chrome - Utility (cu)
  *
@@ -357,7 +358,7 @@ const svg = {
 function prepareActionBar() {
   if (Interval.exists("_prepareActionBar")) return;
   // TODO: Add settings button with dropdown or overlay for setting custom userOptions
-  const site = matcher.site.toLowerCase();
+  const site = getSiteName();
   if (!document.body || !userOptions[site]) return;
   document.body.addEventListener("mousemove", () => {
     mouseOver = true;
@@ -377,7 +378,7 @@ function prepareActionBar() {
       <div class="cu-settings-container">
         <div class="cu-settings-description">
           ${svg[site] ?? ""}
-          Chrome Extension: Utility - Settings for ${matcher.site}:
+          Chrome Extension: Utility - Settings for ${site}:
         </div>
         <div class="cu-settings-options">
 
@@ -400,9 +401,7 @@ function prepareActionBar() {
       prepareActionBar();
     }
     const actionBarShowCondition =
-      window[
-        userOptions[matcher.site.toLowerCase()]?.actionBarShowCondition
-      ]?.() ?? true;
+      window[userOptions[site]?.actionBarShowCondition]?.() ?? true;
     if (mouseOver && actionBarShowCondition) {
       actionBar.classList.remove("cu-hide");
     } else {
@@ -596,7 +595,7 @@ function prepareActionBar() {
 }
 
 function renderOptions() {
-  const site = matcher.site.toLowerCase();
+  const site = getSiteName();
   const options = userOptions[site];
   const settingsEl = settingsOverlay.querySelector(".cu-settings-options");
   settingsEl.innerHTML = "";
@@ -936,7 +935,17 @@ function addPlaybackButton_Dooodster() {
 // ---
 function fixWowTV() {
   wowTVSkip();
+
+  // disabled for now, because site has changed its UI
   addPlayBackRateButton_wowTv();
+  repeatIfCondition(
+    () => {
+      updateVideoPlayrate__generic();
+    },
+    () => query("video"),
+    { interval: 500 }
+  );
+
   betterui_wowtv();
 }
 
@@ -1021,8 +1030,9 @@ function updateWowtvVideoPlayrate(val) {
   }
 }
 function addPlayBackRateButton_wowTv() {
+  const _container = () => query(".playback-controls__container--center");
   const condition = () => {
-    const container = query('[data-test-id="volume"]')?.parentElement;
+    const container = _container();
     return (
       location.href.includes("/watch/") &&
       container &&
@@ -1030,14 +1040,14 @@ function addPlayBackRateButton_wowTv() {
     );
   };
   const _addPlayBackRateButton = () => {
-    const container = query('[data-test-id="volume"]')?.parentElement;
+    const container = _container();
     const div = create("div", { className: "cu-playback-rate cu-el" });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
         <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
     insertCSS(
       `
-      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; }
+      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; color: white; }
       .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
       .cu-playback-rate:hover { cursor: pointer; }
       .cu_playback { background: black !important; color: white;  }
@@ -1045,6 +1055,7 @@ function addPlayBackRateButton_wowTv() {
       input.cu_playback[type=number]::-webkit-inner-spin-button { opacity: 1 }
       .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
       .cu-is-open { margin-right: 10px; }
+      .cu-playback-rate-container { display: flex; align-items: center; }
     `,
       "cu-playback-rate"
     );
@@ -1073,17 +1084,22 @@ function addPlayBackRateButton_wowTv() {
     const playbackLabel = create("label", {
       textContent: "Speed:",
       for: "cu_playback",
-      className: "cu-el",
+      className: "cu-el cu_playback",
     });
     playbackSettings.prepend(playbackInput);
     playbackSettings.prepend(playbackLabel);
-    div.onclick = () => {
+    div.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
       playbackSettings.classList.toggle("cu-hide");
       div.classList.toggle("cu-is-open");
     };
     div.insertAdjacentHTML("afterbegin", svg);
     container.classList.add("cu-playbackrate-added");
-    container.prepend(div, playbackSettings);
+    const div2 = create("div", { className: "cu-playback-rate-container" });
+    div2.prepend(div, playbackSettings);
+    container.insertAdjacentElement("beforeend", div2);
+    // container.prepend(div, playbackSettings);
   };
   // repeat until there is a video, then check if the element already has the playback button added
   repeatIfCondition(_addPlayBackRateButton, condition, { interval: 1000 });
@@ -1102,7 +1118,7 @@ function addPlayBackRateButton_wowTv() {
 
 function enable_playback_option__generic() {
   updateVideoPlayrate__generic(
-    userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures
+    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
       .playBackSpeed.value
   );
 }
@@ -1110,7 +1126,7 @@ function _setPlayerValue__generic(val, playBackInput) {
   if (Number.isNaN(val)) return;
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions[
-    matcher.site
+    getSiteName()
   ].featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = val;
   updateVideoPlayrate__generic(val);
 }
@@ -1120,15 +1136,19 @@ function _adjustVal__generic(e, playBackInput) {
   const newValue = +(+e.srcElement.value)?.toFixed(2);
   _setPlayerValue__generic(newValue, playBackInput);
 }
-function updateVideoPlayrate__generic() {
+function updateVideoPlayrate__generic(val) {
   /** @type {HTMLVideoElement} */
   const videos = queryAll("video");
   const allowed = isAllowed(
-    userOptions[matcher.site].featurePlayBackSpeed.isEnabled
+    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled
   );
-  if (videos.length === 0) return;
+  const speed =
+    val ||
+    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
+      .playBackSpeed.value;
+  if (videos.length === 0 || isNaN(speed)) return;
   for (const video of videos) {
-    video.playbackRate = !allowed ? 1 : val;
+    video.playbackRate = !allowed ? 1 : speed;
   }
 }
 
@@ -1160,7 +1180,7 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
       className: "cu-hide cu-playback-settings",
     });
     const value =
-      userOptions[matcher.site].featurePlayBackSpeed.isEnabled.subFeatures
+      userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
         .playBackSpeed;
     const playbackInput = create("input", {
       type: "number",

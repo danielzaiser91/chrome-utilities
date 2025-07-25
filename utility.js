@@ -855,6 +855,7 @@ function websiteSelector() {
   const websiteMatcher = [
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
+    new Matcher("aniworld.to", fixAniworld, true),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
@@ -1310,6 +1311,84 @@ function fixFilemoon() {
     },
     () => query("video"),
     { interval: 1000, pauseInBg: false }
+  );
+}
+
+// ----
+// fix Luluvdo.to (https://luluvdo.com/dl)
+// ---
+function fixAniworld() {
+  overviewFlagShower();
+}
+
+function fetchAndReturnHTML_push(reader, controller) {
+  // "done" is a Boolean and value a "Uint8Array"
+  reader.read().then(({ done, value }) => {
+    // If there is no more data to read
+    if (done) {
+      console.log("done", done);
+      controller.close();
+      return;
+    }
+    // Get the data and send it to the browser via the controller
+    controller.enqueue(value);
+    // Check chunks by logging to the console
+    console.log(done, value);
+    fetchAndReturnHTML_push(reader, controller);
+  });
+}
+
+async function fetchAndReturnHTML(url) {
+  return fetch(url)
+    .then((response) => response.body)
+    .then((rb) => {
+      const reader = rb.getReader();
+
+      return new ReadableStream({
+        start(controller) {
+          fetchAndReturnHTML_push(reader, controller);
+        },
+      });
+    })
+    .then((stream) =>
+      // Respond with our stream
+      {
+        return new Response(stream, {
+          headers: { "Content-Type": "text/html" },
+        }).text();
+      }
+    );
+}
+
+/** shows flag below anime image, fetching the data from each anime page */
+function overviewFlagShower() {
+  repeatIfCondition(
+    () => {
+      const container = document.querySelector(".seriesListContainer");
+      container.classList.add('cu-fetched-flags');
+      [...container.children].forEach(
+        (animePicture) => {
+          const flagDiv = create("div");
+          const a = animePicture.querySelector("[href]");
+          if (!a?.href) return;
+          fetchAndReturnHTML(a.href).then((html) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            const flags = doc.querySelectorAll('[data-episode-season-id="1"] img.flag');
+            if (!flags) return;
+            flagDiv.classList.add("cu-flag");
+            [...flags].forEach((flag) => {
+              flagDiv.insertAdjacentElement("beforeend", flag);
+            });
+            animePicture.insertAdjacentElement("afterbegin", flagDiv);
+          });
+        }
+      );
+    },
+    () =>
+      document.querySelector(".seriesListContainer:not(.cu-fetched-flags)") &&
+      !location.href.includes("anime/stream"),
+    { interval: 1000 }
   );
 }
 

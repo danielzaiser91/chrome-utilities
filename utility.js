@@ -1326,14 +1326,14 @@ function fetchAndReturnHTML_push(reader, controller) {
   reader.read().then(({ done, value }) => {
     // If there is no more data to read
     if (done) {
-      console.log("done", done);
+      // console.log("done", done);
       controller.close();
       return;
     }
     // Get the data and send it to the browser via the controller
     controller.enqueue(value);
     // Check chunks by logging to the console
-    console.log(done, value);
+    // console.log(done, value);
     fetchAndReturnHTML_push(reader, controller);
   });
 }
@@ -1364,17 +1364,20 @@ async function fetchAndReturnHTML(url) {
 function overviewFlagShower() {
   repeatIfCondition(
     () => {
-      const container = document.querySelector(".seriesListContainer");
+      const container = document.querySelector(".seriesListContainer:not(.cu-fetched-flags)");
       container.classList.add('cu-fetched-flags');
       [...container.children].forEach(
         (animePicture) => {
           const flagDiv = create("div");
+          flagDiv.style.minHeight = "21px";
           const a = animePicture.querySelector("[href]");
           if (!a?.href) return;
-          fetchAndReturnHTML(a.href).then((html) => {
+          const episodeMatch = a.href.match(/\/episode-(\d+)/)?.[1];
+          const url = episodeMatch ? a.href.replace(/\/episode-\d+/, '') : a.href;
+          fetchAndReturnHTML(url).then((html) => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
-            const flags = doc.querySelectorAll('[data-episode-season-id="1"] img.flag');
+            const flags = doc.querySelectorAll(`[data-episode-season-id="${episodeMatch ? episodeMatch : 1}"] img.flag`);
             if (!flags) return;
             flagDiv.classList.add("cu-flag");
             [...flags].forEach((flag) => {

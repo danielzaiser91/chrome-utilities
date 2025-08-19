@@ -854,6 +854,7 @@ let matcher;
 function websiteSelector() {
   const websiteMatcher = [
     // new Matcher("dooodster.com", fixDoodster),
+    new Matcher("instagram.com", fixInstagram, true),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
@@ -1364,34 +1365,67 @@ async function fetchAndReturnHTML(url) {
 function overviewFlagShower() {
   repeatIfCondition(
     () => {
-      const container = document.querySelector(".seriesListContainer:not(.cu-fetched-flags)");
-      container.classList.add('cu-fetched-flags');
-      [...container.children].forEach(
-        (animePicture) => {
-          const flagDiv = create("div");
-          flagDiv.style.minHeight = "21px";
-          const a = animePicture.querySelector("[href]");
-          if (!a?.href) return;
-          const episodeMatch = a.href.match(/\/episode-(\d+)/)?.[1];
-          const url = episodeMatch ? a.href.replace(/\/episode-\d+/, '') : a.href;
-          fetchAndReturnHTML(url).then((html) => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const flags = doc.querySelectorAll(`[data-episode-season-id="${episodeMatch ? episodeMatch : 1}"] img.flag`);
-            if (!flags) return;
-            flagDiv.classList.add("cu-flag");
-            [...flags].forEach((flag) => {
-              flagDiv.insertAdjacentElement("beforeend", flag);
-            });
-            animePicture.insertAdjacentElement("afterbegin", flagDiv);
-          });
-        }
+      const container = document.querySelector(
+        ".seriesListContainer:not(.cu-fetched-flags)"
       );
+      container.classList.add("cu-fetched-flags");
+      [...container.children].forEach((animePicture) => {
+        const flagDiv = create("div");
+        flagDiv.style.minHeight = "21px";
+        const a = animePicture.querySelector("[href]");
+        if (!a?.href) return;
+        const episodeMatch = a.href.match(/\/episode-(\d+)/)?.[1];
+        const url = episodeMatch ? a.href.replace(/\/episode-\d+/, "") : a.href;
+        fetchAndReturnHTML(url).then((html) => {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, "text/html");
+          const flags = doc.querySelectorAll(
+            `[data-episode-season-id="${
+              episodeMatch ? episodeMatch : 1
+            }"] img.flag`
+          );
+          if (!flags) return;
+          flagDiv.classList.add("cu-flag");
+          [...flags].forEach((flag) => {
+            flagDiv.insertAdjacentElement("beforeend", flag);
+          });
+          animePicture.insertAdjacentElement("afterbegin", flagDiv);
+        });
+      });
     },
     () =>
       document.querySelector(".seriesListContainer:not(.cu-fetched-flags)") &&
       !location.href.includes("anime/stream"),
     { interval: 1000 }
+  );
+}
+
+// ----
+// fix instagram.com
+// ---
+function fixInstagram() {
+  repeatIfCondition(
+    () => [...document.querySelectorAll("video")].forEach(video => {
+      video.controls = true;
+      if (getComputedStyle(video).position === 'static') {
+        video.style.position = 'relative';
+      }
+      video.style.zIndex = '99999999999999';
+      const savedVol = localStorage.getItem('cu-insta-vol', video.volume);
+
+      /*
+        commenting out the automatic unmute functionality, because of browser policy preventing interaction before user interaction...
+      */
+      // const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
+      // if (savedMuted) video.muted = !!+savedMuted;
+      if (savedVol) video.volume = +savedVol;
+      video.addEventListener('volumechange', (ev) => {
+        localStorage.setItem('cu-insta-vol', video.volume);
+        // localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+      });
+    }),
+    () =>
+      [...document.querySelectorAll("video")].some((video) => !video.controls)
   );
 }
 

@@ -1419,9 +1419,22 @@ function fixInstagram() {
       // const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
       // if (savedMuted) video.muted = !!+savedMuted;
       if (savedVol) video.volume = +savedVol;
+      video.addEventListener('play', (ev) => {
+        setTimeout(() => {
+          const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
+          if (savedMuted) video.muted = !!+savedMuted;
+        }, 10);
+      });
+
       video.addEventListener('volumechange', (ev) => {
-        localStorage.setItem('cu-insta-vol', video.volume);
-        // localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+        try {
+          localStorage.setItem('cu-insta-vol', video.volume);
+          
+          // zeitverzögert das mute updaten, wegen play reaction
+          setTimeout(() => {
+            localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+          }, 100);
+        } catch (e) {}
       });
     }),
     () =>

@@ -1407,6 +1407,7 @@ function fixInstagram() {
   repeatIfCondition(
     () => [...document.querySelectorAll("video")].forEach(video => {
       video.controls = true;
+      video.pause();
       if (getComputedStyle(video).position === 'static') {
         video.style.position = 'relative';
       }
@@ -1419,26 +1420,38 @@ function fixInstagram() {
       // const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
       // if (savedMuted) video.muted = !!+savedMuted;
       if (savedVol) video.volume = +savedVol;
+      let playEventStarted_TimeStamp = Date.now();
       video.addEventListener('play', (ev) => {
+        playEventStarted_TimeStamp = Date.now();
         setTimeout(() => {
-          const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
-          if (savedMuted) video.muted = !!+savedMuted;
+          try {
+            const savedVol = localStorage.getItem('cu-insta-vol', video.volume);
+            if (savedVol) {
+              video.volume = +savedVol;
+            }
+            const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
+            if (savedMuted) video.muted = !!+savedMuted;
+          } catch (e) {}
         }, 10);
       });
 
       video.addEventListener('volumechange', (ev) => {
         try {
+          if (Date.now() - playEventStarted_TimeStamp < 200) return;
           localStorage.setItem('cu-insta-vol', video.volume);
           
           // zeitverzögert das mute updaten, wegen play reaction
           setTimeout(() => {
-            localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+            try {
+              localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+            } catch (e) {}
           }, 100);
         } catch (e) {}
       });
+      video.classList.add('cu-controls');
     }),
     () =>
-      [...document.querySelectorAll("video")].some((video) => !video.controls)
+      [...document.querySelectorAll("video")].some((video) => !video.classList.contains('cu-controls'))
   );
 }
 

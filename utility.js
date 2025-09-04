@@ -1449,8 +1449,8 @@ function fixGoogleMaps() {
         }
       `,'cu-ui-toggle-css');
       byId('cu-ui-toggle').addEventListener('click', () => {
-        visible = !visible;
         toggleVisibility(visible);
+        visible = !visible;
       });
     }, () => !!byId('omnibox-container'));
   }

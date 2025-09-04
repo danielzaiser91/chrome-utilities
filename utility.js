@@ -855,6 +855,7 @@ function websiteSelector() {
   const websiteMatcher = [
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("instagram.com", fixInstagram, true),
+    new Matcher("google.com/maps/", fixGoogleMaps),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
@@ -1398,6 +1399,62 @@ function overviewFlagShower() {
       !location.href.includes("anime/stream"),
     { interval: 1000 }
   );
+}
+
+// ----
+// fix GoogleMaps
+// ---
+function fixGoogleMaps() {
+  const condition = () => byId('titlecard')?.classList.contains('cu-map-fix') === false;
+  function toggleVisibility(hide = true) {
+    // all elements to hide
+    const hideEls = [byId('titlecard'), byId('minimap')];
+    hideEls.forEach(el => {
+      if (!el) return;
+      if (hide) el.classList.add('cu-hide');
+      else el.classList.remove('cu-hide');
+    });
+  }
+  const fn = () => {
+    // mark as fixed
+    byId('titlecard').classList.add('cu-map-fix');
+    toggleVisibility();
+
+    repeatUntilCondition(() => {
+      const searchBox = byId('omnibox-container');
+      const { right } = searchBox.getBoundingClientRect();
+      // select x button (top right), clone it and use it as a toggle ui button
+      byId('titlecard').insertAdjacentHTML('beforebegin', '<div id="cu-ui-toggle">toggle extra ui</div>');
+      let visible = false;
+      insertCSS(`
+        #cu-ui-toggle {
+          width: 30px;
+          height: 30px;
+          background: yellow;
+          z-index: 1000000000;
+          position: fixed;
+          top: 10px;
+          left: ${right + 10}px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #000000d9;
+          color: white;
+          padding: 10px;
+          text-align: center;
+          font-size: 0.6rem;
+          cursor: pointer;
+          user-select: none;
+        }
+      `,'cu-ui-toggle-css');
+      byId('cu-ui-toggle').addEventListener('click', () => {
+        visible = !visible;
+        toggleVisibility(visible);
+      });
+    }, () => !!byId('omnibox-container'));
+  }
+  repeatIfCondition(fn, condition)
 }
 
 // ----
@@ -4335,7 +4392,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.041",
+  version: "1.042",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

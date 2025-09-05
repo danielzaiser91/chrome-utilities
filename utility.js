@@ -1434,7 +1434,6 @@ function fixGoogleMaps() {
           z-index: 1000000000;
           position: fixed;
           top: 10px;
-          left: ${right + 10}px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -1448,7 +1447,14 @@ function fixGoogleMaps() {
           user-select: none;
         }
       `,'cu-ui-toggle-css');
-      byId('cu-ui-toggle').addEventListener('click', () => {
+      const el = byId('cu-ui-toggle');
+      el.style.left = right + 10 + 'px';
+      if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
+      window._cu_check_search_el_changed = setInterval(() => {
+        const { right } = searchBox.getBoundingClientRect();
+        el.style.left = right + 10 + 'px';
+      }, 500);
+      el.addEventListener('click', () => {
         toggleVisibility(visible);
         visible = !visible;
       });

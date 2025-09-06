@@ -306,14 +306,17 @@ function showExtensionInfoInLog() {
 document.addEventListener(
   "DOMContentLoaded",
   function () {
-    websiteSelector();
-    if (!matcher?.allowInIframe) return;
-    fixForAllWebsites();
-    showExtensionInfoInLog();
-    loadUserSettings();
-    startFixing();
-    intervalHandler();
-    init = false;
+    // timeout workaround to fix crunchyroll bug of infinite loading...
+    setTimeout(() => {
+      websiteSelector();
+      if (!matcher?.allowInIframe) return;
+      fixForAllWebsites();
+      showExtensionInfoInLog();
+      loadUserSettings();
+      startFixing();
+      intervalHandler();
+      init = false;
+    }, 100);
   },
   false
 );
@@ -893,13 +896,10 @@ function websiteSelector() {
     new Matcher("disneyplus.com", fixDisneyPlus, true),
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
-  // timeout workaround to fix crunchyroll bug of infinite loading...
-  setTimeout(() => {
-    const match = websiteMatcher.find((v) => location.href.includes(v.match));
-    if (!match)
-      return console.info(yellow(`no utility fix for this website found`));
-    matcher = match;
-  }, 100);
+  const match = websiteMatcher.find((v) => location.href.includes(v.match));
+  if (!match)
+    return console.info(yellow(`no utility fix for this website found`));
+  matcher = match;
 }
 
 function startFixing() {

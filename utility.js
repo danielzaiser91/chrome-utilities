@@ -899,7 +899,7 @@ function websiteSelector() {
     if (!match)
       return console.info(yellow(`no utility fix for this website found`));
     matcher = match;
-  }, 1000);
+  }, 100);
 }
 
 function startFixing() {

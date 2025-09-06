@@ -1451,12 +1451,19 @@ function fixGoogleMaps() {
       el.style.left = right + 10 + 'px';
       if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
       window._cu_check_search_el_changed = setInterval(() => {
+        const notOnStreetView = !location.href.includes('streetview');
+        if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
+        else el?.classList.remove('cu-hide');
+        if (notOnStreetView) {
+          visible = false;
+          return toggleVisibility(!visible);
+        }
         const { right } = searchBox.getBoundingClientRect();
         el.style.left = right + 10 + 'px';
       }, 500);
       el.addEventListener('click', () => {
-        toggleVisibility(visible);
         visible = !visible;
+        toggleVisibility(!visible);
       });
     }, () => !!byId('omnibox-container'));
   }

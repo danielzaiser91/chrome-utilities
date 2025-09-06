@@ -893,10 +893,13 @@ function websiteSelector() {
     new Matcher("disneyplus.com", fixDisneyPlus, true),
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
-  const match = websiteMatcher.find((v) => location.href.includes(v.match));
-  if (!match)
-    return console.info(yellow(`no utility fix for this website found`));
-  matcher = match;
+  // timeout workaround to fix crunchyroll bug of infinite loading...
+  setTimeout(() => {
+    const match = websiteMatcher.find((v) => location.href.includes(v.match));
+    if (!match)
+      return console.info(yellow(`no utility fix for this website found`));
+    matcher = match;
+  }, 1000);
 }
 
 function startFixing() {

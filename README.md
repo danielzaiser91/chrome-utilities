@@ -14,7 +14,7 @@ Browser-Extension, that provides UI/UX improvements for many different websites 
 - Steam
 - ...Other
 
-See more Details: [release notes version 1.035](https://github.com/danielzaiser91/chrome-utilities/releases/tag/1.035)
+Check out the [Releases](https://github.com/danielzaiser91/chrome-utilities/releases#hd-b29a9f02), if you are interested in all details of everything that this extension supports
 ---
 
 # Security

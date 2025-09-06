@@ -858,7 +858,7 @@ function websiteSelector() {
   const websiteMatcher = [
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("instagram.com", fixInstagram, true),
-    new Matcher("google.com/maps/", fixGoogleMaps),
+    new Matcher("google.com/", fixGoogle),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
@@ -1405,10 +1405,13 @@ function overviewFlagShower() {
 }
 
 // ----
-// fix GoogleMaps
+// fix Google
 // ---
+function fixGoogle() {
+  fixGoogleMaps();
+}
 function fixGoogleMaps() {
-  const condition = () => byId('titlecard')?.classList.contains('cu-map-fix') === false;
+  const condition = () => location.href.includes('google.com/maps/') && byId('titlecard')?.classList.contains('cu-map-fix') === false;
   function toggleVisibility(hide = true) {
     // all elements to hide
     const hideEls = [byId('titlecard'), byId('minimap')];
@@ -1418,6 +1421,7 @@ function fixGoogleMaps() {
       else el.classList.remove('cu-hide');
     });
   }
+  location.href.includes('google.com/maps/')
   const fn = () => {
     // mark as fixed
     byId('titlecard').classList.add('cu-map-fix');
@@ -1454,8 +1458,13 @@ function fixGoogleMaps() {
       el.style.left = right + 10 + 'px';
       if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
       window._cu_check_search_el_changed = setInterval(() => {
-        if (!searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
+        const notOnStreetView = !location.href.includes('data=');
+        if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
         else el?.classList.remove('cu-hide');
+        if (notOnStreetView) {
+          visible = false;
+          return toggleVisibility(!visible);
+        }
         const { right } = searchBox.getBoundingClientRect();
         el.style.left = right + 10 + 'px';
       }, 500);
@@ -1465,7 +1474,7 @@ function fixGoogleMaps() {
       });
     }, () => !!byId('omnibox-container'));
   }
-  repeatIfCondition(fn, condition)
+  repeatIfCondition(fn, condition, { interval: 500 });
 }
 
 // ----

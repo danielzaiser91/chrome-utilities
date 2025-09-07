@@ -1458,7 +1458,9 @@ function fixGoogleMaps() {
       el.style.left = right + 10 + 'px';
       if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
       window._cu_check_search_el_changed = setInterval(() => {
-        const notOnStreetView = !location.href.includes('data=');
+        const sv_canvas = document.querySelectorAll('[role="application"] > canvas')[0];
+        const notOnStreetView = sv_canvas.style.display === 'none';
+        // const notOnStreetView = !['/place/','data='].some(check => location.href.includes(check));
         if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
         else el?.classList.remove('cu-hide');
         if (notOnStreetView) {

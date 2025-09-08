@@ -3145,7 +3145,7 @@ const initShortsControl = () => {
 */
 function fixYoutube() {
   initYTCSS();
-  initDateVisibilityListener();
+  // initDateVisibilityListener();
   noInterestButton();
   // hideYoutubeAds();
   // hideYoutubeAdsReels();
@@ -3246,25 +3246,27 @@ function noInterestButton() {
     },
     () => query("#video-preview")
   );
-  const hasDismissibles = () =>
-    query(
-      "#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]"
-    ) ||
-    query(
-      "#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]"
-    );
-  const getDismissibles = () => [
-    ...Array.from(
-      queryAll(
-        "#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]"
-      )
-    ),
-    ...Array.from(
-      queryAll(
-        "#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]"
-      )
-    ),
-  ];
+  // const hasDismissibles = () =>
+  //   query(
+  //     "#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]"
+  //   ) ||
+  //   query(
+  //     "#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]"
+  //   );
+  // const getDismissibles = () => [
+  //   ...Array.from(
+  //     queryAll(
+  //       "#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]"
+  //     )
+  //   ),
+  //   ...Array.from(
+  //     queryAll(
+  //       "#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid-media]"
+  //     )
+  //   ),
+  // ];
+  const hasDismissibles = () => query('yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)');
+  const getDismissibles = () => [...queryAll('yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)')];
   const allVideos = () =>
     !inURL(["@", "subscriptions"]) && hasDismissibles() && getDismissibles();
   // commented out inclusion of shorts...
@@ -3292,20 +3294,17 @@ function noInterestButton() {
         title: "not interested",
       });
       div.insertAdjacentHTML("afterbegin", svg);
-      div.querySelector("svg").onclick = () => {
-        const dropdownTrigger = vid.querySelector(
-          "#button.dropdown-trigger button"
-        );
+      div.querySelector("svg").onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const btnEls = queryAll('div.'+id+' button');
+        const dropdownTrigger = [...btnEls][btnEls.length -1];
         if (!dropdownTrigger) return;
         document.body.classList.add("cu-menu--hide");
         dropdownTrigger.click();
         setTimeout(() => {
           // FOR SHORTS IT IS the 2nd to last one...
-          const path = query(
-            "ytd-menu-popup-renderer ytd-menu-service-item-renderer:nth-last-child(3)"
-          );
-          if (!path) return;
-          const noInterestBtn = path.closest("ytd-menu-service-item-renderer");
+          const noInterestBtn = query('yt-list-item-view-model:nth-last-child(3)');
           if (noInterestBtn) noInterestBtn.click();
           document.body.classList.remove("cu-menu--hide");
         }, 100);

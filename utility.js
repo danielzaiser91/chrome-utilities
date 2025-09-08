@@ -1455,20 +1455,34 @@ function fixGoogleMaps() {
         }
       `,'cu-ui-toggle-css');
       const el = byId('cu-ui-toggle');
+      el.classList.add('cu-hide');
       el.style.left = right + 10 + 'px';
       if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
+      let _triggeredAfterLeavingStreetview = false;
       window._cu_check_search_el_changed = setInterval(() => {
         const sv_canvas = document.querySelectorAll('[role="application"] > canvas')[0];
         const notOnStreetView = sv_canvas.style.display === 'none';
         // const notOnStreetView = !['/place/','data='].some(check => location.href.includes(check));
-        if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
-        else el?.classList.remove('cu-hide');
+        // if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
+        // else el?.classList.remove('cu-hide');
         if (notOnStreetView) {
-          visible = false;
-          return toggleVisibility(!visible);
+          if (_triggeredAfterLeavingStreetview === false) {
+            // set to true, to ensure only triggered once when leaving streetview
+            _triggeredAfterLeavingStreetview = true;
+            el?.classList.add('cu-hide');
+            visible = false;
+            return toggleVisibility(visible);
+          }
+        } else {
+          if (_triggeredAfterLeavingStreetview === true) {
+            _triggeredAfterLeavingStreetview = false;
+            el?.classList.remove('cu-hide');
+            visible = false;
+            toggleVisibility(!visible);
+          }
+          const { right } = searchBox.getBoundingClientRect();
+          el.style.left = right + 10 + 'px';
         }
-        const { right } = searchBox.getBoundingClientRect();
-        el.style.left = right + 10 + 'px';
       }, 500);
       el.addEventListener('click', () => {
         visible = !visible;

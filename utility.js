@@ -1458,7 +1458,8 @@ function fixGoogleMaps() {
       el.classList.add('cu-hide');
       el.style.left = right + 10 + 'px';
       if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
-      let _triggeredAfterLeavingStreetview = false;
+      let _trigger_once_onleave = false;
+      let _trigger_once_onenter = false;
       window._cu_check_search_el_changed = setInterval(() => {
         const sv_canvas = document.querySelectorAll('[role="application"] > canvas')[0];
         const notOnStreetView = sv_canvas.style.display === 'none';
@@ -1466,16 +1467,22 @@ function fixGoogleMaps() {
         // if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
         // else el?.classList.remove('cu-hide');
         if (notOnStreetView) {
-          if (_triggeredAfterLeavingStreetview === false) {
+          if (_trigger_once_onenter === true) {
+            _trigger_once_onenter = false;
+          }
+          if (_trigger_once_onleave === false) {
             // set to true, to ensure only triggered once when leaving streetview
-            _triggeredAfterLeavingStreetview = true;
+            _trigger_once_onleave = true;
             el?.classList.add('cu-hide');
             visible = false;
-            return toggleVisibility(visible);
+            toggleVisibility(visible);
           }
         } else {
-          if (_triggeredAfterLeavingStreetview === true) {
-            _triggeredAfterLeavingStreetview = false;
+          if (_trigger_once_onleave === true) {
+            _trigger_once_onleave = false;
+          }
+          if (_trigger_once_onenter === false) {
+            _trigger_once_onenter = true;
             el?.classList.remove('cu-hide');
             visible = false;
             toggleVisibility(!visible);

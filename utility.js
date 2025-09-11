@@ -1412,14 +1412,18 @@ function fixGoogle() {
 }
 function fixGoogleMaps() {
   const condition = () => location.href.includes('google.com/maps/') && byId('titlecard')?.classList.contains('cu-map-fix') === false;
+  insertCSS(`
+    body.cu-maps-hide-els #minimap { display: none !important }
+    body.cu-maps-hide-els #titlecard [role="navigation"]>div>*:not(:first-child) { display: none !important }
+    body.cu-maps-hide-els #searchbox { display: none !important }
+    body.cu-maps-hide-els [aria-label="Share"] { display: none !important }
+    body.cu-maps-hide-els [aria-label="Close"] { display: none !important }
+    body.cu-maps-hide-els #runway-expand-button { display: none !important }
+    body.cu-maps-hide-els #watermark { display: none !important }
+  `, 'cu-maps-hide-els-style', true);
   function toggleVisibility(hide = true) {
-    // all elements to hide
-    const hideEls = [byId('titlecard'), byId('minimap')];
-    hideEls.forEach(el => {
-      if (!el) return;
-      if (hide) el.classList.add('cu-hide');
-      else el.classList.remove('cu-hide');
-    });
+    if (hide) document.body.classList.add('cu-maps-hide-els');
+    else document.body.classList.remove('cu-maps-hide-els');
   }
   location.href.includes('google.com/maps/')
   const fn = () => {
@@ -1490,14 +1494,14 @@ function fixGoogleMaps() {
           const { right } = searchBox.getBoundingClientRect();
           el.style.left = right + 10 + 'px';
         }
-      }, 500);
+      }, 300);
       el.addEventListener('click', () => {
         visible = !visible;
         toggleVisibility(!visible);
       });
     }, () => !!byId('omnibox-container'));
   }
-  repeatIfCondition(fn, condition, { interval: 500 });
+  repeatIfCondition(fn, condition, { interval: 100 });
 }
 
 // ----

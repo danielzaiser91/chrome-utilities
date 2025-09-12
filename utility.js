@@ -1410,7 +1410,83 @@ function overviewFlagShower() {
 function fixGoogle() {
   fixGoogleMaps();
 }
+function startTimer(countdown) {
+  insertCSS(`
+    .cu-timer { 
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(calc(50% - 40px));
+      z-index: 999;
+      background-color: white;
+      padding: 5px 30px;
+    }
+    .cu-show-timer .cu-timer { display: block; }
+  `,'cu-timer');
+  document.body.classList.add('cu-show-timer');
+  const timerEl = create('div',{ className: 'cu-timer'});
+  document.body.insertAdjacentElement('afterbegin', timerEl);
+
+  window._cu_countdown = setInterval(() => {
+    timerEl.textContent = --countdown;
+    if (countdown <= 0) {
+      clearInterval(window._cu_countdown);
+      document.body.classList.add('cu-challenge-show-overlay', 'cu-challenge-over');
+      setTimeout(() => document.body.classList.remove('cu-show-timer'), 5000);
+    }
+  }, 1000);
+}
+function openMapsChallenge(time) {
+  const challengeOverlayEl = create('div',{ className: 'cu-overlay'});
+  const challengeAcceptBtn = create('button',{ className: 'cu-overlay--accept-challenge-btn', textContent: 'start Challenge ('+time+'sec)' });
+  const challengeOverBtn = create('button',{ className: 'cu-overlay--end-challenge-btn', textContent: 'time up! where do you think this is? 🤔' });
+  insertCSS(`
+    .cu-overlay {
+      display:none;
+      position: fixed;
+      z-index: 999;
+      top:0;left:0;width:100vw;height:100vh;
+      background-color: #ffff538f;
+    }
+    .cu-challenge-show-overlay .cu-overlay {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cu-overlay--accept-challenge-btn, .cu-overlay--end-challenge-btn {
+      background-color: #ff5a5a;
+      border: 5px solid #510000;
+      cursor: pointer;
+      border-radius: 5px;
+      padding: 30px;
+    }
+    body:not(.cu-challenge-over) .cu-overlay--end-challenge-btn { display: none; }
+    body.cu-challenge-over .cu-overlay--accept-challenge-btn { display: none; }
+  `,'cu-challenge');
+  challengeAcceptBtn.addEventListener('click', () => {
+    document.body.classList.remove('cu-challenge-show-overlay');
+    startTimer(time);
+  });
+  challengeOverBtn.addEventListener('click', () => {
+    document.body.classList.remove('cu-challenge-show-overlay');
+  });
+  challengeOverlayEl.insertAdjacentElement('afterbegin', challengeAcceptBtn);
+  challengeOverlayEl.insertAdjacentElement('afterbegin', challengeOverBtn);
+  document.body.insertAdjacentElement('afterbegin', challengeOverlayEl);
+  document.body.classList.add('cu-challenge-show-overlay');
+}
 function fixGoogleMaps() {
+  // react to cu-param
+  const challenge_Config = (new URL(location.href)).searchParams.get('cu-challenge');
+  if (challenge_Config) {
+    const timer_match = Number(challenge_Config.match(/t-(\d+)/)?.[1]);
+    if (Number.isInteger(timer_match)) openMapsChallenge(timer_match);
+  }
+
+
+
+
   const condition = () => location.href.includes('google.com/maps/') && byId('titlecard')?.classList.contains('cu-map-fix') === false;
   insertCSS(`
     body.cu-maps-hide-els #minimap { display: none !important }
@@ -4438,7 +4514,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.043",
+  version: "1.045",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

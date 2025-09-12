@@ -1542,7 +1542,7 @@ function fixGoogleMaps() {
       let _trigger_once_onenter = false;
       window._cu_check_search_el_changed = setInterval(() => {
         const sv_canvas = document.querySelectorAll('[role="application"] > canvas')[0];
-        const notOnStreetView = sv_canvas.style.display === 'none';
+        const notOnStreetView = sv_canvas.style.display === 'none' || document.querySelector('[jsaction="navigationrail.more"]')?.checkVisibility();
         // const notOnStreetView = !['/place/','data='].some(check => location.href.includes(check));
         // if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
         // else el?.classList.remove('cu-hide');

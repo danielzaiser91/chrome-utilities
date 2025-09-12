@@ -3,7 +3,7 @@
   "name": "Web Utility Plugin",
   "description": "This extension will fix some anoying things about multiple websites",
   "version": "1.0.45",
-  "version_name": "1.045",
+  "version_name": "1.045a",
   "icons": {
     "128": "icon.png"
   },

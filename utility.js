@@ -306,6 +306,7 @@ function showExtensionInfoInLog() {
 document.addEventListener(
   "DOMContentLoaded",
   function () {
+    const isCrunchy = location.href.includes('crunchyroll.com');
     // timeout workaround to fix crunchyroll bug of infinite loading...
     setTimeout(() => {
       websiteSelector();
@@ -316,7 +317,7 @@ document.addEventListener(
       startFixing();
       intervalHandler();
       init = false;
-    }, 100);
+    }, isCrunchy ? 1000 : 100);
   },
   false
 );

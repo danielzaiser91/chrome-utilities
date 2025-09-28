@@ -1407,8 +1407,7 @@ function overviewFlagShower() {
       });
     },
     () =>
-      document.querySelector(".seriesListContainer:not(.cu-fetched-flags)") &&
-      !location.href.includes("anime/stream"),
+      document.querySelector(".seriesListContainer:not(.cu-fetched-flags)"),
     { interval: 1000 }
   );
 }

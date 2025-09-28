@@ -1384,11 +1384,19 @@ function overviewFlagShower() {
         fetchAndReturnHTML(url).then((html) => {
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, "text/html");
-          const flags = doc.querySelectorAll(
+          let flags = doc.querySelectorAll(
             `[data-episode-season-id="${
               episodeMatch ? episodeMatch : 1
             }"] img.flag`
           );
+          if (!flags?.length) {
+            const firstEpTitle = doc.querySelector('.seasonEpisodeTitle').textContent.trim();
+            if (firstEpTitle.includes('Start:')) {
+              const _el = create('span', { textContent: firstEpTitle });
+              _el.style.backgroundColor = 'white';
+              flags = [_el];
+            }
+          }
           if (!flags) return;
           flagDiv.classList.add("cu-flag");
           [...flags].forEach((flag) => {

@@ -1,6 +1,7 @@
 init = true;
 const isPopup = location.pathname.split("/").includes("popout");
 const getSiteName = () => matcher.site.toLowerCase();
+const getSiteOptions = () => userOptions[getSiteName()];
 /**
  * Chrome - Utility (cu)
  *
@@ -306,18 +307,21 @@ function showExtensionInfoInLog() {
 document.addEventListener(
   "DOMContentLoaded",
   function () {
-    const isCrunchy = location.href.includes('crunchyroll.com');
+    const isCrunchy = location.href.includes("crunchyroll.com");
     // timeout workaround to fix crunchyroll bug of infinite loading...
-    setTimeout(() => {
-      websiteSelector();
-      if (!matcher?.allowInIframe) return;
-      fixForAllWebsites();
-      showExtensionInfoInLog();
-      loadUserSettings();
-      startFixing();
-      intervalHandler();
-      init = false;
-    }, isCrunchy ? 1000 : 100);
+    setTimeout(
+      () => {
+        websiteSelector();
+        if (!matcher?.allowInIframe) return;
+        fixForAllWebsites();
+        showExtensionInfoInLog();
+        loadUserSettings();
+        startFixing();
+        intervalHandler();
+        init = false;
+      },
+      isCrunchy ? 1000 : 100
+    );
   },
   false
 );
@@ -1123,9 +1127,28 @@ function addPlayBackRateButton_wowTv() {
   // addPlaybackRateButton_Generic(containerQuery, conditionFn);
 }
 
+window._generic_playbackRate_interval = undefined;
+function _init_set_video_rate_repeater__generic() {
+  if (window._generic_playbackRate_interval) return;
+
+  const getUserRate = () => getSiteOptions()?.featurePlayBackSpeed?.isEnabled.subFeatures
+          .playBackSpeed.value;
+  const _interval = repeatIfCondition(
+    () => updateVideoPlayrate__generic(getUserRate()),
+    () => {
+      const videoEls = [...queryAll("video")];
+      const allowed = isAllowed(getSiteOptions().featurePlayBackSpeed.isEnabled);
+      const hasVideosAtDifferentRate = !videoEls.every(video => video.playbackRate === getUserRate());
+      return allowed && hasVideosAtDifferentRate;
+    },
+    { pauseInBg: false, interval: 1000 }
+  );
+  window._generic_playbackRate_interval = _interval.currentInterval;
+}
+
 function enable_playback_option__generic() {
   updateVideoPlayrate__generic(
-    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
+    getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures
       .playBackSpeed.value
   );
 }
@@ -1146,13 +1169,11 @@ function _adjustVal__generic(e, playBackInput) {
 function updateVideoPlayrate__generic(val) {
   /** @type {HTMLVideoElement} */
   const videos = queryAll("video");
-  const allowed = isAllowed(
-    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled
-  );
+  const allowed = isAllowed(getSiteOptions().featurePlayBackSpeed.isEnabled);
   const speed =
     val ||
-    userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
-      .playBackSpeed.value;
+    getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+      .value;
   if (videos.length === 0 || isNaN(speed)) return;
   for (const video of videos) {
     video.playbackRate = !allowed ? 1 : speed;
@@ -1390,10 +1411,12 @@ function overviewFlagShower() {
             }"] img.flag`
           );
           if (!flags?.length) {
-            const firstEpTitle = doc.querySelector('.seasonEpisodeTitle').textContent.trim();
-            if (firstEpTitle.includes('Start:')) {
-              const _el = create('span', { textContent: firstEpTitle });
-              _el.style.backgroundColor = 'white';
+            const firstEpTitle = doc
+              .querySelector(".seasonEpisodeTitle")
+              .textContent.trim();
+            if (firstEpTitle.includes("Start:")) {
+              const _el = create("span", { textContent: firstEpTitle });
+              _el.style.backgroundColor = "white";
               flags = [_el];
             }
           }
@@ -1406,8 +1429,7 @@ function overviewFlagShower() {
         });
       });
     },
-    () =>
-      document.querySelector(".seriesListContainer:not(.cu-fetched-flags)"),
+    () => document.querySelector(".seriesListContainer:not(.cu-fetched-flags)"),
     { interval: 1000 }
   );
 }
@@ -1419,7 +1441,8 @@ function fixGoogle() {
   fixGoogleMaps();
 }
 function startTimer(countdown) {
-  insertCSS(`
+  insertCSS(
+    `
     .cu-timer { 
       display: none;
       position: fixed;
@@ -1431,25 +1454,37 @@ function startTimer(countdown) {
       padding: 5px 30px;
     }
     .cu-show-timer .cu-timer { display: block; }
-  `,'cu-timer');
-  document.body.classList.add('cu-show-timer');
-  const timerEl = create('div',{ className: 'cu-timer'});
-  document.body.insertAdjacentElement('afterbegin', timerEl);
+  `,
+    "cu-timer"
+  );
+  document.body.classList.add("cu-show-timer");
+  const timerEl = create("div", { className: "cu-timer" });
+  document.body.insertAdjacentElement("afterbegin", timerEl);
 
   window._cu_countdown = setInterval(() => {
     timerEl.textContent = --countdown;
     if (countdown <= 0) {
       clearInterval(window._cu_countdown);
-      document.body.classList.add('cu-challenge-show-overlay', 'cu-challenge-over');
-      setTimeout(() => document.body.classList.remove('cu-show-timer'), 5000);
+      document.body.classList.add(
+        "cu-challenge-show-overlay",
+        "cu-challenge-over"
+      );
+      setTimeout(() => document.body.classList.remove("cu-show-timer"), 5000);
     }
   }, 1000);
 }
 function openMapsChallenge(time) {
-  const challengeOverlayEl = create('div',{ className: 'cu-overlay'});
-  const challengeAcceptBtn = create('button',{ className: 'cu-overlay--accept-challenge-btn', textContent: 'start Challenge ('+time+'sec)' });
-  const challengeOverBtn = create('button',{ className: 'cu-overlay--end-challenge-btn', textContent: 'time up! where do you think this is? 🤔' });
-  insertCSS(`
+  const challengeOverlayEl = create("div", { className: "cu-overlay" });
+  const challengeAcceptBtn = create("button", {
+    className: "cu-overlay--accept-challenge-btn",
+    textContent: "start Challenge (" + time + "sec)",
+  });
+  const challengeOverBtn = create("button", {
+    className: "cu-overlay--end-challenge-btn",
+    textContent: "time up! where do you think this is? 🤔",
+  });
+  insertCSS(
+    `
     .cu-overlay {
       display:none;
       position: fixed;
@@ -1471,32 +1506,36 @@ function openMapsChallenge(time) {
     }
     body:not(.cu-challenge-over) .cu-overlay--end-challenge-btn { display: none; }
     body.cu-challenge-over .cu-overlay--accept-challenge-btn { display: none; }
-  `,'cu-challenge');
-  challengeAcceptBtn.addEventListener('click', () => {
-    document.body.classList.remove('cu-challenge-show-overlay');
+  `,
+    "cu-challenge"
+  );
+  challengeAcceptBtn.addEventListener("click", () => {
+    document.body.classList.remove("cu-challenge-show-overlay");
     startTimer(time);
   });
-  challengeOverBtn.addEventListener('click', () => {
-    document.body.classList.remove('cu-challenge-show-overlay');
+  challengeOverBtn.addEventListener("click", () => {
+    document.body.classList.remove("cu-challenge-show-overlay");
   });
-  challengeOverlayEl.insertAdjacentElement('afterbegin', challengeAcceptBtn);
-  challengeOverlayEl.insertAdjacentElement('afterbegin', challengeOverBtn);
-  document.body.insertAdjacentElement('afterbegin', challengeOverlayEl);
-  document.body.classList.add('cu-challenge-show-overlay');
+  challengeOverlayEl.insertAdjacentElement("afterbegin", challengeAcceptBtn);
+  challengeOverlayEl.insertAdjacentElement("afterbegin", challengeOverBtn);
+  document.body.insertAdjacentElement("afterbegin", challengeOverlayEl);
+  document.body.classList.add("cu-challenge-show-overlay");
 }
 function fixGoogleMaps() {
   // react to cu-param
-  const challenge_Config = (new URL(location.href)).searchParams.get('cu-challenge');
+  const challenge_Config = new URL(location.href).searchParams.get(
+    "cu-challenge"
+  );
   if (challenge_Config) {
     const timer_match = Number(challenge_Config.match(/t-(\d+)/)?.[1]);
     if (Number.isInteger(timer_match)) openMapsChallenge(timer_match);
   }
 
-
-
-
-  const condition = () => location.href.includes('google.com/maps/') && byId('titlecard')?.classList.contains('cu-map-fix') === false;
-  insertCSS(`
+  const condition = () =>
+    location.href.includes("google.com/maps/") &&
+    byId("titlecard")?.classList.contains("cu-map-fix") === false;
+  insertCSS(
+    `
     body.cu-maps-hide-els #minimap { display: none !important }
     body.cu-maps-hide-els #titlecard [role="navigation"]>div>*:not(:first-child) { display: none !important }
     body.cu-maps-hide-els #searchbox { display: none !important }
@@ -1504,24 +1543,32 @@ function fixGoogleMaps() {
     body.cu-maps-hide-els [aria-label="Close"] { display: none !important }
     body.cu-maps-hide-els #runway-expand-button { display: none !important }
     body.cu-maps-hide-els #watermark { display: none !important }
-  `, 'cu-maps-hide-els-style', true);
+  `,
+    "cu-maps-hide-els-style",
+    true
+  );
   function toggleVisibility(hide = true) {
-    if (hide) document.body.classList.add('cu-maps-hide-els');
-    else document.body.classList.remove('cu-maps-hide-els');
+    if (hide) document.body.classList.add("cu-maps-hide-els");
+    else document.body.classList.remove("cu-maps-hide-els");
   }
-  location.href.includes('google.com/maps/')
+  location.href.includes("google.com/maps/");
   const fn = () => {
     // mark as fixed
-    byId('titlecard').classList.add('cu-map-fix');
+    byId("titlecard").classList.add("cu-map-fix");
     toggleVisibility();
 
-    repeatUntilCondition(() => {
-      const searchBox = byId('omnibox-container');
-      const { right } = searchBox.getBoundingClientRect();
-      // select x button (top right), clone it and use it as a toggle ui button
-      byId('titlecard').insertAdjacentHTML('beforebegin', '<div id="cu-ui-toggle">toggle extra ui</div>');
-      let visible = false;
-      insertCSS(`
+    repeatUntilCondition(
+      () => {
+        const searchBox = byId("omnibox-container");
+        const { right } = searchBox.getBoundingClientRect();
+        // select x button (top right), clone it and use it as a toggle ui button
+        byId("titlecard").insertAdjacentHTML(
+          "beforebegin",
+          '<div id="cu-ui-toggle">toggle extra ui</div>'
+        );
+        let visible = false;
+        insertCSS(
+          `
         #cu-ui-toggle {
           width: 30px;
           height: 30px;
@@ -1541,50 +1588,61 @@ function fixGoogleMaps() {
           cursor: pointer;
           user-select: none;
         }
-      `,'cu-ui-toggle-css');
-      const el = byId('cu-ui-toggle');
-      el.classList.add('cu-hide');
-      el.style.left = right + 10 + 'px';
-      if (window._cu_check_search_el_changed) clearInterval(window._cu_check_search_el_changed);
-      let _trigger_once_onleave = false;
-      let _trigger_once_onenter = false;
-      window._cu_check_search_el_changed = setInterval(() => {
-        const sv_canvas = document.querySelectorAll('[role="application"] > canvas')[0];
-        const notOnStreetView = sv_canvas.style.display === 'none' || document.querySelector('[jsaction="navigationrail.more"]')?.checkVisibility();
-        // const notOnStreetView = !['/place/','data='].some(check => location.href.includes(check));
-        // if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
-        // else el?.classList.remove('cu-hide');
-        if (notOnStreetView) {
-          if (_trigger_once_onenter === true) {
-            _trigger_once_onenter = false;
+      `,
+          "cu-ui-toggle-css"
+        );
+        const el = byId("cu-ui-toggle");
+        el.classList.add("cu-hide");
+        el.style.left = right + 10 + "px";
+        if (window._cu_check_search_el_changed)
+          clearInterval(window._cu_check_search_el_changed);
+        let _trigger_once_onleave = false;
+        let _trigger_once_onenter = false;
+        window._cu_check_search_el_changed = setInterval(() => {
+          const sv_canvas = document.querySelectorAll(
+            '[role="application"] > canvas'
+          )[0];
+          const notOnStreetView =
+            sv_canvas.style.display === "none" ||
+            document
+              .querySelector('[jsaction="navigationrail.more"]')
+              ?.checkVisibility();
+          // const notOnStreetView = !['/place/','data='].some(check => location.href.includes(check));
+          // if (notOnStreetView || !searchBox || !searchBox.checkVisibility() || parseFloat(getComputedStyle(searchBox).width) === 0) el?.classList.add('cu-hide');
+          // else el?.classList.remove('cu-hide');
+          if (notOnStreetView) {
+            if (_trigger_once_onenter === true) {
+              _trigger_once_onenter = false;
+            }
+            if (_trigger_once_onleave === false) {
+              // set to true, to ensure only triggered once when leaving streetview
+              _trigger_once_onleave = true;
+              el?.classList.add("cu-hide");
+              visible = false;
+              toggleVisibility(visible);
+            }
+          } else {
+            if (_trigger_once_onleave === true) {
+              _trigger_once_onleave = false;
+            }
+            if (_trigger_once_onenter === false) {
+              _trigger_once_onenter = true;
+              el?.classList.remove("cu-hide");
+              visible = false;
+              toggleVisibility(!visible);
+            }
+            const { right } = searchBox.getBoundingClientRect();
+            el.style.left = right + 10 + "px";
           }
-          if (_trigger_once_onleave === false) {
-            // set to true, to ensure only triggered once when leaving streetview
-            _trigger_once_onleave = true;
-            el?.classList.add('cu-hide');
-            visible = false;
-            toggleVisibility(visible);
-          }
-        } else {
-          if (_trigger_once_onleave === true) {
-            _trigger_once_onleave = false;
-          }
-          if (_trigger_once_onenter === false) {
-            _trigger_once_onenter = true;
-            el?.classList.remove('cu-hide');
-            visible = false;
-            toggleVisibility(!visible);
-          }
-          const { right } = searchBox.getBoundingClientRect();
-          el.style.left = right + 10 + 'px';
-        }
-      }, 300);
-      el.addEventListener('click', () => {
-        visible = !visible;
-        toggleVisibility(!visible);
-      });
-    }, () => !!byId('omnibox-container'));
-  }
+        }, 300);
+        el.addEventListener("click", () => {
+          visible = !visible;
+          toggleVisibility(!visible);
+        });
+      },
+      () => !!byId("omnibox-container")
+    );
+  };
   repeatIfCondition(fn, condition, { interval: 100 });
 }
 
@@ -1593,53 +1651,62 @@ function fixGoogleMaps() {
 // ---
 function fixInstagram() {
   repeatIfCondition(
-    () => [...document.querySelectorAll("video")].forEach(video => {
-      video.controls = true;
-      video.pause();
-      if (getComputedStyle(video).position === 'static') {
-        video.style.position = 'relative';
-      }
-      video.style.zIndex = '99999999999999';
-      const savedVol = localStorage.getItem('cu-insta-vol', video.volume);
+    () =>
+      [...document.querySelectorAll("video")].forEach((video) => {
+        video.controls = true;
+        video.pause();
+        if (getComputedStyle(video).position === "static") {
+          video.style.position = "relative";
+        }
+        video.style.zIndex = "99999999999999";
+        const savedVol = localStorage.getItem("cu-insta-vol", video.volume);
 
-      /*
+        /*
         commenting out the automatic unmute functionality, because of browser policy preventing interaction before user interaction...
       */
-      // const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
-      // if (savedMuted) video.muted = !!+savedMuted;
-      if (savedVol) video.volume = +savedVol;
-      let playEventStarted_TimeStamp = Date.now();
-      video.addEventListener('play', (ev) => {
-        playEventStarted_TimeStamp = Date.now();
-        setTimeout(() => {
-          try {
-            const savedVol = localStorage.getItem('cu-insta-vol', video.volume);
-            if (savedVol) {
-              video.volume = +savedVol;
-            }
-            const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
-            if (savedMuted) video.muted = !!+savedMuted;
-          } catch (e) {}
-        }, 10);
-      });
-
-      video.addEventListener('volumechange', (ev) => {
-        try {
-          if (Date.now() - playEventStarted_TimeStamp < 200) return;
-          localStorage.setItem('cu-insta-vol', video.volume);
-          
-          // zeitverzögert das mute updaten, wegen play reaction
+        // const savedMuted = localStorage.getItem('cu-insta-isMuted', video.muted);
+        // if (savedMuted) video.muted = !!+savedMuted;
+        if (savedVol) video.volume = +savedVol;
+        let playEventStarted_TimeStamp = Date.now();
+        video.addEventListener("play", (ev) => {
+          playEventStarted_TimeStamp = Date.now();
           setTimeout(() => {
             try {
-              localStorage.setItem('cu-insta-isMuted', video.muted ? 1 : 0);
+              const savedVol = localStorage.getItem(
+                "cu-insta-vol",
+                video.volume
+              );
+              if (savedVol) {
+                video.volume = +savedVol;
+              }
+              const savedMuted = localStorage.getItem(
+                "cu-insta-isMuted",
+                video.muted
+              );
+              if (savedMuted) video.muted = !!+savedMuted;
             } catch (e) {}
-          }, 100);
-        } catch (e) {}
-      });
-      video.classList.add('cu-controls');
-    }),
+          }, 10);
+        });
+
+        video.addEventListener("volumechange", (ev) => {
+          try {
+            if (Date.now() - playEventStarted_TimeStamp < 200) return;
+            localStorage.setItem("cu-insta-vol", video.volume);
+
+            // zeitverzögert das mute updaten, wegen play reaction
+            setTimeout(() => {
+              try {
+                localStorage.setItem("cu-insta-isMuted", video.muted ? 1 : 0);
+              } catch (e) {}
+            }, 100);
+          } catch (e) {}
+        });
+        video.classList.add("cu-controls");
+      }),
     () =>
-      [...document.querySelectorAll("video")].some((video) => !video.classList.contains('cu-controls'))
+      [...document.querySelectorAll("video")].some(
+        (video) => !video.classList.contains("cu-controls")
+      )
   );
 }
 
@@ -2029,6 +2096,7 @@ function toggleDarkModeDs3CheatSheet() {
 function fixDisneyPlus() {
   activateAutoLoginListener();
   activateAutoSkipDP();
+  _init_set_video_rate_repeater__generic();
 
   // reposition player controls:
   insertCSS(`
@@ -3360,8 +3428,15 @@ function noInterestButton() {
   //     )
   //   ),
   // ];
-  const hasDismissibles = () => query('yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)');
-  const getDismissibles = () => [...queryAll('yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)')];
+  const hasDismissibles = () =>
+    query(
+      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)"
+    );
+  const getDismissibles = () => [
+    ...queryAll(
+      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)"
+    ),
+  ];
   const allVideos = () =>
     !inURL(["@", "subscriptions"]) && hasDismissibles() && getDismissibles();
   // commented out inclusion of shorts...
@@ -3392,14 +3467,16 @@ function noInterestButton() {
       div.querySelector("svg").onclick = (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        const btnEls = queryAll('div.'+id+' button');
-        const dropdownTrigger = [...btnEls][btnEls.length -1];
+        const btnEls = queryAll("div." + id + " button");
+        const dropdownTrigger = [...btnEls][btnEls.length - 1];
         if (!dropdownTrigger) return;
         document.body.classList.add("cu-menu--hide");
         dropdownTrigger.click();
         setTimeout(() => {
           // FOR SHORTS IT IS the 2nd to last one...
-          const noInterestBtn = query('yt-list-item-view-model:nth-last-child(3)');
+          const noInterestBtn = query(
+            "yt-list-item-view-model:nth-last-child(3)"
+          );
           if (noInterestBtn) noInterestBtn.click();
           document.body.classList.remove("cu-menu--hide");
         }, 100);
@@ -4522,7 +4599,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.045",
+  version: "1.046",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -4583,6 +4660,25 @@ let userOptions = {
             label: "EndCard",
             description:
               "will click the next episode button on the end card for you",
+          },
+        },
+      },
+    },
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },
       },

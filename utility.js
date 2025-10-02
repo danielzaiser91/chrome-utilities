@@ -1389,11 +1389,14 @@ async function fetchAndReturnHTML(url) {
 
 /** shows flag below anime image, fetching the data from each anime page */
 function overviewFlagShower() {
+  const getContainer = () => query(
+        ".seriesListContainer:not(.cu-fetched-flags)"
+      ) || query(
+        ".searchResults:not(.cu-fetched-flags)"
+      );
   repeatIfCondition(
     () => {
-      const container = document.querySelector(
-        ".seriesListContainer:not(.cu-fetched-flags)"
-      );
+      const container = getContainer();
       container.classList.add("cu-fetched-flags");
       [...container.children].forEach((animePicture) => {
         const flagDiv = create("div");
@@ -1429,7 +1432,7 @@ function overviewFlagShower() {
         });
       });
     },
-    () => document.querySelector(".seriesListContainer:not(.cu-fetched-flags)"),
+    () => !!getContainer(),
     { interval: 1000 }
   );
 }

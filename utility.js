@@ -1416,7 +1416,7 @@ function overviewFlagShower() {
           if (!flags?.length) {
             const firstEpTitle = doc
               .querySelector(".seasonEpisodeTitle")
-              .textContent.trim();
+              ?.textContent.trim() || '';
             if (firstEpTitle.includes("Start:")) {
               const _el = create("span", { textContent: firstEpTitle });
               _el.style.backgroundColor = "white";

@@ -1131,14 +1131,19 @@ window._generic_playbackRate_interval = undefined;
 function _init_set_video_rate_repeater__generic() {
   if (window._generic_playbackRate_interval) return;
 
-  const getUserRate = () => getSiteOptions()?.featurePlayBackSpeed?.isEnabled.subFeatures
-          .playBackSpeed.value;
+  const getUserRate = () =>
+    getSiteOptions()?.featurePlayBackSpeed?.isEnabled.subFeatures.playBackSpeed
+      .value;
   const _interval = repeatIfCondition(
     () => updateVideoPlayrate__generic(getUserRate()),
     () => {
       const videoEls = [...queryAll("video")];
-      const allowed = isAllowed(getSiteOptions().featurePlayBackSpeed.isEnabled);
-      const hasVideosAtDifferentRate = !videoEls.every(video => video.playbackRate === getUserRate());
+      const allowed = isAllowed(
+        getSiteOptions().featurePlayBackSpeed.isEnabled
+      );
+      const hasVideosAtDifferentRate = !videoEls.every(
+        (video) => video.playbackRate === getUserRate()
+      );
       return allowed && hasVideosAtDifferentRate;
     },
     { pauseInBg: false, interval: 1000 }
@@ -1148,8 +1153,8 @@ function _init_set_video_rate_repeater__generic() {
 
 function enable_playback_option__generic() {
   updateVideoPlayrate__generic(
-    getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures
-      .playBackSpeed.value
+    getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
+      .value
   );
 }
 function _setPlayerValue__generic(val, playBackInput) {
@@ -1366,34 +1371,41 @@ function fetchAndReturnHTML_push(reader, controller) {
 }
 
 async function fetchAndReturnHTML(url) {
-  return fetch(url)
-    .then((response) => response.body)
-    .then((rb) => {
-      const reader = rb.getReader();
-
-      return new ReadableStream({
-        start(controller) {
-          fetchAndReturnHTML_push(reader, controller);
-        },
-      });
-    })
-    .then((stream) =>
-      // Respond with our stream
-      {
-        return new Response(stream, {
-          headers: { "Content-Type": "text/html" },
-        }).text();
-      }
-    );
+  try {
+    const result = await fetch(url)
+      .then((response) => response.body)
+      .then((rb) => {
+        const reader = rb.getReader();
+  
+        return new ReadableStream({
+          start(controller) {
+            fetchAndReturnHTML_push(reader, controller);
+          },
+        });
+      })
+      .then((stream) =>
+        // Respond with our stream
+        {
+          return new Response(stream, {
+            headers: { "Content-Type": "text/html" },
+          }).text();
+        }
+      )
+      return result;
+  } catch(e) {
+    return undefined;
+  }
 }
 
+const getSearchEl_aniworld_ = () => document.querySelector(".searchForm input");
+let _aniworld_prevSearchText = undefined;
+const _getAntiContainer_aniworld = () =>
+  query(".seriesListContainer") || query(".searchResults");
 /** shows flag below anime image, fetching the data from each anime page */
 function overviewFlagShower() {
-  const getContainer = () => query(
-        ".seriesListContainer:not(.cu-fetched-flags)"
-      ) || query(
-        ".searchResults:not(.cu-fetched-flags)"
-      );
+  const getContainer = () =>
+    query(".seriesListContainer:not(.cu-fetched-flags)") ||
+    query(".searchResults:not(.cu-fetched-flags)");
   repeatIfCondition(
     () => {
       const container = getContainer();
@@ -1406,6 +1418,7 @@ function overviewFlagShower() {
         const episodeMatch = a.href.match(/\/episode-(\d+)/)?.[1];
         const url = episodeMatch ? a.href.replace(/\/episode-\d+/, "") : a.href;
         fetchAndReturnHTML(url).then((html) => {
+          if (!html) return;
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, "text/html");
           let flags = doc.querySelectorAll(
@@ -1414,9 +1427,9 @@ function overviewFlagShower() {
             }"] img.flag`
           );
           if (!flags?.length) {
-            const firstEpTitle = doc
-              .querySelector(".seasonEpisodeTitle")
-              ?.textContent.trim() || '';
+            const firstEpTitle =
+              doc.querySelector(".seasonEpisodeTitle")?.textContent.trim() ||
+              "";
             if (firstEpTitle.includes("Start:")) {
               const _el = create("span", { textContent: firstEpTitle });
               _el.style.backgroundColor = "white";
@@ -1431,9 +1444,49 @@ function overviewFlagShower() {
           animePicture.insertAdjacentElement("afterbegin", flagDiv);
         });
       });
+
+      // resetFlag Logic
+      if (getSearchEl_aniworld_()) {
+        try {
+          _aniworld_prevSearchText = getSearchEl_aniworld_()?.value;
+          initResetFlagListener();
+        } catch(e) {
+          // ignore... type shi...
+          // for more info: https://github.com/ritwickdey/vscode-live-server/issues/2446
+        }
+      }
     },
     () => !!getContainer(),
     { interval: 1000 }
+  );
+}
+
+let _debouncerTimeout = undefined;
+function debouncer(fn = () => {}, debounceTime = 1000) {
+  console.log("debouncer called");
+  if (_debouncerTimeout) clearTimeout(_debouncerTimeout);
+  console.log("debouncer starts timeout of " + debounceTime + "ms");
+  _debouncerTimeout = setTimeout(() => {
+    console.log("debouncer calls fn");
+    fn();
+  }, debounceTime);
+};
+
+function initResetFlagListener() {
+  repeatUntilCondition(
+    () => {
+      repeatUntilCondition(
+        () => _getAntiContainer_aniworld()?.classList.remove("cu-fetched-flags"),
+        () => query(".loaderContainer")?.style.display === "none",
+        undefined, false
+      );
+    },
+    () => {
+      const el = getSearchEl_aniworld_();
+      if (!el?.value) return false;
+      return el.value !== _aniworld_prevSearchText;
+    },
+    undefined, false
   );
 }
 

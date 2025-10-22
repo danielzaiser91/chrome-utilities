@@ -307,7 +307,7 @@ function showExtensionInfoInLog() {
 document.addEventListener(
   "DOMContentLoaded",
   function () {
-    const isCrunchy = location.href.includes("crunchyroll.com");
+    const isCrunchy = location.href.includes("crunchyroll.com") && !location.href.includes('static.crunchyroll.com');
     // timeout workaround to fix crunchyroll bug of infinite loading...
     setTimeout(
       () => {
@@ -320,7 +320,7 @@ document.addEventListener(
         intervalHandler();
         init = false;
       },
-      isCrunchy ? 1000 : 100
+      isCrunchy ? 1500 : 500
     );
   },
   false
@@ -4655,7 +4655,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.046",
+  version: "1.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -2110,7 +2110,7 @@ function fixSteam() {
       max-height: unset !important;
       left: 0 !important;
       top: 0 !important;
-      width: 100vw !important;
+      width: calc(100vw - 14px) !important;
       position: absolute !important;
     }
     .screenshot_img_ctn {
@@ -2119,9 +2119,26 @@ function fixSteam() {
     .screenshot_img_ctn img {
       max-width: unset !important;
       max-height: unset !important;
-      width: calc(100% - 10px);
+      width: 100%;
     }
   `);
+  
+  // --- possibly better? 🤔
+  // insertCSS(`
+  //   .screenshot_popup_modal {
+  //     max-width: calc(100vw - 38px) !important;
+  //     max-height: 100vh !important;
+  //     top: 4px !important;
+  //     position: absolute !important;
+  //   }
+  //   .screenshot_img_ctn {
+  //     user-select: none;
+  //   }
+  //   .screenshot_img_ctn img {
+  //     max-width: 100% !important;
+  //     max-height: calc(100vh - 90px) !important;
+  //   }
+  // `);
 
   // TODO: create zoom on hover, like: https://www.w3schools.com/howto/howto_js_image_zoom.asp
 }
@@ -3772,6 +3789,7 @@ function watchListColors() {
           "continue",
           "als nächstes",
           "up next",
+          "start watching"
         ].some((v) => nameTag.textContent.toLowerCase().includes(v));
         if (isFortsetzen) {
           nameTag.textContent = "🟢" + nameTag.textContent;

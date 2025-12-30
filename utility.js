@@ -307,7 +307,9 @@ function showExtensionInfoInLog() {
 document.addEventListener(
   "DOMContentLoaded",
   function () {
-    const isCrunchy = location.href.includes("crunchyroll.com") && !location.href.includes('static.crunchyroll.com');
+    const isCrunchy =
+      location.href.includes("crunchyroll.com") &&
+      !location.href.includes("static.crunchyroll.com");
     // timeout workaround to fix crunchyroll bug of infinite loading...
     setTimeout(
       () => {
@@ -1376,7 +1378,7 @@ async function fetchAndReturnHTML(url) {
       .then((response) => response.body)
       .then((rb) => {
         const reader = rb.getReader();
-  
+
         return new ReadableStream({
           start(controller) {
             fetchAndReturnHTML_push(reader, controller);
@@ -1390,9 +1392,9 @@ async function fetchAndReturnHTML(url) {
             headers: { "Content-Type": "text/html" },
           }).text();
         }
-      )
-      return result;
-  } catch(e) {
+      );
+    return result;
+  } catch (e) {
     return undefined;
   }
 }
@@ -1450,7 +1452,7 @@ function overviewFlagShower() {
         try {
           _aniworld_prevSearchText = getSearchEl_aniworld_()?.value;
           initResetFlagListener();
-        } catch(e) {
+        } catch (e) {
           // ignore... type shi...
           // for more info: https://github.com/ritwickdey/vscode-live-server/issues/2446
         }
@@ -1470,15 +1472,17 @@ function debouncer(fn = () => {}, debounceTime = 1000) {
     console.log("debouncer calls fn");
     fn();
   }, debounceTime);
-};
+}
 
 function initResetFlagListener() {
   repeatUntilCondition(
     () => {
       repeatUntilCondition(
-        () => _getAntiContainer_aniworld()?.classList.remove("cu-fetched-flags"),
+        () =>
+          _getAntiContainer_aniworld()?.classList.remove("cu-fetched-flags"),
         () => query(".loaderContainer")?.style.display === "none",
-        undefined, false
+        undefined,
+        false
       );
     },
     () => {
@@ -1486,7 +1490,8 @@ function initResetFlagListener() {
       if (!el?.value) return false;
       return el.value !== _aniworld_prevSearchText;
     },
-    undefined, false
+    undefined,
+    false
   );
 }
 
@@ -1589,15 +1594,35 @@ function fixGoogleMaps() {
 
   const condition = () =>
     location.href.includes("google.com/maps/") &&
-    byId("titlecard")?.classList.contains("cu-map-fix") === false;
+    byId("titlecard")?.classList?.contains("cu-map-fix") === false;
+  // wait for shareBtn to add it to the styles
+  const getShareBtn = () =>
+    [...document.querySelectorAll("[jsaction]")].filter((el) =>
+      el.getAttribute("jsaction").includes("share")
+    )[0];
+  repeatUntilCondition(() => {
+    const shareBtnSelector =
+      "." + [...getShareBtn().classList.values()].join(".");
+
+    insertCSS(
+      `
+      body.cu-maps-hide-els ${shareBtnSelector} { display: none !important }
+    `,
+      "cu-maps-hide-els-style-shareBtn",
+      true
+    );
+  }, getShareBtn);
   insertCSS(
     `
-    body.cu-maps-hide-els #minimap { display: none !important }
-    body.cu-maps-hide-els #titlecard [role="navigation"]>div>*:not(:first-child) { display: none !important }
-    body.cu-maps-hide-els #searchbox { display: none !important }
-    body.cu-maps-hide-els [aria-label="Share"] { display: none !important }
-    body.cu-maps-hide-els [aria-label="Close"] { display: none !important }
-    body.cu-maps-hide-els #runway-expand-button { display: none !important }
+    body.cu-maps-hide-els .scene-footer-container,
+    body.cu-maps-hide-els [role="search"],
+    body.cu-maps-hide-els #zoom,
+    body.cu-maps-hide-els #minimap,
+    body.cu-maps-hide-els #titlecard [role="navigation"]>div>*:not(:first-child),
+    body.cu-maps-hide-els #searchbox,
+    body.cu-maps-hide-els [aria-label="Share"],
+    body.cu-maps-hide-els [aria-label="Close"],
+    body.cu-maps-hide-els #runway-expand-button,
     body.cu-maps-hide-els #watermark { display: none !important }
   `,
     "cu-maps-hide-els-style",
@@ -1607,15 +1632,14 @@ function fixGoogleMaps() {
     if (hide) document.body.classList.add("cu-maps-hide-els");
     else document.body.classList.remove("cu-maps-hide-els");
   }
-  location.href.includes("google.com/maps/");
   const fn = () => {
     // mark as fixed
-    byId("titlecard").classList.add("cu-map-fix");
+    byId("titlecard")?.classList?.add("cu-map-fix");
     toggleVisibility();
 
     repeatUntilCondition(
       () => {
-        const searchBox = byId("omnibox-container");
+        const searchBox = query('[role="search"]');
         const { right } = searchBox.getBoundingClientRect();
         // select x button (top right), clone it and use it as a toggle ui button
         byId("titlecard").insertAdjacentHTML(
@@ -1696,7 +1720,7 @@ function fixGoogleMaps() {
           toggleVisibility(!visible);
         });
       },
-      () => !!byId("omnibox-container")
+      () => !!query('[role="search"]')
     );
   };
   repeatIfCondition(fn, condition, { interval: 100 });
@@ -2083,22 +2107,22 @@ function unhideResultQuickAnalysis() {
 }
 
 function fixCSSGameReviewBtn() {
-  insertCSS(
-    `
-    .game-over-review-button-component {
-      display: flex !important;
-    }
-    .game-over-modal-buttons {
-      position: fixed;
-      bottom: 40px;
-      left: -5px;
-      background: inherit;
-      padding: 20px;
-      border-radius: 10px;
-    }
-  `,
-    "cu-game-review-btn"
-  );
+  // insertCSS(
+  //   `
+  //   .game-over-review-button-component {
+  //     display: flex !important;
+  //   }
+  //   .game-over-modal-buttons {
+  //     position: fixed;
+  //     bottom: 40px;
+  //     left: -5px;
+  //     background: inherit;
+  //     padding: 20px;
+  //     border-radius: 10px;
+  //   }
+  // `,
+  //   "cu-game-review-btn"
+  // );
 }
 
 // --------------------------------
@@ -2122,7 +2146,7 @@ function fixSteam() {
       width: 100%;
     }
   `);
-  
+
   // --- possibly better? 🤔
   // insertCSS(`
   //   .screenshot_popup_modal {
@@ -3383,6 +3407,7 @@ function fixYoutube() {
   initYTCSS();
   // initDateVisibilityListener();
   noInterestButton();
+  ytShortsDate();
   // hideYoutubeAds();
   // hideYoutubeAdsReels();
 
@@ -3397,6 +3422,23 @@ function fixYoutube() {
   */
   // ytAutoskipAdd();
   // initShortsControl();
+}
+
+function ytShortsDate() {
+  const condition = () =>
+    !!query(
+      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)"
+    );
+  repeatIfCondition(() => {
+    const targetContainer = query(
+      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)"
+    );
+    if (!targetContainer) return;
+    const dateCopy = query("#factoids > :last-child")?.cloneNode(true);
+    targetContainer.classList.add("cu-ytShorts-date-container");
+    if (!dateCopy) return;
+    targetContainer.insertAdjacentElement("afterbegin", dateCopy);
+  }, condition);
 }
 
 function initListenerForAdEnforcer() {
@@ -3789,7 +3831,7 @@ function watchListColors() {
           "continue",
           "als nächstes",
           "up next",
-          "start watching"
+          "start watching",
         ].some((v) => nameTag.textContent.toLowerCase().includes(v));
         if (isFortsetzen) {
           nameTag.textContent = "🟢" + nameTag.textContent;
@@ -4673,7 +4715,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.1.1",
+  version: "1.2.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

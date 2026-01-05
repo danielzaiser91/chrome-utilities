@@ -863,6 +863,7 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
+    new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("instagram.com", fixInstagram, true),
     new Matcher("google.com/", fixGoogle),
@@ -904,7 +905,7 @@ function websiteSelector() {
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
   const match = websiteMatcher.find((v) => location.href.includes(v.match));
-  if (!match)
+  if (!match && location.ancestorOrigins?.length === 0)
     return console.info(yellow(`no utility fix for this website found`));
   matcher = match;
 }
@@ -1730,6 +1731,28 @@ function fixGoogleMaps() {
 // fix instagram.com
 // ---
 function fixInstagram() {
+  fixReels();
+}
+
+function fixReels() {
+  // hmm insta bugs out and removes description if i try to hide mute icon 🤔🤔
+  insertCSS(
+    `
+    div:has(> svg[aria-label^="Audio is"]>title) {
+      display: none !important
+    }
+  `,
+    "cu-insta-reels"
+  );
+  // repeatIfCondition(
+  //   () => {
+  //     const muteIcon = query(
+  //       'div:has(> svg[aria-label^="Audio is"]>title):not(.cu-hide)'
+  //     );
+  //     muteIcon.classList.add("cu-hide");
+  //   },
+  //   () => !!query('div:has(> svg[aria-label^="Audio is"]>title):not(.cu-hide)')
+  // );
   repeatIfCondition(
     () =>
       [...document.querySelectorAll("video")].forEach((video) => {
@@ -3782,6 +3805,20 @@ function addCustomCrunchyCss() {
     }
   `,
     "custom-crunchy-css"
+  );
+}
+
+// lookmovie2.to
+function fixLookMovie2() {
+  lm2adCSS();
+}
+
+function lm2adCSS() {
+  insertCSS(
+    `
+    .ad-container { display: none !important }
+  `,
+    "lm2"
   );
 }
 

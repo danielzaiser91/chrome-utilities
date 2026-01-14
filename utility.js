@@ -2035,6 +2035,15 @@ function fixChessDotCom() {
   moveDailyPuzzleUp();
   fixBuggedTooltipCSS();
   infoDailyPuzzle();
+  stopBotBlabbing();
+}
+
+// make this an option in the cu-menu
+function stopBotBlabbing() {
+  insertCSS(
+    '[data-cy="secondary-coach-speech"] { display: none }',
+    "cu-bot-blabbing"
+  );
 }
 
 function infoDailyPuzzle() {
@@ -2049,8 +2058,7 @@ function infoDailyPuzzle() {
       '.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]'
     );
     const targetEl = query(".daily-puzzle-streak-subtitle");
-    const dailyWrapper = query(".daily-puzzle-streak-wrapper");
-    const dailyPuzzleBtnHTML = `<a href="https://www.chess.com/daily-chess-puzzle" class="cc-button-component cc-button-primary cc-button-medium cc-button-full   daily-puzzle-streak-button" data-log-selection-to-amplitude="true" data-log-home-action-to-amplitude="true" data-category="dailyPuzzle" data-name="Home Button Clicked" data-page="home" data-section="dailyPuzzle" data-button="solveDailyPuzzle"><span>Solve the Daily Puzzle</span></a>`;
+    const dailyPuzzleBtnHTML = `<a href="https://www.chess.com/daily-chess-puzzle" class="cc-button-component cc-button-primary cc-button-medium cc-button-full cc-bg-primary daily-puzzle-streak-button" data-log-selection-to-amplitude="true" data-log-home-action-to-amplitude="true" data-category="dailyPuzzle" data-name="Home Button Clicked" data-page="home" data-section="dailyPuzzle" data-button="solveDailyPuzzle"><span>Solve the Daily Puzzle</span></a>`;
     if (wonToday && targetEl) {
       // show Countdown Interval
       let interval = setInterval(() => {
@@ -2060,7 +2068,7 @@ function infoDailyPuzzle() {
           .match(/\d\d:\d\d:\d\d/)[0]
           .split(":");
         const localeH = new Date().getHours();
-        const dailyPuzzleHour = 7 + (new Date().getHours() - h);
+        const dailyPuzzleHour = 8 + (new Date().getHours() - h);
         const dh =
           dailyPuzzleHour - parseInt(localeH) < 1
             ? dailyPuzzleHour + 23 - parseInt(localeH)
@@ -2069,7 +2077,9 @@ function infoDailyPuzzle() {
         const ds = 59 - parseInt(s);
         const timeDiff = (dh !== 0 ? dh + "h " : "") + dm + "m " + ds + "s";
         if (dh === 0 && dm === 0 && ds === 0) {
-          dailyWrapper.innerHTML = dailyPuzzleBtnHTML;
+          const dailyWrapper = query(".daily-puzzle-streak-wrapper");
+          if (dailyWrapper)
+            dailyWrapper.insertAdjacentHTML("afterbegin", dailyPuzzleBtnHTML);
           clearInterval(interval);
           return;
         }
@@ -3928,10 +3938,15 @@ function cr_getDubTagsEl() {
   }
   return query('[data-t="meta-tags"] > :nth-child(2)');
 }
+
 function cr_dubCondition() {
   const metaTagsEl = cr_getDubTagsEl();
   if (!metaTagsEl) return false;
   const alreadyAdded = metaTagsEl.classList.contains("cu-dub-added");
+  if (window.urlChanged) {
+    window.urlChanged = false;
+    return true;
+  }
   return !alreadyAdded;
 }
 
@@ -3941,6 +3956,16 @@ function cr_showDub_again() {
 
 function cr_showDub() {
   repeatIfCondition(cr_dubMethod, cr_dubCondition, { pauseInBg: false });
+  repeatIfCondition(
+    () => {
+      // when crunchy url changes, re-apply dub metatag
+      const isUrlDiff = location.href != window.hrefLastCheck;
+      window.hrefLastCheck = location.href;
+      if (isUrlDiff) window.urlChanged = true;
+    },
+    () => true,
+    { interval: 500 }
+  );
 }
 
 function autoLogin() {
@@ -4752,7 +4777,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.2.0",
+  version: "1.2.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

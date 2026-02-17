@@ -152,7 +152,7 @@ function repeatIfCondition(fn, condition = () => true, options = {}) {
     interval,
     pauseInBg,
     undefined,
-    autoplay
+    autoplay,
   );
 }
 
@@ -171,7 +171,7 @@ function repeatUntilCondition(
   fn,
   condition = () => true,
   fnArgs = [],
-  pauseInBg = true
+  pauseInBg = true,
 ) {
   const interval = new Interval(
     function repeatUntil() {
@@ -182,7 +182,7 @@ function repeatUntilCondition(
       }
     },
     300,
-    pauseInBg
+    pauseInBg,
   );
 }
 const registeredIntervals = [];
@@ -196,7 +196,7 @@ class Interval {
     timeout,
     pauseInBg = true,
     playCondition = () => true,
-    autoplay = true
+    autoplay = true,
   ) {
     this.handler = handler;
     this.timeout = timeout;
@@ -299,8 +299,8 @@ function showExtensionInfoInLog() {
                 "\n",
             ].join("");
           })
-          .join("- ")
-    )
+          .join("- "),
+    ),
   );
 }
 
@@ -322,10 +322,10 @@ document.addEventListener(
         intervalHandler();
         init = false;
       },
-      isCrunchy ? 1500 : 500
+      isCrunchy ? 1500 : 500,
     );
   },
-  false
+  false,
 );
 
 class Design {
@@ -399,7 +399,7 @@ function prepareActionBar() {
       <button class="cu-action">
         ${svg["settingsIcon"]}
       </button>
-    </div>`
+    </div>`,
   );
   const actionBar = query(".cu-actions-container");
   const settingsBtn = actionBar.querySelector("button");
@@ -458,7 +458,7 @@ function prepareActionBar() {
       height: 100vh;
       background: #0000008a;
       z-index: 9999999;
-      transform: translateY(-100%);
+      transform: translateY(-110%);
       transition: 0.5s;
       display: flex;
       justify-content: center;
@@ -600,7 +600,7 @@ function prepareActionBar() {
       padding: 5px 0 5px 30px;
     }
   `,
-    "cu-actions"
+    "cu-actions",
   );
 }
 
@@ -691,8 +691,8 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
     const val = isNum
       ? clamp(input.value, { max: input.max, min: input.min })
       : isCheckbox
-      ? input.checked
-      : input.value;
+        ? input.checked
+        : input.value;
     if (optKeys.length === 3) {
       // todo: Make nested userOption Access dynamic
       // getNestedValue(userOptions, [...optKeys]).value
@@ -775,21 +775,21 @@ function loadUserSettings() {
           userOptions[site][keyF][keyFF].subFeatures
         ) {
           const subFeatureKeys = Object.keys(
-            opt[site][keyF][keyFF].subFeatures
+            opt[site][keyF][keyFF].subFeatures,
           );
           Object.keys(userOptions[site][keyF][keyFF].subFeatures).forEach(
             (keyFFF) => {
               if (!subFeatureKeys.includes(keyFFF)) return;
               if (
                 isDefined(
-                  userOptions[site][keyF][keyFF].subFeatures[keyFFF].value
+                  userOptions[site][keyF][keyFF].subFeatures[keyFFF].value,
                 ) &&
                 isDefined(opt[site][keyF][keyFF].subFeatures[keyFFF].value)
               ) {
                 userOptions[site][keyF][keyFF].subFeatures[keyFFF].value =
                   opt[site][keyF][keyFF].subFeatures[keyFFF].value;
               }
-            }
+            },
           );
         }
       });
@@ -801,7 +801,7 @@ function loadUserSettings() {
 function saveUserSettings() {
   window.localStorage.setItem(
     "Chrome:Utility:userOptions",
-    JSON.stringify(userOptions)
+    JSON.stringify(userOptions),
   );
 }
 
@@ -826,7 +826,7 @@ function whenFocusingTab() {
 }
 function getInterval(name) {
   const [interval, extra] = registeredIntervals.filter(
-    (i) => i.handler.name === name
+    (i) => i.handler.name === name,
   );
   if (extra) throw "Ambigous interval-name...";
   return interval;
@@ -882,7 +882,7 @@ function websiteSelector() {
       crunchyrolliFrameHook,
       false,
       "crunchyHook",
-      true
+      true,
     ),
     new Matcher("crunchyroll.com", fixCrunchyroll, true),
     new Matcher("defenestration.co/pg/surveying", fixPGSurveyHelper),
@@ -897,7 +897,7 @@ function websiteSelector() {
       "zkjellberg.github.io/dark-souls-3-cheat-sheet",
       fixDarkSouls3CheatSheet,
       true,
-      "ds3CheatSheet"
+      "ds3CheatSheet",
     ),
     new Matcher("pogchamps.gg", fixPogChamps, false),
     new Matcher("aternos.org", fixAternos, false),
@@ -917,7 +917,7 @@ function startFixing() {
       display: none !important;
     }
   `,
-    "cu-global"
+    "cu-global",
   );
   console.info(yellow(`starting process ${matcher.fix.name}`));
   if (matcher.hasActions) prepareActionBar();
@@ -957,7 +957,7 @@ function fixWowTV() {
       updateVideoPlayrate__generic();
     },
     () => query("video"),
-    { interval: 500 }
+    { interval: 500 },
   );
 
   betterui_wowtv();
@@ -978,7 +978,7 @@ function betterui_wowtv() {
     #video-player-controls > div:nth-child(3) > div:nth-last-child(2) [data-test-id="episode-change-modal"] { bottom: 88px; }
     [data-test-id="autoplay-container"] { bottom: 80px !important; }
   `,
-    "cu-wowtv-betterui"
+    "cu-wowtv-betterui",
   );
 }
 
@@ -1019,7 +1019,7 @@ function skipWowTV() {
 const enable_wowtv_playback_option = () => {
   updateWowtvVideoPlayrate(
     userOptions.wowtv.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
-      .value
+      .value,
   );
 };
 const _wowtv_setPlayerValue = (val, playBackInput) => {
@@ -1071,7 +1071,7 @@ function addPlayBackRateButton_wowTv() {
       .cu-is-open { margin-right: 10px; }
       .cu-playback-rate-container { display: flex; align-items: center; }
     `,
-      "cu-playback-rate"
+      "cu-playback-rate",
     );
     const playbackSettings = create("div", {
       className: "cu-hide cu-playback-settings",
@@ -1090,10 +1090,10 @@ function addPlayBackRateButton_wowTv() {
     });
     updateWowtvVideoPlayrate(value);
     playbackInput.addEventListener("keydown", (e) =>
-      _wowtv_adjustVal(e, playbackInput)
+      _wowtv_adjustVal(e, playbackInput),
     );
     playbackInput.addEventListener("input", (e) =>
-      _wowtv_adjustVal(e, playbackInput)
+      _wowtv_adjustVal(e, playbackInput),
     );
     const playbackLabel = create("label", {
       textContent: "Speed:",
@@ -1142,14 +1142,14 @@ function _init_set_video_rate_repeater__generic() {
     () => {
       const videoEls = [...queryAll("video")];
       const allowed = isAllowed(
-        getSiteOptions().featurePlayBackSpeed.isEnabled
+        getSiteOptions().featurePlayBackSpeed.isEnabled,
       );
       const hasVideosAtDifferentRate = !videoEls.every(
-        (video) => video.playbackRate === getUserRate()
+        (video) => video.playbackRate === getUserRate(),
       );
       return allowed && hasVideosAtDifferentRate;
     },
-    { pauseInBg: false, interval: 1000 }
+    { pauseInBg: false, interval: 1000 },
   );
   window._generic_playbackRate_interval = _interval.currentInterval;
 }
@@ -1157,7 +1157,7 @@ function _init_set_video_rate_repeater__generic() {
 function enable_playback_option__generic() {
   updateVideoPlayrate__generic(
     getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
-      .value
+      .value,
   );
 }
 function _setPlayerValue__generic(val, playBackInput) {
@@ -1210,7 +1210,7 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
       input.cu_playback[type="number"]::-webkit-inner-spin-button { opacity: 1 }
       .cu-is-open { margin-right: 10px; }
     `,
-      "cu-playback-rate"
+      "cu-playback-rate",
     );
     const playbackSettings = create("div", {
       className: "cu-hide cu-playback-settings",
@@ -1229,10 +1229,10 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
     });
     updateVideoPlayrate__generic(value);
     playbackInput.addEventListener("keydown", (e) =>
-      _adjustVal__generic(e, playbackInput)
+      _adjustVal__generic(e, playbackInput),
     );
     playbackInput.addEventListener("input", (e) =>
-      _adjustVal__generic(e, playbackInput)
+      _adjustVal__generic(e, playbackInput),
     );
     const playbackLabel = create("label", {
       textContent: "Speed:",
@@ -1275,7 +1275,7 @@ function fixFmoviesCam() {
       display: none !important;!i;!;
     }
   `,
-    "anti-ad"
+    "anti-ad",
   );
 }
 
@@ -1312,11 +1312,11 @@ function fixSubtitlesFmoviesCam() {
         line-height: 1.2;
         text-align: center;
         font-family: Arial;
-        " id="sub-here"></div></div>`
+        " id="sub-here"></div></div>`,
       );
       insertCSS(
         ".jw-captions.jw-captions-enabled {display:none !important}",
-        "fixSubtitlesFmoviesCam"
+        "fixSubtitlesFmoviesCam",
       );
       subRp = document.getElementById("sub-here");
     }
@@ -1345,7 +1345,7 @@ function fixFilemoon() {
       video.playbackRate = speed;
     },
     () => query("video"),
-    { interval: 1000, pauseInBg: false }
+    { interval: 1000, pauseInBg: false },
   );
 }
 
@@ -1392,7 +1392,7 @@ async function fetchAndReturnHTML(url) {
           return new Response(stream, {
             headers: { "Content-Type": "text/html" },
           }).text();
-        }
+        },
       );
     return result;
   } catch (e) {
@@ -1427,7 +1427,7 @@ function overviewFlagShower() {
           let flags = doc.querySelectorAll(
             `[data-episode-season-id="${
               episodeMatch ? episodeMatch : 1
-            }"] img.flag`
+            }"] img.flag`,
           );
           if (!flags?.length) {
             const firstEpTitle =
@@ -1460,7 +1460,7 @@ function overviewFlagShower() {
       }
     },
     () => !!getContainer(),
-    { interval: 1000 }
+    { interval: 1000 },
   );
 }
 
@@ -1483,7 +1483,7 @@ function initResetFlagListener() {
           _getAntiContainer_aniworld()?.classList.remove("cu-fetched-flags"),
         () => query(".loaderContainer")?.style.display === "none",
         undefined,
-        false
+        false,
       );
     },
     () => {
@@ -1492,7 +1492,7 @@ function initResetFlagListener() {
       return el.value !== _aniworld_prevSearchText;
     },
     undefined,
-    false
+    false,
   );
 }
 
@@ -1517,7 +1517,7 @@ function startTimer(countdown) {
     }
     .cu-show-timer .cu-timer { display: block; }
   `,
-    "cu-timer"
+    "cu-timer",
   );
   document.body.classList.add("cu-show-timer");
   const timerEl = create("div", { className: "cu-timer" });
@@ -1529,7 +1529,7 @@ function startTimer(countdown) {
       clearInterval(window._cu_countdown);
       document.body.classList.add(
         "cu-challenge-show-overlay",
-        "cu-challenge-over"
+        "cu-challenge-over",
       );
       setTimeout(() => document.body.classList.remove("cu-show-timer"), 5000);
     }
@@ -1569,7 +1569,7 @@ function openMapsChallenge(time) {
     body:not(.cu-challenge-over) .cu-overlay--end-challenge-btn { display: none; }
     body.cu-challenge-over .cu-overlay--accept-challenge-btn { display: none; }
   `,
-    "cu-challenge"
+    "cu-challenge",
   );
   challengeAcceptBtn.addEventListener("click", () => {
     document.body.classList.remove("cu-challenge-show-overlay");
@@ -1586,7 +1586,7 @@ function openMapsChallenge(time) {
 function fixGoogleMaps() {
   // react to cu-param
   const challenge_Config = new URL(location.href).searchParams.get(
-    "cu-challenge"
+    "cu-challenge",
   );
   if (challenge_Config) {
     const timer_match = Number(challenge_Config.match(/t-(\d+)/)?.[1]);
@@ -1599,7 +1599,7 @@ function fixGoogleMaps() {
   // wait for shareBtn to add it to the styles
   const getShareBtn = () =>
     [...document.querySelectorAll("[jsaction]")].filter((el) =>
-      el.getAttribute("jsaction").includes("share")
+      el.getAttribute("jsaction").includes("share"),
     )[0];
   repeatUntilCondition(() => {
     const shareBtnSelector =
@@ -1610,7 +1610,7 @@ function fixGoogleMaps() {
       body.cu-maps-hide-els ${shareBtnSelector} { display: none !important }
     `,
       "cu-maps-hide-els-style-shareBtn",
-      true
+      true,
     );
   }, getShareBtn);
   insertCSS(
@@ -1627,7 +1627,7 @@ function fixGoogleMaps() {
     body.cu-maps-hide-els #watermark { display: none !important }
   `,
     "cu-maps-hide-els-style",
-    true
+    true,
   );
   function toggleVisibility(hide = true) {
     if (hide) document.body.classList.add("cu-maps-hide-els");
@@ -1645,7 +1645,7 @@ function fixGoogleMaps() {
         // select x button (top right), clone it and use it as a toggle ui button
         byId("titlecard").insertAdjacentHTML(
           "beforebegin",
-          '<div id="cu-ui-toggle">toggle extra ui</div>'
+          '<div id="cu-ui-toggle">toggle extra ui</div>',
         );
         let visible = false;
         insertCSS(
@@ -1670,7 +1670,7 @@ function fixGoogleMaps() {
           user-select: none;
         }
       `,
-          "cu-ui-toggle-css"
+          "cu-ui-toggle-css",
         );
         const el = byId("cu-ui-toggle");
         el.classList.add("cu-hide");
@@ -1681,7 +1681,7 @@ function fixGoogleMaps() {
         let _trigger_once_onenter = false;
         window._cu_check_search_el_changed = setInterval(() => {
           const sv_canvas = document.querySelectorAll(
-            '[role="application"] > canvas'
+            '[role="application"] > canvas',
           )[0];
           const notOnStreetView =
             sv_canvas.style.display === "none" ||
@@ -1721,7 +1721,7 @@ function fixGoogleMaps() {
           toggleVisibility(!visible);
         });
       },
-      () => !!query('[role="search"]')
+      () => !!query('[role="search"]'),
     );
   };
   repeatIfCondition(fn, condition, { interval: 100 });
@@ -1742,7 +1742,7 @@ function fixReels() {
       display: none !important
     }
   `,
-    "cu-insta-reels"
+    "cu-insta-reels",
   );
   // repeatIfCondition(
   //   () => {
@@ -1777,14 +1777,14 @@ function fixReels() {
             try {
               const savedVol = localStorage.getItem(
                 "cu-insta-vol",
-                video.volume
+                video.volume,
               );
               if (savedVol) {
                 video.volume = +savedVol;
               }
               const savedMuted = localStorage.getItem(
                 "cu-insta-isMuted",
-                video.muted
+                video.muted,
               );
               if (savedMuted) video.muted = !!+savedMuted;
             } catch (e) {}
@@ -1808,8 +1808,8 @@ function fixReels() {
       }),
     () =>
       [...document.querySelectorAll("video")].some(
-        (video) => !video.classList.contains("cu-controls")
-      )
+        (video) => !video.classList.contains("cu-controls"),
+      ),
   );
 }
 
@@ -1827,7 +1827,7 @@ function fixLuluvdo() {
       video.playbackRate = speed;
     },
     () => query("video"),
-    { interval: 1000, pauseInBg: false }
+    { interval: 1000, pauseInBg: false },
   );
   repeatUntilCondition(_rememberVideoPosition, () => !!query("video")?.src, {
     pauseInBg: false,
@@ -1835,7 +1835,7 @@ function fixLuluvdo() {
   document.body.insertAdjacentHTML(
     "afterbegin",
     `<div id="remember-video-position" class="cu-hide">want to continue where you left off?<span id="video-position-timestamp">22:30</span><div id="question-container" style="
-"><button id="cu-yes">Yes</button><button id="cu-no">No</button></div></div>`
+"><button id="cu-yes">Yes</button><button id="cu-no">No</button></div></div>`,
   );
   insertCSS(`
   .cu-action svg {
@@ -1965,7 +1965,7 @@ function addCalcFruitOfMacGuffin() {
   const element = Array.from(query(".mw-parser-output").children)
     .find(
       (el) =>
-        el.textContent.includes("Fruit of MacGuffin β") && el.tagName === "UL"
+        el.textContent.includes("Fruit of MacGuffin β") && el.tagName === "UL",
     )
     .querySelector("li");
   element.insertAdjacentHTML(
@@ -1979,7 +1979,7 @@ function addCalcFruitOfMacGuffin() {
     <div>
       result: <span id="dz-result"></span>
     </div>
-  `
+  `,
   );
   const inputTEl = query("#dz-calc-T");
   const inputPoopEl = query("#dz-calc-poop");
@@ -2021,7 +2021,7 @@ function fixTisoware() {
       query('[type="password"]').setAttribute("maxlength", 16);
     },
     () => query('[type="password"]'),
-    false
+    false,
   );
 }
 
@@ -2042,7 +2042,7 @@ function fixChessDotCom() {
 function stopBotBlabbing() {
   insertCSS(
     '[data-cy="secondary-coach-speech"] { display: none }',
-    "cu-bot-blabbing"
+    "cu-bot-blabbing",
   );
 }
 
@@ -2051,11 +2051,11 @@ function infoDailyPuzzle() {
   const condition = () =>
     query(".daily-puzzle-streak-subtitle") &&
     !query(".daily-puzzle-streak-subtitle").classList.contains(
-      "cu-daily-cd-added"
+      "cu-daily-cd-added",
     );
   const whenIsNextDailyPuzzle = () => {
     const wonToday = !query(
-      '.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]'
+      '.daily-puzzle-streak-wrapper [data-button="solveDailyPuzzle"]',
     );
     const targetEl = query(".daily-puzzle-streak-subtitle");
     const dailyPuzzleBtnHTML = `<a href="https://www.chess.com/daily-chess-puzzle" class="cc-button-component cc-button-primary cc-button-medium cc-button-full cc-bg-primary daily-puzzle-streak-button" data-log-selection-to-amplitude="true" data-log-home-action-to-amplitude="true" data-category="dailyPuzzle" data-name="Home Button Clicked" data-page="home" data-section="dailyPuzzle" data-button="solveDailyPuzzle"><span>Solve the Daily Puzzle</span></a>`;
@@ -2099,7 +2099,7 @@ function fixBuggedTooltipCSS() {
       bottom: 0 !important;
     }
   `,
-    "flag-tooltip"
+    "flag-tooltip",
   );
 }
 
@@ -2119,7 +2119,7 @@ function removeNewTag() {
   const condition = () => query(".nav-tag");
   const remove = () => {
     const el = Array.from(queryAll(".nav-tag")).find(
-      (el) => el.textContent === "new"
+      (el) => el.textContent === "new",
     );
     if (el) {
       el.classList.add("cu-hide");
@@ -2135,7 +2135,7 @@ function unhideResultQuickAnalysis() {
       display: flex !important;
     }
   `,
-    "cu-quick-result"
+    "cu-quick-result",
   );
 }
 
@@ -2211,7 +2211,7 @@ function fixPogChamps() {
 function fixDarkSouls3CheatSheet() {
   insertCSS(
     "body.cu-dark-mode { background-color: #1a1a1a; color: #c3c3c3; }",
-    "fixDarkSouls3CheatSheet"
+    "fixDarkSouls3CheatSheet",
   );
   if (userOptions.ds3cheatsheet.featureDarkMode.isEnabled.value) {
     toggleDarkModeDs3CheatSheet();
@@ -2258,7 +2258,7 @@ function activateAutoSkipDP() {
     {
       pauseInBg: false,
       autoplay: isAllowed(userOptions.disneyplus.featureAutoSkip.isEnabled),
-    }
+    },
   );
 }
 
@@ -2311,7 +2311,7 @@ function getKey(e) {
       view: null,
       sourceCapabilities: null,
     },
-    e
+    e,
   );
 }
 
@@ -2330,11 +2330,11 @@ function activateAutoLoginListener() {
       const username = profilename.value;
       const pinVal = pin.value;
       const profileEl = Array.from(
-        queryAll(".profile-avatar-appear-done div")
+        queryAll(".profile-avatar-appear-done div"),
       ).find(
         (el) =>
           el.querySelector("h3")?.textContent?.toLowerCase?.() ===
-          username?.toLowerCase?.()
+          username?.toLowerCase?.(),
       );
       if (!profileEl) return (currentlyRunning = false);
       profileEl.click();
@@ -2347,15 +2347,15 @@ function activateAutoLoginListener() {
           currentlyRunning = false;
           inputs.forEach((input, i) =>
             input.dispatchEvent(
-              new KeyboardEvent("keydown", getKey({ key: pinVal[i] }))
-            )
+              new KeyboardEvent("keydown", getKey({ key: pinVal[i] })),
+            ),
           );
         },
-        () => condition()
+        () => condition(),
       );
     },
     () => location.pathname.includes("select-profile"),
-    { pauseInBg: false, interval: 500 }
+    { pauseInBg: false, interval: 500 },
   );
 }
 // fix Aternos
@@ -2366,7 +2366,7 @@ function fixAternos() {
       display: none !important;
     }
   `,
-    "fixAternos"
+    "fixAternos",
   );
 }
 
@@ -2385,7 +2385,7 @@ function fixFandom() {
     #WikiaBar { display: none !important }
     .notifications-placeholder { display: none !important }
   `,
-    "remove wikia bar"
+    "remove wikia bar",
   );
 
   // right side panel?? -- kp was das ist xD
@@ -2419,7 +2419,7 @@ function fixFandom() {
         text-transform: uppercase;
         width: 100%;
       }`,
-      "fixFandom"
+      "fixFandom",
     );
     // fanfeed is added asynchronously, need to wait for it, and then execute code
     const getFanFeed = () => query("#mixed-content-footer");
@@ -2451,7 +2451,7 @@ function fixFandom() {
       const commentsToToggle = [];
       const commentCounter = query('[class*="CommentCounter_comment-counter"');
       const commentCount = Number.parseInt(
-        commentCounter.firstChild.textContent
+        commentCounter.firstChild.textContent,
       );
       if (commentCount < 6) {
         return;
@@ -2477,7 +2477,7 @@ function fixFandom() {
           ? "show less comments"
           : "show more comments";
         commentsToToggle.forEach((comment) =>
-          comment.classList.toggle("cu-hide")
+          comment.classList.toggle("cu-hide"),
         );
         if (loadMoreButton) loadMoreButton.classList.toggle("cu-hide");
       });
@@ -2533,7 +2533,7 @@ function resetInfoPW24() {
 }
 
 function store(key, value = undefined) {
-  const val = value === null ? null : value ?? true;
+  const val = value === null ? null : (value ?? true);
   localStorage.setItem(key, JSON.stringify(val));
 }
 
@@ -2601,7 +2601,7 @@ function enableNextEpisodeHotkey_NV() {
 
 function getInfo(key, cb) {
   const isLoadedYet = /[0-9]/.test(
-    query(".seasons-switcher span")?.textContent
+    query(".seasons-switcher span")?.textContent,
   );
   if (!isLoadedYet) return setTimeout(() => startGettingInformation(cb), 100);
   const baseKey = "." + key + "-switcher";
@@ -2610,7 +2610,7 @@ function getInfo(key, cb) {
     const count = queryAll(baseKey + " ." + key + " li").length;
     const countCurr = +query(baseKey + " span").textContent.replace(
       /[^0-9]/g,
-      ""
+      "",
     );
     if (key === "seasons") {
       PW24_curr_season = countCurr;
@@ -2715,7 +2715,7 @@ function fix1movies() {
       background-color: #2a2a21 !important;
   }
   `,
-    "fix1movies"
+    "fix1movies",
   );
   toggleDarkMode1Movies();
   rememberVideoPosition();
@@ -2775,22 +2775,22 @@ function rememberVideoPosition() {
 let amazonSkipLoop = null;
 const getAmazonSkipRecapBtn = () =>
   query(
-    ".atvwebplayersdk-adtimeindicator-text"
+    ".atvwebplayersdk-adtimeindicator-text",
   )?.parentElement.parentElement.querySelector("div:nth-child(2)")
     ?.firstElementChild;
 const getAmazonSkipRecapBtn2 = () =>
   query(".atvwebplayersdk-skipelement-button");
 const getAmazonSkipAdvertBtn = () =>
   query(
-    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)"
+    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div:nth-child(2)",
   );
 const getAmazonSkipAdvertBtn2 = () =>
   query(
-    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div"
+    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(3) > div",
   );
 const getAmazonSkipAdvertBtn3 = () => {
   const btn = query(
-    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(2) > div:nth-child(2)"
+    ".dv-player-fullscreen .atvwebplayersdk-infobar-container > div > div:nth-child(2) > div:nth-child(2)",
   );
   const isSkip = ["Überspringen", "Skip"].some((v) => btn?.textContent);
   return isSkip ? btn : null;
@@ -2862,13 +2862,13 @@ function moveVideoActionsLower() {
       z-index: 9999999;
     }
   `,
-    "cu-move-lower"
+    "cu-move-lower",
   );
   repeatIfCondition(
     () => {
       const btn = query(".atvwebplayersdk-fastseekback-button");
       btn.parentElement.parentElement.parentElement.classList.add(
-        "cu-moved-lower"
+        "cu-moved-lower",
       );
     },
     () => {
@@ -2876,10 +2876,10 @@ function moveVideoActionsLower() {
       return (
         btn &&
         !btn.parentElement.parentElement.parentElement.classList.contains(
-          "cu-moved-lower"
+          "cu-moved-lower",
         )
       );
-    }
+    },
   );
 }
 
@@ -2890,7 +2890,7 @@ function removeBackdropShadow() {
       background: transparent !important;
     }
   `,
-    "cu-remove-backdrop-shadow"
+    "cu-remove-backdrop-shadow",
   );
 }
 
@@ -2911,7 +2911,7 @@ function xrayToggle() {
       z-index: 99999999999;
     }
   `,
-    "cu-xray-button"
+    "cu-xray-button",
   );
   repeatIfCondition(
     () => {
@@ -2919,7 +2919,7 @@ function xrayToggle() {
       if (
         elX &&
         Array.from(elX)?.some((child) =>
-          child.classList.contains("cu-xray-button")
+          child.classList.contains("cu-xray-button"),
         )
       )
         return;
@@ -2936,7 +2936,7 @@ function xrayToggle() {
       };
       query(".cu-playback-rate").parentElement.insertAdjacentElement(
         "afterbegin",
-        btn
+        btn,
       );
     },
     () => {
@@ -2947,14 +2947,14 @@ function xrayToggle() {
         query(".cu-playback-rate")
       );
     },
-    { pauseInBg: false, interval: 1000 }
+    { pauseInBg: false, interval: 1000 },
   );
 }
 
 const enable_amazon_playback_option = () => {
   updateAmznVideoPlayrate(
     userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
-      .value
+      .value,
   );
 };
 const _amazon_setPlayerValue = (val, playBackInput) => {
@@ -2984,7 +2984,7 @@ function addPlayBackRateButton() {
   const amazonVideoPlaying = () => query(".dv-player-fullscreen");
   const _addPlayBackRateButton = () => {
     const container = query(
-      ".atvwebplayersdk-hideabletopbuttons-container div"
+      ".atvwebplayersdk-hideabletopbuttons-container div",
     );
     const div = create("div", { className: "cu-playback-rate cu-el" });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
@@ -3001,7 +3001,7 @@ function addPlayBackRateButton() {
       .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
       .cu-is-open { margin-right: 10px; }
     `,
-      "cu-playback-rate"
+      "cu-playback-rate",
     );
     const playbackSettings = create("div", {
       className: "cu-hide cu-playback-settings",
@@ -3027,13 +3027,13 @@ function addPlayBackRateButton() {
         updateAmznVideoPlayrate(currVal);
       },
       () => query("video"),
-      { pauseInBg: false, interval: 1000 }
+      { pauseInBg: false, interval: 1000 },
     );
     playbackInput.addEventListener("keydown", (e) =>
-      _amazon_adjustVal(e, playbackInput)
+      _amazon_adjustVal(e, playbackInput),
     );
     playbackInput.addEventListener("input", (e) =>
-      _amazon_adjustVal(e, playbackInput)
+      _amazon_adjustVal(e, playbackInput),
     );
     const playbackLabel = create("label", {
       textContent: "Speed:",
@@ -3065,12 +3065,12 @@ const toggleUIVisible = (op) => {
   if (disableFeature) return;
   // const subtitlesEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
   const topActionBarEl = query(
-    ".atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)"
+    ".atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)",
   );
   const bottomActionBarEl = query(".atvwebplayersdk-bottompanel-container");
   const opacityOverlayEl = query(".atvwebplayersdk-overlays-container > div");
   const centerActionsEl = query(
-    ".atvwebplayersdk-overlays-container > div:nth-child(4) > div:nth-child(2)"
+    ".atvwebplayersdk-overlays-container > div:nth-child(4) > div:nth-child(2)",
   );
   const titleEl = query(".atvwebplayersdk-title-text");
   const subtitleEl = query(".atvwebplayersdk-subtitle-text");
@@ -3087,7 +3087,7 @@ const toggleUIVisible = (op) => {
     .forEach((e) =>
       op === "remove"
         ? e.classList.add("cu-hide")
-        : e.classList.remove("cu-hide")
+        : e.classList.remove("cu-hide"),
     );
 };
 let disableFeature = true;
@@ -3101,7 +3101,7 @@ function immidiatlyRemoveUiWhenLeavingMouse() {
   repeatIfCondition(
     () => (disableFeature = !amazonVideoPlaying()),
     amazonVideoPlaying,
-    { interval: 300 }
+    { interval: 300 },
   );
 }
 
@@ -3113,7 +3113,7 @@ let executionBlock = {
 function skipAmazonRecap() {
   const amazonFeature = userOptions.amazon.featureAutoSkip.isEnabled;
   const spinner = query(
-    ".atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div"
+    ".atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div",
   )?.checkVisibility?.();
   if (!isAllowed(amazonFeature) || spinner) return;
   const skipAds =
@@ -3190,7 +3190,7 @@ function fixNetflix() {
         } catch {}
       },
       getNetflixButtonContainer,
-      { pauseInBg: false }
+      { pauseInBg: false },
     );
   }
   netflixRestartWithSpaceKey();
@@ -3227,17 +3227,17 @@ function _netflix_speed_custom_control() {
   });
   insertCSS(
     ".cu-playbackSpeedContainer { display: flex; justify-content: space-between }",
-    "cu-playbackSpeedContainer"
+    "cu-playbackSpeedContainer",
   );
   insertCSS(
     ".cu-playbackSpeedInput { color: black; font-size: 24px; }",
-    "cu-playbackSpeedInput"
+    "cu-playbackSpeedInput",
   );
   playBackInput.addEventListener("keydown", (e) =>
-    _netflix_adjustVal(e, playBackInput)
+    _netflix_adjustVal(e, playBackInput),
   );
   playBackInput.addEventListener("input", (e) =>
-    _netflix_adjustVal(e, playBackInput)
+    _netflix_adjustVal(e, playBackInput),
   );
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
   repeatIfCondition(
@@ -3247,12 +3247,12 @@ function _netflix_speed_custom_control() {
           _netflix_setPlayerValue(
             userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures
               .playBackSpeed.value,
-            playBackInput
+            playBackInput,
           ),
-        300
+        300,
       ),
     () => query("video"),
-    { interval: 1000, pauseInBg: false }
+    { interval: 1000, pauseInBg: false },
   );
   const _add_custom_speed_control = () => {
     const playBackContainer = query('[data-uia="playback-speed"] div');
@@ -3262,8 +3262,8 @@ function _netflix_speed_custom_control() {
     const netflixPlayArr = [0.5, 0.75, 1, 1.25, 1.5];
     (netflixPlay?.length ? Array.from(netflixPlay) : []).forEach((el, i) =>
       el.addEventListener("click", (_) =>
-        _netflix_setPlayerValue(netflixPlayArr[i], playBackInput)
-      )
+        _netflix_setPlayerValue(netflixPlayArr[i], playBackInput),
+      ),
     );
     playBackInput.value =
       userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
@@ -3293,7 +3293,7 @@ function netflixApi() {
   const video = Object.values(state.videoPlayer.videoMetadata).find((v) => v)
     ._video._video;
   const playState = Object.values(
-    state.videoPlayer.playbackStateBySessionId
+    state.videoPlayer.playbackStateBySessionId,
   ).find((v) => v);
   // all info about playbackstate and video details are in these 2 consts
   return { video, playState, isMovie: video.type === "movie" };
@@ -3301,7 +3301,7 @@ function netflixApi() {
 
 const getNetflixButtonContainer = () =>
   query(
-    '.watch-video--bottom-controls-container [data-uia="controls-standard"] > div > div:nth-child(3) > div > div:nth-child(3)'
+    '.watch-video--bottom-controls-container [data-uia="controls-standard"] > div > div:nth-child(3) > div > div:nth-child(3)',
   );
 function addAutoSkipIntroButton() {
   const skipFeature = userOptions.netflix.featureAutoSkip;
@@ -3318,10 +3318,10 @@ function addAutoSkipIntroButton() {
     .querySelector(".control-medium")
     .insertAdjacentHTML(
       "afterBegin",
-      `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="svg-icon-nfplayerPause pauseButton"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.5 3C4.22386 3 4 3.22386 4 3.5V20.5C4 20.7761 4.22386 21 4.5 21H9.5C9.77614 21 10 20.7761 10 20.5V3.5C10 3.22386 9.77614 3 9.5 3H4.5ZM14.5 3C14.2239 3 14 3.22386 14 3.5V20.5C14 20.7761 14.2239 21 14.5 21H19.5C19.7761 21 20 20.7761 20 20.5V3.5C20 3.22386 19.7761 3 19.5 3H14.5Z" fill="currentColor"></path></svg>`
+      `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="svg-icon-nfplayerPause pauseButton"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.5 3C4.22386 3 4 3.22386 4 3.5V20.5C4 20.7761 4.22386 21 4.5 21H9.5C9.77614 21 10 20.7761 10 20.5V3.5C10 3.22386 9.77614 3 9.5 3H4.5ZM14.5 3C14.2239 3 14 3.22386 14 3.5V20.5C14 20.7761 14.2239 21 14.5 21H19.5C19.7761 21 20 20.7761 20 20.5V3.5C20 3.22386 19.7761 3 19.5 3H14.5Z" fill="currentColor"></path></svg>`,
     );
   const playButton = copyChild.querySelector(
-    ".control-medium svg:nth-child(2)"
+    ".control-medium svg:nth-child(2)",
   );
   playButton.outerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="playButton Hawkins-Icon Hawkins-Icon-Standard"><path fill-rule="evenodd" clip-rule="evenodd" d="M22 3H20V21H22V3ZM4.28615 3.61729C3.28674 3.00228 2 3.7213 2 4.89478V19.1052C2 20.2787 3.28674 20.9977 4.28615 20.3827L15.8321 13.2775C16.7839 12.6918 16.7839 11.3082 15.8321 10.7225L4.28615 3.61729ZM4 18.2104V5.78956L14.092 12L4 18.2104Z" fill="currentColor"></path></svg>`;
   copyChild.classList.add("button-autoSkipToggle");
@@ -3353,7 +3353,7 @@ function addAutoSkipIntroButton() {
         display: none;
     }
     `,
-    "skipIntroButton"
+    "skipIntroButton",
   );
   copyChild.onclick = () => {
     toggleAutoSkipIntro(copyChild);
@@ -3460,11 +3460,11 @@ function fixYoutube() {
 function ytShortsDate() {
   const condition = () =>
     !!query(
-      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)"
+      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)",
     );
   repeatIfCondition(() => {
     const targetContainer = query(
-      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)"
+      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)",
     );
     if (!targetContainer) return;
     const dateCopy = query("#factoids > :last-child")?.cloneNode(true);
@@ -3507,8 +3507,9 @@ function initYTCSS() {
     `
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
+    .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }
   `,
-    "yt-anti-ad"
+    "yt-anti-ad",
   );
 }
 
@@ -3532,7 +3533,7 @@ function noYTAdBlockBanner() {
       ytPlay();
     },
     () => banner() && banner().checkVisibility(),
-    { interval: 500, pauseInBg: false }
+    { interval: 500, pauseInBg: false },
   );
 }
 
@@ -3552,10 +3553,10 @@ function noInterestButton() {
     () => {
       const preview = query("#video-preview");
       preview.addEventListener("mouseenter", () =>
-        document.body.classList.add("cu-hovering-" + lastVidHovered)
+        document.body.classList.add("cu-hovering-" + lastVidHovered),
       );
     },
-    () => query("#video-preview")
+    () => query("#video-preview"),
   );
   // const hasDismissibles = () =>
   //   query(
@@ -3578,11 +3579,11 @@ function noInterestButton() {
   // ];
   const hasDismissibles = () =>
     query(
-      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)"
+      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)",
     );
   const getDismissibles = () => [
     ...queryAll(
-      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)"
+      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)",
     ),
   ];
   const allVideos = () =>
@@ -3603,7 +3604,7 @@ function noInterestButton() {
       });
       insertCSS(
         `.${id} .${id}:hover .cu-no-interest, .cu-hovering-${id} .${id} .cu-no-interest{display:block}`,
-        id
+        id,
       );
       vid.classList.add("cu-no-interest-container");
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
@@ -3623,7 +3624,7 @@ function noInterestButton() {
         setTimeout(() => {
           // FOR SHORTS IT IS the 2nd to last one...
           const noInterestBtn = query(
-            "yt-list-item-view-model:nth-last-child(3)"
+            "yt-list-item-view-model:nth-last-child(3)",
           );
           if (noInterestBtn) noInterestBtn.click();
           document.body.classList.remove("cu-menu--hide");
@@ -3642,21 +3643,21 @@ function noInterestButton() {
     // .cu-no-interest-container:hover .cu-no-interest{display:block}
     // .cu-vidref-short .cu-no-interest{display:block}
   `,
-    "cu-no-interest"
+    "cu-no-interest",
   );
   repeatIfCondition(
     () => {
       _addNoInterestIcon();
     },
     allVideos,
-    { interval: 1000 }
+    { interval: 1000 },
   );
   const getPreviewEl = () => query("#video-preview");
   repeatUntilCondition(() => {
     const previewEl = getPreviewEl();
     previewEl.addEventListener("mouseleave", () => {
       const toRemove = Array.from(document.body.classList).filter((c) =>
-        c.includes("cu-hovered-container")
+        c.includes("cu-hovered-container"),
       );
       if (!toRemove.length) return;
       document.body.classList.remove(...toRemove);
@@ -3714,8 +3715,8 @@ function fixShowingDateByRemovingTextFromIcons(query) {
   query().forEach((e) => (e.innerText = ""));
   console.info(
     green(
-      "successfully removed texts from icons next to likes to fix youtube date disappearing"
-    )
+      "successfully removed texts from icons next to likes to fix youtube date disappearing",
+    ),
   );
 }
 
@@ -3814,7 +3815,7 @@ function addCustomCrunchyCss() {
       white-space: nowrap;
     }
   `,
-    "custom-crunchy-css"
+    "custom-crunchy-css",
   );
 }
 
@@ -3828,7 +3829,7 @@ function lm2adCSS() {
     `
     .ad-container { display: none !important }
   `,
-    "lm2"
+    "lm2",
   );
 }
 
@@ -3862,7 +3863,7 @@ function watchListColors() {
   const isOnWatchList = () => location.pathname.includes("watchlist");
   const isInLoadingState = () =>
     query('[class*="my-lists-item"] :nth-child(1)')?.className?.includes?.(
-      "loading"
+      "loading",
     );
   function fn() {
     // Fügt zu Watchlisteinträgen Bubbles hinzu
@@ -3870,7 +3871,7 @@ function watchListColors() {
     queryAll('[class*="my-lists-item"]:not(.cu-added-watch-status)').forEach(
       (card) => {
         const nameTag = card?.querySelector(
-          '[class*="watchlist-card-subtitle"]'
+          '[class*="watchlist-card-subtitle"]',
         );
         if (!nameTag) return;
         const isFortsetzen = [
@@ -3886,7 +3887,7 @@ function watchListColors() {
         const isErneut =
           !isFortsetzen &&
           ["erneut", "again"].some((v) =>
-            nameTag.textContent.toLowerCase().includes(v)
+            nameTag.textContent.toLowerCase().includes(v),
           );
         if (isErneut) {
           nameTag.textContent = "🟡" + nameTag.textContent;
@@ -3896,7 +3897,7 @@ function watchListColors() {
           if (newTag) newTag.style.display = hideNewTag ? "none" : "unset";
         }
         card.classList.add("cu-added-watch-status");
-      }
+      },
     );
   }
   repeatIfCondition(fn, () => isOnWatchList() && !isInLoadingState(), {
@@ -3910,7 +3911,7 @@ function cr_dubMethod() {
   const dubEl = isOverview
     ? cr_getDubTagsEl()
     : query(
-        '[data-t="detail-row-audio-language"] [data-t="details-table-description"]'
+        '[data-t="detail-row-audio-language"] [data-t="details-table-description"]',
       );
   if (!dubEl) return;
   metaTagsEl.classList.add("cu-dub-added");
@@ -3924,7 +3925,7 @@ function cr_dubMethod() {
     highlightLang.forEach((lang) => {
       dubHTML = dubHTML.replace(
         lang,
-        '<b style="color:orange">' + lang + "</b>"
+        '<b style="color:orange">' + lang + "</b>",
       );
     });
   }
@@ -3933,7 +3934,7 @@ function cr_dubMethod() {
 function cr_getDubTagsEl() {
   if (location.href.includes("/series/")) {
     return query(
-      '[data-t="detail-row-audio-language"] [data-t="details-item-description"]'
+      '[data-t="detail-row-audio-language"] [data-t="details-item-description"]',
     );
   }
   return query('[data-t="meta-tags"] > :nth-child(2)');
@@ -3964,7 +3965,7 @@ function cr_showDub() {
       if (isUrlDiff) window.urlChanged = true;
     },
     () => true,
-    { interval: 500 }
+    { interval: 500 },
   );
 }
 
@@ -3982,14 +3983,14 @@ function autoLogin() {
       const profiles = queryAll(".erc-profile-item-wrapper");
       const userProfileChoice = getUserProfileChoice();
       const indexOfProfile = Array.from(profiles).findIndex(
-        (el) => el.textContent === userProfileChoice
+        (el) => el.textContent === userProfileChoice,
       );
       profiles[indexOfProfile]?.querySelector("button")?.click();
       pauseExecution = true;
       setTimeout(() => (pauseExecution = false), 1000);
     },
     () => isOnProfileSelection() && featureEnabled() && !pauseExecution,
-    { pauseInBg: false }
+    { pauseInBg: false },
   );
 }
 
@@ -4008,7 +4009,7 @@ function initKeyBindListener() {
       vid.click();
       const getNextButton = () =>
         query(
-          "#vilosControlsContainer > div > div > div:nth-child(2) > div:nth-child(3) > div > div:nth-child(3)"
+          "#vilosControlsContainer > div > div > div:nth-child(2) > div:nth-child(3) > div > div:nth-child(3)",
         );
       repeatUntilCondition(() => getNextButton().click(), getNextButton);
     }
@@ -4044,7 +4045,7 @@ function addCrunchySkipOptionListener() {
     .cu_skipIntroContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
     .cu_skipIntroContainer:hover { background-color: rgb(35,37,43); }
   `,
-    "addCrunchySkipOptionListener"
+    "addCrunchySkipOptionListener",
   );
   //  --- init Listener ---
   const getMenu = () => query("#velocity-settings-menu div");
@@ -4052,7 +4053,7 @@ function addCrunchySkipOptionListener() {
     () => {
       const menu = getMenu();
       const prevent = Array.from(menu.children).some((child) =>
-        child.classList.contains("cu_skipIntroContainer")
+        child.classList.contains("cu_skipIntroContainer"),
       );
       if (prevent) return;
       skipIntroInput.checked =
@@ -4060,7 +4061,7 @@ function addCrunchySkipOptionListener() {
       menu.insertBefore(skipIntroContainer, menu.firstElementChild);
     },
     getMenu,
-    { interval: 100 }
+    { interval: 100 },
   );
 }
 
@@ -4103,10 +4104,10 @@ function initPlaybackOptionListener() {
       _crunchyhook_setPlayerValue(
         userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures
           .playBackSpeed.value,
-        playBackInput
+        playBackInput,
       ),
     incorrectPlaybackRate,
-    { pauseInBg: false, interval: 500 }
+    { pauseInBg: false, interval: 500 },
   );
   const playBackContainer = create("div", {
     className: "cu_playBackContainer",
@@ -4137,7 +4138,7 @@ function initPlaybackOptionListener() {
     .cu_playBackContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
     .cu_playBackContainer:hover { background-color: rgb(35,37,43); }
   `,
-    "initPlaybackOptionListener"
+    "initPlaybackOptionListener",
   );
 
   //  --- init Listener ---
@@ -4146,7 +4147,7 @@ function initPlaybackOptionListener() {
     () => {
       const menu = getMenu();
       const prevent = Array.from(menu.children).some((child) =>
-        child.classList.contains("cu_playBackContainer")
+        child.classList.contains("cu_playBackContainer"),
       );
       if (prevent) return;
       playBackInput.value =
@@ -4154,7 +4155,7 @@ function initPlaybackOptionListener() {
       menu.insertBefore(playBackContainer, menu.firstElementChild);
     },
     getMenu,
-    { interval: 100 }
+    { interval: 100 },
   );
 }
 
@@ -4189,7 +4190,7 @@ function startCrunchySkipInterval() {
     _crunchySkipInterval = repeatIfCondition(
       skipWithDelay,
       () => getSkipBtn() && !initSkip,
-      { autoplay: false, pauseInBg: false }
+      { autoplay: false, pauseInBg: false },
     );
   }
   _crunchySkipInterval.play();
@@ -4220,7 +4221,7 @@ function fixImages() {
       overflow: auto;
     }
   `,
-    "fixImages"
+    "fixImages",
   );
 }
 
@@ -4238,7 +4239,7 @@ function fixTwitch() {
 function linkPrimeGaming() {
   const popover = () =>
     byId("PrimeOfferPopover-header")?.parentElement.querySelector(
-      '[aria-label="Prime Gaming Logo"]:not(.cu-link-added)'
+      '[aria-label="Prime Gaming Logo"]:not(.cu-link-added)',
     );
   repeatIfCondition(
     () => {
@@ -4247,14 +4248,14 @@ function linkPrimeGaming() {
       el.onclick = () => window.open("https://gaming.amazon.com/home");
     },
     () => popover(),
-    { pauseInBg: false, interval: 1000 }
+    { pauseInBg: false, interval: 1000 },
   );
 }
 
 function styleAdjustTwitch() {
   insertCSS(
     '.chat-shell__expanded [direction="top-right"] { bottom: 0 !important }',
-    "styleAdjustTwitch"
+    "styleAdjustTwitch",
   );
 }
 // Hotkeys:
@@ -4324,7 +4325,7 @@ function addPokemonRewardHotkeys() {
 const retryPRLabel = () => setTimeout(addPokemonRewardLabel, 2000);
 function addPokemonRewardLabel() {
   const channelPointRewardBtn = query(
-    '[data-test-selector="community-points-summary"] button'
+    '[data-test-selector="community-points-summary"] button',
   );
   if (channelPointRewardBtn) {
     const _listener = () =>
@@ -4350,7 +4351,7 @@ function addPokemonRewardLabel() {
             <li><u>num9</u> - throw 1</li>
           </ul>
         </div>
-      `
+      `,
         );
       }, 200);
     channelPointRewardBtn.addEventListener("click", _listener);
@@ -4368,7 +4369,7 @@ function getPokeballRewardBtn() {
 
 function clickPokeballReward() {
   const channelPointRewardBtn = query(
-    '[data-test-selector="community-points-summary"] button'
+    '[data-test-selector="community-points-summary"] button',
   );
   if (keyMap.executionCounter <= 0 || !channelPointRewardBtn)
     return resetPokeballReward();
@@ -4380,7 +4381,7 @@ function clickPokeballReward() {
     pokeballBtn.click();
     setTimeout(() => {
       const redeemRewardBtn = query(
-        "#channel-points-reward-center-body button"
+        "#channel-points-reward-center-body button",
       );
       if (keyMap.executionCounter <= 0 || !redeemRewardBtn)
         return resetPokeballReward();
@@ -4407,7 +4408,7 @@ function adBlockTwitch() {
     if (!videoEl) return;
     videoEl.classList.remove("video-player__container--resize-calc");
     videoEl.firstElementChild.classList.remove(
-      "video-player--stream-display-ad"
+      "video-player--stream-display-ad",
     );
   };
   new Interval(_adBlockTwitch, 300).play();
@@ -4424,7 +4425,7 @@ function applyPrimeRewardOptionsStyles() {
       bottom: -50px !important;
     }
   `,
-    "channel-point-popup"
+    "channel-point-popup",
   );
 }
 
@@ -4453,7 +4454,7 @@ function addRemoveAllNonGamesButton(el) {
   if (!el) return;
   const div = document.createElement("div");
   const [btn, btn2, btn3, btn4] = Array.from({ length: 4 }, () =>
-    document.createElement("button")
+    document.createElement("button"),
   );
   btn.onclick = removeAllGames;
   btn2.onclick = removeAllNonGames;
@@ -4491,7 +4492,7 @@ function addRemoveAllNonGamesButton(el) {
     }
   `,
     "addRemoveAllNonGamesButton",
-    true
+    true,
   );
 }
 function getAllPrimeRewardContainers() {
@@ -4522,7 +4523,7 @@ function _twitch_claimGame() {
 }
 function removeAllNonGames() {
   getAllPrimeReward_Buttons_NonGames().forEach((el) =>
-    _prime_reward_remove(el)
+    _prime_reward_remove(el),
   );
   setTimeout(() => {
     const all = getAllPrimeReward_Buttons_NonGames();
@@ -4531,7 +4532,7 @@ function removeAllNonGames() {
 }
 function removeAllGames() {
   getAllPrimeReward_Container_all_games().forEach((el) =>
-    _prime_reward_remove(el)
+    _prime_reward_remove(el),
   );
   setTimeout(() => {
     const all = getAllPrimeReward_Container_all_games();
@@ -4540,7 +4541,7 @@ function removeAllGames() {
 }
 function removeAllClaimed() {
   getAllPrimeRewardContainer_claimed().forEach((el) =>
-    _prime_reward_remove(el)
+    _prime_reward_remove(el),
   );
   setTimeout(() => {
     const all = getAllPrimeRewardContainer_claimed();
@@ -4576,7 +4577,7 @@ function adjustEmotePickerDimensions() {
         myOpt.x * 10
       }"></span>
     </div>
-    `
+    `,
     );
     setTimeout(() => {
       const settingsEl = settingEl();
@@ -4640,7 +4641,7 @@ function setEmotePopupCSS(opt) {
     }
   `,
     "emote-popup",
-    true
+    true,
   );
 }
 
@@ -4658,7 +4659,9 @@ function collectViewBonusPointsAutomatically() {
     if (btn) {
       const stamp = new Date();
       console.info(
-        green("Points collected!" + reset(` (time: ${stamp.toLocaleString()})`))
+        green(
+          "Points collected!" + reset(` (time: ${stamp.toLocaleString()})`),
+        ),
       );
       viewBonusStats.history.push(stamp);
       btn.click();
@@ -4721,8 +4724,8 @@ function fextralifeRemoveTwitchPlayer() {
   const wrapper = byId("wrapper");
   const sidebar = byId("sidebar-wrapper");
 
-  wrapper.style.paddingLeft = "5px";
-  sidebar.remove();
+  if (wrapper) wrapper.style.paddingLeft = "5px";
+  sidebar?.remove();
 }
 function fextralifeSortAlphabetically() {
   ascending = !ascending;
@@ -4742,7 +4745,7 @@ function fextralifeSortAlphabetically() {
       : textB.charCodeAt() - textA.charCodeAt();
   });
   const aTags = Array.from({ length: original.length }, (_, i) =>
-    Array.from({ length: original[i].length }, () => null)
+    Array.from({ length: original[i].length }, () => null),
   );
   let k = 0;
   for (let i = 0; i < original.length; i++) {

@@ -1593,9 +1593,11 @@ function fixGoogleMaps() {
     if (Number.isInteger(timer_match)) openMapsChallenge(timer_match);
   }
 
+  const getTitleCard = () => query('[role="navigation"]');
   const condition = () =>
     location.href.includes("google.com/maps/") &&
-    byId("titlecard")?.classList?.contains("cu-map-fix") === false;
+    getTitleCard() &&
+    getTitleCard().classList.contains("cu-map-fix") === false;
   // wait for shareBtn to add it to the styles
   const getShareBtn = () =>
     [...document.querySelectorAll("[jsaction]")].filter((el) =>
@@ -1615,35 +1617,43 @@ function fixGoogleMaps() {
   }, getShareBtn);
   insertCSS(
     `
-    body.cu-maps-hide-els .scene-footer-container,
+    body.cu-maps-hide-els [role="navigation"]>div>*:not(:first-child),
     body.cu-maps-hide-els [role="search"],
-    body.cu-maps-hide-els #zoom,
-    body.cu-maps-hide-els #minimap,
-    body.cu-maps-hide-els #titlecard [role="navigation"]>div>*:not(:first-child),
-    body.cu-maps-hide-els #searchbox,
-    body.cu-maps-hide-els [aria-label="Share"],
-    body.cu-maps-hide-els [aria-label="Close"],
-    body.cu-maps-hide-els #runway-expand-button,
-    body.cu-maps-hide-els #watermark { display: none !important }
+    body.cu-maps-hide-els div:has(>div[role="contentinfo"]),
+    body.cu-maps-hide-els div:has(>div[role="presentation"]) { display: none !important }
   `,
     "cu-maps-hide-els-style",
     true,
   );
+  /*
+    body.cu-maps-hide-els .scene-footer-container,
+    body.cu-maps-hide-els #zoom,
+    body.cu-maps-hide-els #minimap,
+    body.cu-maps-hide-els #searchbox,
+    body.cu-maps-hide-els [aria-label="Share"],
+    body.cu-maps-hide-els [aria-label="Close"],
+    body.cu-maps-hide-els #runway-expand-button,
+    body.cu-maps-hide-els #watermark,
+   */
   function toggleVisibility(hide = true) {
     if (hide) document.body.classList.add("cu-maps-hide-els");
     else document.body.classList.remove("cu-maps-hide-els");
   }
+  let alreadyHere = false;
   const fn = () => {
+    if (!getTitleCard() || alreadyHere) return;
+    alreadyHere = true;
     // mark as fixed
-    byId("titlecard")?.classList?.add("cu-map-fix");
+    getTitleCard().classList.add("cu-map-fix");
     toggleVisibility();
 
     repeatUntilCondition(
       () => {
+        if (!getTitleCard()) return;
         const searchBox = query('[role="search"]');
         const { right } = searchBox.getBoundingClientRect();
         // select x button (top right), clone it and use it as a toggle ui button
-        byId("titlecard").insertAdjacentHTML(
+        getTitleCard().insertAdjacentHTML(
           "beforebegin",
           '<div id="cu-ui-toggle">toggle extra ui</div>',
         );
@@ -4780,7 +4790,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.2.1",
+  version: "1.2.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

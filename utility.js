@@ -877,13 +877,16 @@ function websiteSelector() {
     new Matcher("chess.com", fixChessDotCom),
     new Matcher("wiki.fextralife.com", fixFextralife, true),
     new Matcher("twitch.tv", fixTwitch, true),
-    new Matcher(
-      "static.crunchyroll.com",
-      crunchyrolliFrameHook,
-      false,
-      "crunchyHook",
-      true,
-    ),
+
+    // CRUNCHYROLL REMOVED IFRAME
+
+    // new Matcher(
+    //   "static.crunchyroll.com",
+    //   crunchyrolliFrameHook,
+    //   false,
+    //   "crunchyHook",
+    //   true,
+    // ),
     new Matcher("crunchyroll.com", fixCrunchyroll, true),
     new Matcher("defenestration.co/pg/surveying", fixPGSurveyHelper),
     new Matcher("youtube.com", fixYoutube),
@@ -2088,8 +2091,10 @@ function infoDailyPuzzle() {
         const timeDiff = (dh !== 0 ? dh + "h " : "") + dm + "m " + ds + "s";
         if (dh === 0 && dm === 0 && ds === 0) {
           const dailyWrapper = query(".daily-puzzle-streak-wrapper");
-          if (dailyWrapper)
+          if (dailyWrapper) {
             dailyWrapper.insertAdjacentHTML("afterbegin", dailyPuzzleBtnHTML);
+            targetEl.classList.remove("cu-daily-cd-added");
+          }
           clearInterval(interval);
           return;
         }
@@ -2846,7 +2851,8 @@ function fixAmazon() {
   });
 
   // feature add a button for playbackRate
-  addPlayBackRateButton();
+  _init_set_video_rate_repeater__generic();
+  // addPlayBackRateButton();
 
   // feature: remove xray when mouse leaves window immidiatly (no fade-out animation or delay)
   immidiatlyRemoveUiWhenLeavingMouse();
@@ -2991,11 +2997,12 @@ function updateAmznVideoPlayrate(val) {
 }
 
 function addPlayBackRateButton() {
+  const getVideoActionsContainer = () => query(
+      "#dv-web-player-2 > div > div.atvwebplayersdk-player-container > div > div > div > div > div > div:nth-child(2) > div > div:nth-child(2) > div",
+    ) ?? query('#dv-web-player > div > div.atvwebplayersdk-player-container > div > div > div > div > div > div:nth-child(2) > div > div:nth-child(2) > div');
   const amazonVideoPlaying = () => query(".dv-player-fullscreen");
   const _addPlayBackRateButton = () => {
-    const container = query(
-      ".atvwebplayersdk-hideabletopbuttons-container div",
-    );
+    const container = getVideoActionsContainer();
     const div = create("div", { className: "cu-playback-rate cu-el" });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
         <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -3060,11 +3067,8 @@ function addPlayBackRateButton() {
     container.prepend(div, playbackSettings);
   };
   const checkIfNeedToAddIcon = () => {
-    if (
-      query(".atvwebplayersdk-hideabletopbuttons-container .cu-playback-rate")
-    )
-      return;
-    if (!query(".atvwebplayersdk-hideabletopbuttons-container")) return;
+    if (getVideoActionsContainer()?.querySelector(".cu-playback-rate")) return;
+    if (!getVideoActionsContainer()) return;
     _addPlayBackRateButton();
   };
   // repeat until there is a video, then check if the element already has the playback button added
@@ -3851,7 +3855,11 @@ function fixCrunchyroll() {
   cr_showDub();
   watchListColors();
   removeNotificationBubbleOnClick();
+
+  // SINCE IFRAME IS REMOVED AND VIDEO IS NOW INTEGRATED -->
+  _init_set_video_rate_repeater__generic();
 }
+
 
 function removeNotificationBubbleOnClick() {
   const fn = () => {
@@ -4005,10 +4013,12 @@ function autoLogin() {
 }
 
 function crunchyrolliFrameHook() {
-  addCrunchySkipOptionListener();
-  startCrunchySkipInterval();
-  initPlaybackOptionListener();
-  initKeyBindListener();
+  // addCrunchySkipOptionListener();
+  // startCrunchySkipInterval();
+  // initPlaybackOptionListener();
+  // initKeyBindListener();
+
+  // CRUNCHYROLL REMOVED IFRAME
 }
 
 function initKeyBindListener() {
@@ -4790,7 +4800,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.2.2",
+  version: "1.3.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -4989,6 +4999,25 @@ let userOptions = {
   },
   amazon: {
     actionBarShowCondition: "amazonshowCondition",
+    // featurePlayBackSpeed: {
+    //   featureName: "PlayBackSpeed",
+    //   featureDescription: "this feature will set the speed for video playback",
+    //   isEnabled: {
+    //     value: true,
+    //     label: "PlayBackSpeed",
+    //     description: "set your desired PlayBackSpeed",
+    //     toggle: enable_amazon_playback_option,
+    //     subFeatures: {
+    //       playBackSpeed: {
+    //         value: 1,
+    //         min: 0.2,
+    //         max: 5,
+    //         step: 0.1,
+    //         toggle: (e, input) => _amazon_adjustVal(e, input),
+    //       },
+    //     },
+    //   },
+    // },
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",
@@ -4996,14 +5025,14 @@ let userOptions = {
         value: true,
         label: "PlayBackSpeed",
         description: "set your desired PlayBackSpeed",
-        toggle: enable_amazon_playback_option,
+        toggle: enable_playback_option__generic,
         subFeatures: {
           playBackSpeed: {
             value: 1,
             min: 0.2,
             max: 5,
             step: 0.1,
-            toggle: (e, input) => _amazon_adjustVal(e, input),
+            toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },
       },
@@ -5105,11 +5134,11 @@ let userOptions = {
     },
   },
   crunchyroll: {
-    featurePlayBackSpeed: {
-      featureName: "PlayBackSpeed",
-      featureDescription:
-        "this feature allows you to set the playbackrate for videos. Select your desired speed in the video player settings (⚙️).",
-    },
+    // featurePlayBackSpeed: {
+    //   featureName: "PlayBackSpeed",
+    //   featureDescription:
+    //     "this feature allows you to set the playbackrate for videos. Select your desired speed in the video player settings (⚙️).",
+    // },
     featureHotkeys: {
       featureName: "Hotkeys",
       featureDescription:
@@ -5132,6 +5161,25 @@ let userOptions = {
           profilename: {
             label: "Profilename",
             value: "",
+          },
+        },
+      },
+    },
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },
       },

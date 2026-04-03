@@ -1150,6 +1150,13 @@ function _init_set_video_rate_repeater__generic() {
       const hasVideosAtDifferentRate = !videoEls.every(
         (video) => video.playbackRate === getUserRate(),
       );
+      if (allowed) {
+        // add class
+        document.body.classList.add("cu-generic-playbackrate-allowed");
+      } else {
+        // remove class
+        document.body.classList.remove("cu-generic-playbackrate-allowed");
+      }
       return allowed && hasVideosAtDifferentRate;
     },
     { pauseInBg: false, interval: 1000 },
@@ -3813,6 +3820,9 @@ function addCustomCrunchyCss() {
   // copied from: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/kbd
   insertCSS(
     `
+    .cu-generic-playbackrate-allowed [aria-label="Playback Speed Menu"] {
+      display: none !important;
+    }
     kbd {
       background-color: #eee;
       border-radius: 3px;

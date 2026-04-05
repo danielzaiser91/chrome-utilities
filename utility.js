@@ -3905,10 +3905,13 @@ function fixCrunchyroll() {
 }
 
 function _init_skip_opening_listener() {
+  const getBtnWithText = (s = []) => {
+    return [...document.querySelectorAll('#player-container button')].filter(el => s.some(match => el.textContent?.toLowerCase()?.includes(match)))?.[0];
+  }
   generic__activateAutoSkip({
-    getSkipCreditsBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('credits'))?.[0]; },
-    getSkipRecapBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('recap'))?.[0]; },
-    getSkipOpeningBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('opening'))?.[0]; },
+    getSkipCreditsBtn: () => { return getBtnWithText(['credits']); },
+    getSkipRecapBtn: () => { return getBtnWithText(['recap']); },
+    getSkipOpeningBtn: () => { return getBtnWithText(['opening', 'intro']); },
   });
 }
 
@@ -3945,6 +3948,7 @@ function watchListColors() {
         if (!nameTag) return;
         const isFortsetzen = [
           "fortsetzen",
+          "jetzt anschauen",
           "continue",
           "als nächstes",
           "up next",

@@ -532,6 +532,7 @@ function prepareActionBar() {
       height: fit-content;
       padding: 50px;
       background: #fff;
+      max-height: 100%;
     }
     .cu-settings-container h3, .cu-settings-container p {
       font-size: 30px;
@@ -2288,6 +2289,38 @@ function toggleAutoSkipDP() {
   dpAutoSkip?.isPlaying ? dpAutoSkip.pause() : dpAutoSkip.play();
 }
 
+/** @type {Interval} */
+let generic__AutoSkip;
+const generic__CheckAndClick = (condition, btn) => (condition ? btn?.click() : null);
+function generic__activateAutoSkip(options = { getSkipNextBtn: () => {}, getSkipOpeningBtn: () => {}, getSkipRecapBtn: () => {}, getSkipCreditsBtn: () => {} }) {
+  generic__AutoSkip = repeatIfCondition(
+    () => {
+      const { skipNext, skipRecaps, skipOpenings, skipCredits } = getSiteOptions().featureAutoSkip.isEnabled.subFeatures;
+      if (isAllowed(skipNext)) {
+        options?.getSkipNextBtn?.()?.click();
+      }
+      if (isAllowed(skipOpenings)) {
+        options?.getSkipOpeningBtn?.()?.click();
+      }
+      if (isAllowed(skipRecaps)) {
+        options?.getSkipRecapBtn?.()?.click();
+      }
+      if (isAllowed(skipCredits)) {
+        options?.getSkipCreditsBtn?.()?.click();
+      }
+    },
+    () => isAllowed(getSiteOptions().featureAutoSkip.isEnabled),
+    {
+      pauseInBg: false,
+      autoplay: isAllowed(getSiteOptions().featureAutoSkip.isEnabled),
+    },
+  );
+}
+
+function generic__toggleAutoSkip() {
+  generic__AutoSkip?.isPlaying ? generic__AutoSkip.pause() : generic__AutoSkip.play();
+}
+
 let _disneyautoLoginListener;
 function toggleDisneyAutoLoginListener() {
   !_disneyautoLoginListener.isPlaying
@@ -3867,9 +3900,17 @@ function fixCrunchyroll() {
   removeNotificationBubbleOnClick();
 
   // SINCE IFRAME IS REMOVED AND VIDEO IS NOW INTEGRATED -->
-  _init_set_video_rate_repeater__generic();
+  _init_set_video_rate_repeater__generic(); // playbackrate
+  _init_skip_opening_listener(); // skip opening
 }
 
+function _init_skip_opening_listener() {
+  generic__activateAutoSkip({
+    getSkipCreditsBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('credits'))?.[0]; },
+    getSkipRecapBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('recap'))?.[0]; },
+    getSkipOpeningBtn: () => { return [...document.querySelectorAll('#player-container button')].filter(el => el.textContent?.toLowerCase()?.includes('opening'))?.[0]; },
+  });
+}
 
 function removeNotificationBubbleOnClick() {
   const fn = () => {
@@ -4707,7 +4748,7 @@ function fixFextralife() {
 }
 
 function isAllowed(opt) {
-  return opt.value && !opt.disabled;
+  return opt?.value && !opt?.disabled;
 }
 // buggy... need to make independent of 4 cell per row
 function fextraLifeAddSortIcon() {
@@ -4810,7 +4851,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.3.0",
+  version: "1.3.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -5156,8 +5197,31 @@ let userOptions = {
     },
     featureAutoSkip: {
       featureName: "AutoSkip",
-      featureDescription:
-        'automatically clicks the "skip intro" button for you. Activate it in the video player settings (⚙️).',
+      featureDescription: "automatically clicks the skip button for you. (intro/recap/opening/credits)",
+      isEnabled: {
+        value: false,
+        label: "Activate",
+        description: "turn skipping on or off",
+        toggle: generic__toggleAutoSkip,
+        subFeatures: {
+          skipRecaps: {
+            value: true,
+            label: "Recaps",
+            description: "will click the \"skip Recap\" at the beginning of Videos",
+          },
+          skipCredits: {
+            value: true,
+            label: "Credits",
+            description: "will click the \"skip credits\" button for you",
+          },
+          skipOpenings: {
+            value: false,
+            label: "Openings",
+            description:
+              "will click the \"skip opening\" button for you",
+          },
+        },
+      },
     },
     featureAutoLogin: {
       featureName: "AutoLogin",

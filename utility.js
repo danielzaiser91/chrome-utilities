@@ -370,7 +370,7 @@ function prepareActionBar() {
   // TODO: Add settings button with dropdown or overlay for setting custom userOptions
   const site = getSiteName();
   if (!document.body || !userOptions[site]) return;
-  document.body.addEventListener("mousemove", () => {
+  const settingsHoverFn = () => {
     mouseOver = true;
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
@@ -380,7 +380,8 @@ function prepareActionBar() {
       if (isVisible) return;
       mouseOver = false;
     }, 2200);
-  });
+  };
+  window.addEventListener("mousemove", settingsHoverFn);
   document.body.insertAdjacentHTML(
     "afterbegin",
     `
@@ -811,6 +812,7 @@ function intervalHandler() {
   window.addEventListener("beforeunload", whenLeavingTab, { capture: true });
   document.addEventListener("mouseleave", whenMouseLeavesWindow);
   window.addEventListener("focus", whenFocusingTab);
+  document.body.addEventListener('mouseenter', () => whenFocusingTab);
 }
 function whenMouseLeavesWindow() {
   console.info(red("Mouse is Leaving Browser-Window"));
@@ -3562,6 +3564,7 @@ function initYTCSS() {
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }
+    yt-overlay-sticker { display: none !important }
   `,
     "yt-anti-ad",
   );
@@ -4845,7 +4848,8 @@ function info(val) {
 function amazonshowCondition() {
   return (
     location.href.includes("gp/video") ||
-    location.host.includes("primevideo.com")
+    location.host.includes("primevideo.com") ||
+    !!query('#dv-web-player.dv-player-fullscreen')
   );
 }
 
@@ -4855,7 +4859,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.3.1",
+  version: "1.3.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

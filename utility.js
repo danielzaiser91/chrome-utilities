@@ -741,70 +741,72 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
 }
 
 function loadUserSettings() {
-  let opt = window.localStorage.getItem("Chrome:Utility:userOptions");
-  if (!opt) return;
-  opt = JSON.parse(opt);
-  if (opt.version !== userOptions.version) {
-    /**
-     * TODO: Toastr message to inform user about new version and changes
-     */
-    /**
-     * TODO: Apply values of saved options when new version is used
-     * cant use Object.assign, since it will overwrite userOptions with opt strings and values,
-     * while i may want to change them, so i should implement it so it only copies the "value" field
-     */
+  const site = matcher?.site?.toLowerCase();
+  if (!site || !userOptions[site]) return;
 
-    window.localStorage.removeItem("Chrome:Utility:userOptions");
-    const isDefined = (val) => val !== undefined;
-    const site = matcher?.site?.toLowerCase();
-    if (!site) return;
-    const siteOptions = opt[site];
-    if (!siteOptions || !userOptions[site]) return;
-    const keys = Object.keys(opt[site]);
-    Object.keys(userOptions[site]).forEach((keyF) => {
-      if (!keys.includes(keyF) || !userOptions[site][keyF]) return;
-      const featureKeys = Object.keys(opt[site][keyF]);
-      Object.keys(userOptions[site][keyF]).forEach((keyFF) => {
-        if (!featureKeys.includes(keyFF)) return;
-        if (
-          isDefined(opt[site][keyF][keyFF].value) &&
-          isDefined(userOptions[site][keyF][keyFF].value)
-        ) {
-          userOptions[site][keyF][keyFF].value = opt[site][keyF][keyFF].value;
-        }
-        if (
-          opt[site][keyF][keyFF].subFeatures &&
-          userOptions[site][keyF][keyFF].subFeatures
-        ) {
-          const subFeatureKeys = Object.keys(
-            opt[site][keyF][keyFF].subFeatures,
-          );
-          Object.keys(userOptions[site][keyF][keyFF].subFeatures).forEach(
-            (keyFFF) => {
-              if (!subFeatureKeys.includes(keyFFF)) return;
-              if (
-                isDefined(
-                  userOptions[site][keyF][keyFF].subFeatures[keyFFF].value,
-                ) &&
-                isDefined(opt[site][keyF][keyFF].subFeatures[keyFFF].value)
-              ) {
-                userOptions[site][keyF][keyFF].subFeatures[keyFFF].value =
-                  opt[site][keyF][keyFF].subFeatures[keyFFF].value;
-              }
-            },
-          );
-        }
-      });
-    });
-    return;
+  // One-time migration from old global key (stored all sites in one object)
+  const legacy = window.localStorage.getItem('Chrome:Utility:userOptions');
+  if (legacy) {
+    try {
+      const old = JSON.parse(legacy);
+      if (old[site]) _saveSiteValues(site, old[site], old.version);
+    } catch {}
+    window.localStorage.removeItem('Chrome:Utility:userOptions');
   }
-  Object.assign(userOptions, opt);
+
+  let stored;
+  try { stored = JSON.parse(window.localStorage.getItem('cu:opts')); } catch {}
+  if (!stored) return;
+
+  const { version, ...storedSite } = stored;
+  // Version mismatch: discard stored data but still try to recover values
+  if (version !== userOptions.version) window.localStorage.removeItem('cu:opts');
+
+  _mergeSiteValues(site, storedSite);
 }
+
+function _mergeSiteValues(site, storedSite) {
+  Object.keys(storedSite).forEach((featureKey) => {
+    const feature = userOptions[site]?.[featureKey];
+    if (!feature) return;
+    Object.keys(storedSite[featureKey]).forEach((propKey) => {
+      const stored = storedSite[featureKey][propKey];
+      const live = feature[propKey];
+      if (!live || stored?.value === undefined || live.value === undefined) return;
+      live.value = stored.value;
+      if (stored.subFeatures && live.subFeatures) {
+        Object.keys(stored.subFeatures).forEach((sk) => {
+          if (live.subFeatures[sk] !== undefined && stored.subFeatures[sk]?.value !== undefined)
+            live.subFeatures[sk].value = stored.subFeatures[sk].value;
+        });
+      }
+    });
+  });
+}
+
+function _saveSiteValues(site, siteOpts, version) {
+  const toSave = { version };
+  Object.entries(siteOpts).forEach(([fk, feature]) => {
+    if (!feature || typeof feature !== 'object') return;
+    toSave[fk] = {};
+    Object.entries(feature).forEach(([pk, prop]) => {
+      if (!prop || typeof prop !== 'object' || prop.value === undefined) return;
+      toSave[fk][pk] = { value: prop.value };
+      if (prop.subFeatures) {
+        toSave[fk][pk].subFeatures = {};
+        Object.entries(prop.subFeatures).forEach(([sk, sub]) => {
+          if (sub?.value !== undefined) toSave[fk][pk].subFeatures[sk] = { value: sub.value };
+        });
+      }
+    });
+  });
+  window.localStorage.setItem('cu:opts', JSON.stringify(toSave));
+}
+
 function saveUserSettings() {
-  window.localStorage.setItem(
-    "Chrome:Utility:userOptions",
-    JSON.stringify(userOptions),
-  );
+  const site = matcher?.site?.toLowerCase();
+  if (!site || !userOptions[site]) return;
+  _saveSiteValues(site, userOptions[site], userOptions.version);
 }
 
 function intervalHandler() {

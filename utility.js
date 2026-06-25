@@ -3514,20 +3514,61 @@ function fixYoutube() {
 }
 
 function ytShortsDate() {
-  const condition = () =>
-    !!query(
-      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)",
-    );
-  repeatIfCondition(() => {
-    const targetContainer = query(
-      "ytd-shorts #metapanel .ytReelMetapanelViewModelHost:not(.cu-ytShorts-date-container)",
-    );
-    if (!targetContainer) return;
-    const dateCopy = query("#factoids > :last-child")?.cloneNode(true);
-    targetContainer.classList.add("cu-ytShorts-date-container");
-    if (!dateCopy) return;
-    targetContainer.insertAdjacentElement("afterbegin", dateCopy);
-  }, condition);
+  function getCurrentVideoId() {
+    return location.pathname.match(/^\/shorts\/([^/?]+)/)?.[1] ?? null;
+  }
+
+  function getDateFromScripts(videoId) {
+    for (const script of document.querySelectorAll('script:not([src])')) {
+      const text = script.textContent;
+      if (!text.includes('"publishDate"')) continue;
+      if (videoId && !text.includes(`"videoId":"${videoId}"`)) continue;
+      // Format: "publishDate":"2026-06-23T14:00:00-07:00" — capture only the date part
+      const match = text.match(/"publishDate":"(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  async function fetchDateForVideo(videoId) {
+    try {
+      const html = await (await fetch(`/shorts/${videoId}`)).text();
+      return html.match(/"publishDate":"(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+    } catch (e) { return null; }
+  }
+
+  async function tryInsertDate(allowFetch = false) {
+    if (!location.pathname.startsWith('/shorts/')) return;
+    const videoId = getCurrentVideoId();
+    let date = getDateFromScripts(videoId);
+    if (!date && allowFetch && videoId) date = await fetchDateForVideo(videoId);
+    if (date) _insertShortsDate(date);
+  }
+
+  tryInsertDate(false);
+  document.addEventListener('yt-navigate-finish', () => setTimeout(() => tryInsertDate(true), 200));
+}
+
+function _insertShortsDate(dateStr) {
+  const getContainer = () => query('.ytReelMetapanelViewModelHost');
+  repeatUntilCondition(() => {
+    const container = getContainer();
+    if (!container) return;
+    // For wider (1:1) Shorts, YouTube hides the metadata panel via CSS — force it visible
+    const wrapper = container.closest('.ytReelPlayerOverlayViewModelMetadataContainerRounded');
+    if (wrapper) {
+      wrapper.style.setProperty('display', 'flex', 'important');
+      wrapper.style.setProperty('opacity', '1', 'important');
+      wrapper.style.setProperty('visibility', 'visible', 'important');
+    }
+    const existing = container.querySelector('.cu-yt-shorts-date');
+    if (existing) existing.remove();
+    const formatted = new Date(dateStr).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+    });
+    const dateEl = create('div', { className: 'cu-yt-shorts-date', textContent: formatted });
+    container.insertAdjacentElement('beforeend', dateEl);
+  }, getContainer);
 }
 
 function initListenerForAdEnforcer() {
@@ -3565,6 +3606,22 @@ function initYTCSS() {
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }
     yt-overlay-sticker { display: none !important }
+    .cu-yt-shorts-date {
+      display: inline-block;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      font-family: Roboto, Arial, sans-serif;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 10px;
+      padding: 2px 8px;
+      margin-top: 6px;
+    }
+    .ytReelPlayerOverlayViewModelMetadataContainerRounded {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      max-height: none !important;
+    }
   `,
     "yt-anti-ad",
   );
@@ -5482,3 +5539,514 @@ const curbEnthusiasm = [
     "S11-E10-157453",
   ],
 ];
+
+
+/*
+  simple game concept of gaining xp up per sec, and leveling up:
+
+  let [level, level_req, exp, exp_gain, intervSpd] = [0, 2, 0, 200, 100];
+  setInterval(()=>{
+    const timeDiff = intervSpd / 1000;
+    exp+=exp_gain*timeDiff;
+    if(level_req <= exp) {
+        // LEVEL UP
+        level++;
+        level_req = 2**level;
+        console.log('leveled up! -- new Level:', level);
+    }
+  },intervSpd);
+
+
+----------------------------------------------------------------------------------------------------------
+  Spieldesign Philosophie:
+  Alle Dialoge des Spielers werden aus Ich-Perspektive erzählt.
+  Es gibt Entscheidungsfreiheit.
+  Aktionen haben Konsequenzen (positiv + negativ + neutral)
+  roter Faden: vom Bauern zum Erzmagier
+----------------------------------------------------------------------------------------------------------
+  Mechanics je Kapitel:
+  1. Gold
+  incremented skill: Gold (or wealth?...)
+  Mechanics: Time, Hunger, Thirst, Energy-Level
+  Gameplay Loop: Arbeit (Zeit -> Geld)
+  Nutzen: Essen, Unterkunft, Kleidung, Waffen, Bezahlung (für Lehrer, Information, Gegenstände).
+  Navigation unlocks: World Map, City1 Map, Arbeits-Page, Necessities-Page (Unterkunft, Essen, Kleidung), Shop-Page (Waffenladen, Lehrer, Taverne (Information), Kramladen)
+  Goals: 1. Reach City 2. Fill Hunger,Thirst,Energy 3. 
+  Show locks for later: 1. Jobs requiring Strength 2. Weapon-Shop requires Adventure Guild Membership 3. Certain Amount of gold to unlock next Chapter.
+  Player needs gold for something, but then realises he is lacking strength, so next chapter unlocks... something like that? :think:
+  Something that requires lots of gold, multiple minutes of idle time, and will reset all incremental stats from this chapter, but in exchange gain +1 of incremental stat of next chapter
+  so maybe need gold to buy +1 str? hm doesnt make sense, need something else maybe that could be turned into +1 str... 
+  need to think of something that makes logical sense, and would explain the gameplay loop of having to farm for next incremental ressource...
+----------------------------------------------------------------------------------------------------------
+  2. Stärke
+
+----------------------------------------------------------------------------------------------------------
+  Story:
+  1. Kapitel - Intro
+  Beschreibung:
+  1.1 Charakter-Erstellung
+  1.2 Hintergrund-Geschichte
+  1.2.1 Eltern Dialog?
+  1.2.2 Monolog?
+  1.3 Weg-Entscheidung (was will der Spieler später werden? - kleiner Bonus)
+  1.4 Weg in die Stadt
+  1.4.1 Wegereignis?
+  1.5 Ankunft Stadttor
+  1.5.1 Stadt-Wachen Dialog?
+
+
+
+
+
+
+
+CODE PROMPT #1 (Kapitel 1, 1. reset, gold -> str, story bis ausgeraubt und reset):
+----------------------------------------------------------------------------------------------------------
+Erstelle einen voll funktionsfähigen, lauffähigen Prototypen für ein textbasiertes RPG-Incremental-Game (Idle Game) als Single-Page-Application. Generiere sauberen, modular aufgebauten Code (HTML, CSS und JavaScript getrennt). 
+
+Das Spiel soll ein 3-Spalten-Layout nutzen und über ein numerisches State-System gesteuert werden.
+
+---
+
+1. ARCHITEKTUR & STORY-STATE (Das Fundament)
+- Verwende eine einzige globale Variable `storyState` (Typ: Integer, Startwert: 10100) zur Steuerung des Spielfortschritts.
+- Die Zahl ist wie folgt codiert: [Kapitel, 1-stellig][Unterkapitel, 2-stellig][Event-Schritt, 2-stellig] -> 10100 bedeutet: Kapitel 1, Unterkapitel 01, Schritt 00.
+- Alle UI-Elemente (Buttons, Navigationspunkte, Menüs) müssen dynamisch basierend auf dem aktuellen `storyState` ein- oder ausgeblendet werden (Nutze dafür eine CSS-Klasse `.hidden { display: none; }`). Wenn ein Spielstand geladen wird, muss sich das gesamte Spiel allein aus diesem `storyState` und den Ressourcen rekonstruieren lassen.
+
+2. LAYOUT (3-Spalten-System über die volle Bildschirmbreite, Darkmode)
+- Linke Spalte (Navigation): Zeigt immer nur EINE Menü-Ebene an. 
+  * Haupt-Ebene: Zeigt "World Map" und ganz unten permanent fixiert "Settings". 
+  * Klick auf "World Map" ERSETZT den Inhalt der linken Spalte komplett mit der Sub-Navigation: Zeigt einen Button "[ Zurück ]" (führt zur Haupt-Ebene) und den Button "Stadt 1".
+  * Klick auf "Stadt 1" ERSETZT den Inhalt wieder komplett mit der Sub-Sub-Navigation: Zeigt "[ Zurück ]" (führt zur Sub-Ebene) und die Buttons "Arbeitsplatz" und "Marktplatz".
+- Mittlere Spalte (Hauptinhalt & Story): 
+  * Oben: Ein permanenter Text-Log (Scrollbox), in dem untereinander die letzten Story-Ereignisse und Log-Meldungen ausgegeben werden.
+  * Unten: Der dynamische Inhaltsbereich, der sich je nach ausgewählter Navigation verändert (zeigt z.B. die Arbeits-Buttons oder Shop-Items).
+- Rechte Spalte (Stats): Zeigt permanent die aktuellen Charakter-Werte. Zu Beginn nur: "Gold: [X]".
+
+3. GAMEPLAY-LOOP & EVENTS FÜR DEN PROTOTYPEN
+Implementiere folgenden Ablauf, um das System zu testen:
+- Zustand 10100 (Start): Die Navigation "World Map" ist noch unsichtbar (Klasse .hidden). Im mittleren Inhaltsbereich steht ein Intro-Text ("Du erreichst die glänzenden Tore der Stadt...") und ein Button "Das Stadttor betreten". Klick darauf setzt `storyState = 10101` und triggert das UI-Update.
+- Zustand 10101: Die "World Map" in der linken Navigation wird jetzt sichtbar. Im Inhaltsbereich steht: "Die Wachen haben dich reingelassen. Sieh dich in der Stadt um."
+- Bereich "Arbeitsplatz" (In Stadt 1): Enthält einen Button "Auf dem Feld schuften". Beim Klick füllt sich ein sichtbarer Ladebalken (Progress Bar, ca. 2 Sekunden). Wenn voll: Spieler erhält +1 Gold. Ein Eintrag im Log erscheint.
+- Bereich "Marktplatz" (In Stadt 1): Ein Shop-Eintrag "Brot kaufen" (Kosten: 10 Gold). Zieht bei Klick 10 Gold ab (wenn vorhanden) und gibt eine Meldung im Log aus.
+- Event-Trigger (Meilenstein 10102): Sobald der Spieler das erste Mal INSGESAMT 10 Gold besitzt, springt der `storyState` automatisch auf 10102. Ein besonderes Event wird im Log ausgegeben ("Ein zwielichtiger Fremder beobachtet dich aus den Gassen..."), um zu beweisen, dass das State-System im Hintergrund reagiert.
+
+4. CODESTRENGE & FEATURES
+- UI-Updates: Schreibe eine zentrale `render()` Funktion im JS, die nach jeder Aktion aufgerufen wird, um die Sichtbarkeiten (.hidden), die Stats und die Progress-Bars zu aktualisieren.
+- Settings: Füge in der Settings-Page zwei einfache Buttons für "Spielstand speichern" und "Spielstand laden" via LocalStorage hinzu.
+- Design: Modernes, minimalistisches Darkmode-Design mit CSS-Flexbox/Grid. Angenehme Kontraste, klare Schriftzüge, saubere Abstände (Padding/Margin).
+
+----------------------------------------------------------------------------------------------------------
+*/
+
+
+/*
+SCRIPTS TO AUTOPLAY:
+*/
+// ----------------------------------------------------------------------------------------------------------------
+// 1. Shark Incremental --- https://mrredshark77.github.io/shark-incremental/
+// ----------------------------------------------------------------------------------------------------------------
+// clearInterval(window.__e);
+// window._styleTag = document.createElement("style"); window._styleTag.id = '_unique_';
+// document.querySelector('#_unique_')?.remove();
+// window._styleTag.textContent = `
+//     ._auto_btn { width: unset !important; position: absolute; top: 18px; }
+//     ._auto_btn_neighbor { height: 50px; position: relative; bottom: 8px; }
+// `;
+// document.head.appendChild(window._styleTag);
+// window.__accel_map = {};
+// Object.values(PARTICLE_ACCELERATOR).forEach((val,i)=> window.__accel_map[val.curr] = {...val,index:i});
+
+// window.__upgrades_unlocked = {};
+// window.__parse = text => Number.parseFloat(text?.replaceAll(',','').match(/\d+[\.,]*[\d+e]*/)?.[0]);
+// window.__numStringCompareGT = (a,b,mult = 1, e_num_mult = 1) => {
+//     e_num_mult-=1;
+//     if (!a || !b) return;
+//     const [numA, numB] = [window.__parse(a),window.__parse(b)];
+//     if (numA === Number.POSITIVE_INFINITY && numB === Number.POSITIVE_INFINITY) {
+//         // eNumber compare
+//         const [e_a, e_b] = [window.__parse(a?.replaceAll(',','').match(/(?<=e)\d+[\.,]*[\d+e]*/)?.[0]), window.__parse(b?.replaceAll(',','').match(/(?<=e)\d+[\.,]*[\d+e]*/)?.[0])];
+//         const numIsGreater = e_a > (e_b + e_num_mult);
+//         // console.log(['exceeded infinity, checking e numbers:', e_a, e_b, 'is it greater?', numIsGreater]);
+//         return numIsGreater;
+//     } else {
+//         // normal compare
+//         const numIsGreater = numA > (numB * mult);
+//         return numIsGreater;
+//     }
+// }
+// window.__isAutomated = (el) => el?.textContent.includes('/s');
+// window.__exec_after_x_sec = (sec, fn, params = []) => { setTimeout((() => fn(...params)).bind(this),sec * 1000); };
+// window.__is_automated = { ps:0, core:0, dm:0, transcend:0, reaction:0, rune:0, }; window.__allowExploration_Cycle = 1; window.__allowRad_Cycle = 1; window.__allowExploration_Cycle_ge = 1; window.__count = 0;
+// window.__el = {
+//     worth: document.querySelector('#worth-shark-button'),
+//     runeSacc: document.querySelector('#rune-sacrifice-status'),
+//     observe: document.querySelector('#observ-button'),
+//     bh: document.querySelector("#black-hole-button"),
+//     particles: [...document.querySelectorAll('#particle-accel-table > div')],
+//     coreBtn: document.querySelector('#curr-top-1-btn'),
+//     curr: { ps: document.querySelector('#curr-top-0-amt2'), core: document.querySelector('#curr-top-1-amt2'), dm: document.querySelector('#curr-top-3-amt2'), reservatories: document.querySelector('#curr-top-4-amt2'), trajectories: document.querySelector('#curr-top-5-amt2'), fp: document.querySelector('#curr-top-6-amt2'), transcend: document.querySelector('#curr-top-7-amt2'), reaction: document.querySelector('#curr-top-8-amt2'), rune: document.querySelector('#curr-top-9-amt2') },
+//     auto_toggle: {
+//         ps: { wrapper: document.querySelector('#curr-top-0-div'), btn: document.querySelector('#curr-top-0-div ._auto_btn'), },
+//         core: { wrapper: document.querySelector('#curr-top-1-div'), btn: document.querySelector('#curr-top-1-div ._auto_btn'), },
+//         dm: { wrapper: document.querySelector('#curr-top-3-div'), btn: document.querySelector('#curr-top-3-div ._auto_btn'), },
+//         transcend: { wrapper: document.querySelector('#curr-top-7-div'), btn: document.querySelector('#curr-top-7-div ._auto_btn'), },
+//         reaction: { wrapper: document.querySelector('#curr-top-8-div'), btn: document.querySelector('#curr-top-8-div ._auto_btn'), },
+//         rune: { wrapper: document.querySelector('#curr-top-9-div'), btn: document.querySelector('#curr-top-9-div ._auto_btn'), },
+//         fp: { wrapper: document.querySelector('#curr-top-6-div'), btn: document.querySelector('#curr-top-6-div ._auto_btn'), },
+//         rad: { neighbor: document.querySelector('#radioactive-div'), btn: document.querySelector('#radioactive-div~._auto_btn_neighbor'), },
+//         forge: { neighbor: document.querySelector('#forge-status'), btn: document.querySelector('#forge-status~._auto_btn_neighbor'), },
+//         ge: { neighbor: document.querySelector('#gal-explore-table'), btn: document.querySelector('#gal-explore-table~._auto_btn_neighbor'), },
+//         dna: { neighbor: document.querySelector('#dna-descirption'), btn: document.querySelector('#dna-descirption~._auto_btn_neighbor'), },
+//         mining: { wrapper: document.querySelector('div:has(>#mining-tier-btn)'), btn: document.querySelector('div:has(>#mining-tier-btn) .m_btn'), },
+//         research: { neighbor: document.querySelector('#research-all-btn'), btn: document.querySelector('#research-all-btn~._auto_btn_neighbor'), },
+//         exploration: { neighbor: document.querySelector('#next-explore'), btn: document.querySelector('#next-explore~._auto_btn_neighbor'), },
+//         automation: { neighbor: document.querySelector('#auto-table'), btn: document.querySelector('#auto-table~._auto_btn_neighbor'), },
+//     },
+// };
+// window.__e = setInterval(() => {
+//     try{
+//     // Checkers
+//         if ((window.__count % 10) === 0) window.__upgrades_unlocked = Object.fromEntries(player.rebirth.upgrades.map(e => [e,1]));
+//     // active Features / Automations
+//     if (!player.omni.active) {
+        
+//      // FORGE
+//         if (!player.humanoid.forge.queue && window.__automations.reset.forge && (window.__count % 2) === 0) {
+//             const ignoreBelowSec = 120;
+//             const forgeOptions = Object.entries(FORGE).map(
+//                 ([key,val])=> {
+//                 const takesTooLong = Decimal.div(FORGE[key].time[player.humanoid.forge.level[key]], tmp.forge_speed).gte(ignoreBelowSec);
+//                 return {
+//                     key, 
+//                     time: takesTooLong ? 0 : val.time[player.humanoid.forge.level[key]]
+//                 } 
+//             }).sort((a,b) => a.time-b.time).filter(a=>!!a.time)
+//             const chooseNextForge = forgeOptions.find(upg=>tmp.forge_affords[upg.key]);
+//             if (chooseNextForge && chooseNextForge !== -1) {
+//                 forge_tab = chooseNextForge.key;
+//                 doForge();
+//             }
+//         }
+//     // GLOBAL - Ressources Check on prestige --- saves the amounts you would get on prestige into a variable
+//         if ((window.__count % 1) === 0) window.__on_prestige = { core: window.__parse(window.__el.coreBtn?.textContent) }
+//     // GLOBAL - Ressource is automated checks
+//         if ((window.__count % 10) === 0) window.__is_automated.ps = window.__isAutomated(window.__el.curr.ps);
+//         if ((window.__count % 10) === 0) window.__is_automated.core = window.__isAutomated(window.__el.curr.core);
+//         if ((window.__count % 10) === 0) window.__is_automated.dm = window.__isAutomated(window.__el.curr.dm);
+//         if ((window.__count % 10) === 0) window.__is_automated.fp = window.__isAutomated(window.__el.curr.fp);
+//         if ((window.__count % 10) === 0) window.__is_automated.reservatories = window.__isAutomated(window.__el.curr.reservatories);
+//         if ((window.__count % 10) === 0) window.__is_automated.trajectories = window.__isAutomated(window.__el.curr.trajectories);
+//         if ((window.__count % 10) === 0) window.__fish_hashtag = document.querySelector('#fish-amount')?.textContent.includes('#'); // if fish hashtag constellation bugs?
+//     // 2.1 - Core - automated radiation
+//         if (window.__automations.reset.rad && !hasResearch('c15') && !player.core.radiation.active && player.core.reactor[0].gte(16) && CURRENCIES.core.amount.gt(1000) && window.__allowRad_Cycle) {
+//             const exploreDuration = 1;
+//             const secPauseBetweenExplore = 5;
+//             const toExplore = [0];
+//             let [start_exploring,finish_exploring] = [0,exploreDuration-0.1];
+//             window.__allowRad_Cycle = 0; window.__exec_after_x_sec((exploreDuration*(toExplore.length))+secPauseBetweenExplore, () => {
+//                 window.__allowRad_Cycle = 1;
+//             });
+//             toExplore.forEach((ocean,i) => { window.__exec_after_x_sec(start_exploring, () => CORE_RAD.experiment()); start_exploring+=exploreDuration;
+//                 window.__exec_after_x_sec(finish_exploring, () => {if(player.core.radiation.active)CORE_RAD.experiment()}); finish_exploring+=exploreDuration; });
+//         }
+//     // 1.2 - Exploration - automated ocean exploring
+//         if (window.__automations.reset.exploration && window.__allowExploration_Cycle && (player.research.e3.lt(4) || player.research.e5.neq(1))) {
+//             const exploreDuration = 2;
+//             const secPauseBetweenExplore = 5;
+//             const oceansToExplore = [0,1,2,3,4].slice(+player.research.e3.format());
+//             let [start_exploring,finish_exploring] = [0,exploreDuration-0.1];
+//             window.__allowExploration_Cycle = 0; window.__exec_after_x_sec((exploreDuration*(oceansToExplore.length))+secPauseBetweenExplore, () => {
+//                 if (!window.__upgrades_unlocked[5] && window.__automations.reset.core) doReset('core');
+//                 window.__allowExploration_Cycle = 1;
+//             });
+//             oceansToExplore.forEach((ocean,i) => {
+//                 window.__exec_after_x_sec(start_exploring, (_ocean) => enterExploration(_ocean), [ocean]); start_exploring+=exploreDuration;
+//                 window.__exec_after_x_sec(finish_exploring, (_ocean) => enterExploration(_ocean), [ocean]); finish_exploring+=exploreDuration; });
+//         }
+//     // 4.5 Galactic Exploration
+//         if (window.__automations.reset.ge && window.__allowExploration_Cycle_ge && player.research.h16.lt(1)) {
+//             const exploreDuration = 6;
+//             const secPauseBetweenExplore = 20; 
+//             const ignoreStellarOcean = player.singularity.bh_tier.lt(490);
+//             const ignoredOceans = [
+//                 player.shark_tier.gte(117) ? 0 : 1,
+//                 player.shark_tier.gte(128) ? 0 : 1,
+//                 player.shark_tier.gte(145) ? 0 : 1,,
+//                 player.singularity?.bh_tier?.gte(490) ? 0 : 1,
+//                 0,
+//                 0
+//             ]
+//             const oceansToExplore = GALACTIC_EXPLORE.filter((g,i)=> {
+//                 return !ignoredOceans[i] && player.shark_tier.gte(GALACTIC_EXPLORE[i].tier_req);
+//             });
+
+//             let [start_exploring,finish_exploring] = [0,exploreDuration-0.1];
+//             window.__allowExploration_Cycle_ge = 0; window.__exec_after_x_sec((exploreDuration*(oceansToExplore.length))+secPauseBetweenExplore, () => window.__allowExploration_Cycle_ge = 1);
+//             oceansToExplore.forEach((ocean,i) => {
+//                 window.__exec_after_x_sec(start_exploring, (_i) => {
+//                     if (player.research.h16.eq(1)) return;
+//                     enterGalacticExploration(_i);
+//                 }, [i]); start_exploring+=exploreDuration;
+//                 window.__exec_after_x_sec(finish_exploring, (_i) => {
+//                     if (player.research.h16.eq(1)) return;
+//                     enterGalacticExploration(_i);
+//                 }, [i]); finish_exploring+=exploreDuration; });
+//         }
+
+//         // Accelerators
+//         if (window.__automations.reset.accelerator && (window.__count % 2) === 0) {
+//             const notActive = player.humanoid.particle_accel.active === -1;
+//             if (notActive) {
+//                 const possPerc = [...PARTICLE_ACCELERATOR].map(b => ({ percent: +b.percent(CURRENCIES[b.curr].amount).max(0).min(1).format(), curr: b.curr, index: window.__accel_map[b.curr].index }));
+//                 const sortedArr = [...possPerc].sort((a,b) => b.percent-a.percent);
+//                 const index = sortedArr.find(e=>   {
+//                     const isUnlocked = e.index < player.humanoid.forge.level.wormhole+2;
+//                     const conditionA = e.percent > 0;
+//                     const conditionB = player.humanoid.particle_accel.percent[e.index].neq(1);
+//                     return isUnlocked && conditionA && conditionB;
+//                   })?.index;
+//                 if (index > -1) player.humanoid.particle_accel.active = index;
+//             }
+//         }
+//         // AUTO ASSEMBLER
+//         if ((window.__count % 2) === 0 && !tmp.placedACBuildings.every(x=>x===4)) {
+//             for(let i=0;i<16;i++) { purchaseCAMaxBuildings() }
+//             // placeCABuildling(0)
+//             // placeCABuildling(12)
+//             // ca_builder
+//             for (let x = 0; x < 16; x++) { ca_builder = Math.floor(x/4); placeCABuildling(x); }
+//             ca_builder = -1;
+//         }
+//         // AUTO expand DNA
+//         if (window.__automations.reset.dna && player.hadron.dna.lt(10000) && (window.__count % 2) === 0) {
+//             const dnaGain = DNA.length.minus(player.hadron.dna);
+//             const nextMilestone = DNA.milestones.find(d => new Decimal(d).gt(player.hadron.dna));
+//             let nextMilestoneIsReachable = false;
+//             if (nextMilestone != -1) nextMilestoneIsReachable = DNA.length.gte(nextMilestone);
+//             if (nextMilestoneIsReachable || dnaGain.divide(player.hadron.dna).times(100).gt(1)) DNA.expand(); // if dna gain is greater than 1% -> expand DNA
+//         }
+//     // GLOBAL - RESETS
+//         if (!window.__upgrades_unlocked[5] && window.__automations.reset.ps && !window.__is_automated.ps && (window.__count % 8) === 0) { doReset('prestige'); } // 1.0 Prestige Shards
+//         if (!window.__upgrades_unlocked[5] && (!window.__automations.reset.exploration || player.research.e3.eq(4)) && window.__automations.reset.core && !window.__is_automated.core && (window.__count % 8) === 0) doReset('core'); // 2.0 Core
+//         if (!window.__is_automated.dm) {
+//             const dm = document.querySelector('#curr-top-3-btn').textContent?.includes('Dark Matter') && window.__parse(document.querySelector('#curr-top-3-btn')?.textContent);
+//             const minAmountCondition = dm >= 1e12 || true; // disabled - always true
+//             if (window.__automations.reset.dm && minAmountCondition && (window.__count % 20) === 0) doReset('sacrifice'); // 4.2 Dark Matter Feature
+//             else if (!dm && (window.__count % 4) === 0) doReset('black-hole'); // 4.1 Black Hole Feature
+//         }
+//         if ((window.__count % 2) === 0 && window.__el.bh.checkVisibility() && !window.__el.bh.style.display) doReset('black-hole'); // 4.1 enter black hole automatically
+//         if ((window.__count % 4) === 0) EXPERIMENT_TIER.reset(); // 4.4 Experiment Tier Reset
+//         if (window.__automations.reset.fp && !window.__is_automated.fp && (window.__count % (window.__fp_timer ?? 20)) === 0) { doReset('hadron'); } // 4.4 Hadron Feature
+//         if (window.__automations.reset.reservatories && !window.__is_automated.reservatories && (window.__count % 6) === 0) { doReset('reserv'); } // 4.4 Reservatories Auto Reset
+//         if (window.__automations.reset.trajectories && !window.__is_automated.trajectories  && (window.__count % 20) === 0) { doReset('traject'); } // 4.4 Trajectories Feature
+//     // GLOBAL - Buy Upgrades
+//         if (window.__automations.reset.automation && (window.__count %10) === 0)['shark','su','spu','eu','core_reactor','core_radiation','radioactive_boosts','mining_upgs','humanoid','research','mining_tier','remnant','faith','sing_research','evolution_tree','rocket_part','mining_ascend','nucleobase','gal_eu','osu','ostu','ue','nucleus'].forEach(u => {
+//             buyAutomation(u);
+//             if (AUTOMATION[u].unl()) player.auto[u][1] = true;
+//         });
+
+//         if (window.__automations.upg.shark && (window.__count % 1) === 0) upgradeShark(); // 1.0 - shark itself
+//         if (window.__automations.upg.shark && (window.__count % 1) === 0) ['s1','s2','s3','p1','p2','p3'].forEach(n => buyMaxSharkUpgrade(n)); // 1.0 - Shark Upgrades
+//         if (window.__automations.upg.exploration && (window.__count % 1) === 0) [0,1,2,3].forEach(ocean => [0,1].forEach(p => buyExploreUpgrade(ocean,p))); // 1.2 - Exploration
+//         if (window.__automations.upg.core && (window.__count % 1) === 0) [0,1,2,3,4,5,6,7,8,9,10,11].forEach(upg => upgradeCoreReactor(upg)); // 2.0 Core
+//         if (window.__automations.upg.radiation && (window.__count % 1) === 0) { CORE_RAD.purchaseGeneration(); CORE_RAD.purchaseBoost(); } // 2.1 Radiation
+//         if (window.__automations.upg.mining && (window.__count % 1) === 0) ['m1','m2','m3','m4','m5','m6','m7','m8','m9'].forEach(upg => buyMaxSharkUpgrade(upg)); // 3.1 - Mining upgrades
+//         if (window.__automations.reset.mining && ores_grid[0] && (window.__count % 1) === 0) {// MINING 1
+//             // const a = ores_grid[0]?.health.divideBy(getMiningDamage().times(getMiningSpeed())).lt(1e-12);
+//             // const b = getMiningDamage().gt(ores_grid[0].health.times(new Decimal(10).pow(3).times(getMiningSpeed())));
+//             for (let i = 0; i<5; i++) {
+//             // Do it 5 times per loop, to increase mining faster
+//                 const c = getMiningDamage().times(getMiningSpeed()).gt(ores_grid[0].health.times(getMiningSpeed()));
+//                 const ableToBeatNextTier = c;
+//                 if (ableToBeatNextTier) MINING_TIER.upgrade(); // 3.1 Mining - MINING_TIER
+//             }
+//         }
+//         if (window.__automations.upg.shark_faith && (window.__count % 1) === 0) [0,1,2].forEach(upg => purchaseSharkoidFaith(upg)); // 3.0 EVOLUTION - Shark Faith Upgrades
+//         if (window.__automations.upg.remnants && (window.__count % 1) === 0) for (let i = 0;i<12;i++) { buyRemnantUpg(i); } // 4.0 Remnants Upgrades
+//         if (window.__automations.upg.spaceBase && (window.__count % 1) === 0) ['o1','o2','o3','o4','e1','e2','e5','r1','r2','r3','r4','t1','t2','t3','t4','t5','t6'].forEach(upg => buySpaceBaseUpg(upg)); // 4.3 Space Base Upgrades
+//         if (window.__automations.upg.rocketParts && (window.__count % 3) === 0) [0,1,2].forEach(upg => ROCKET_PARTS.buy(upg)); // Rocket Parts Auto-Buy
+//         if (window.__automations.upg.mining_asc && (window.__count % 1) === 0) MINING_TIER.ascend(); // 4.3 Mining Ascension
+//         if (!window.__fish_hashtag && window.__automations.upg.constellation && (window.__count % 1) === 0) CONSTELLATION.upgrade(); // 4.4 Constellation Upgrade
+//         if (window.__automations.upg.nucleo && (window.__count % 1) === 0) [0,1].forEach(nb => { // 5.1 Nucleobases
+//             buyNucleobaseUpgrade('guanine',nb);  buyNucleobaseUpgrade('cytosine',nb);  buyNucleobaseUpgrade('adenine',nb); buyNucleobaseUpgrade('thymine',nb); buyNucleobaseUpgrade('uracil',nb);
+//         });
+//         if ((window.__count % 1) === 0) [0,6,1,2,3,4,5,7].forEach(u=>buyStarterUpgrade(u));
+//         if ((window.__count % 1) === 0) [0,1,2,3,4,5].forEach(ge => upgradeGalacticExploration(ge)); // 5.2 Galactic Exploration
+//     // GLOBAL - Buy Research
+//         if (window.__automations.reset.research && (window.__count % 1) === 0) purchaseResearch('h19'); // EMPOWERED ADENINE
+//         if (window.__automations.reset.research && (window.__count % 1) === 0) purchaseResearch('p3');
+//         if (window.__automations.reset.research && (window.__count % 1) === 0) purchaseAllResearch();
+//         if ((window.__count % 3) === 0 && window.__el.observe?.textContent.includes('Complete')) observeSolarSystem();
+//         if ((window.__count % 5) === 0) {
+//             const condition = window.__el.worth.checkVisibility() && window.__el.worth.textContent.includes('transform your Shark into the Omnipotence');
+//             if (condition) activeOmni();
+//         }
+//     }
+
+
+// // AUTOMATION
+//         // OMNI LOOP
+//     if (player.omni.active) {
+//         // if ((window.__count % 10) === 0) window.__is_automated.transcend = window.__isAutomated(window.__el.curr.transcend);
+//         // if ((window.__count % 10) === 0) window.__is_automated.reaction = window.__isAutomated(window.__el.curr.reaction);
+//         if (window.__automations.reset.research && (window.__count % 1) === 0) purchaseAllResearch();
+//     // Auto Condense TS
+//         if (player.omni.tier.lt(24) && (window.__count % 3) === 0) {
+//             if (player.omni.transcend.gt(player.omni.condensed[0].times(10))) OMNI.condense(0);
+//         }
+//     // Auto Condense Undead
+//         if (player.omni.tier.lt(30) && (window.__count % 3) === 0) {
+//             if (player.omni.undead.gt(player.omni.condensed[1].times(10))) OMNI.condense(1);
+//         }
+//     // Auto Atomic Nucleus
+//         if (player.omni.tier.lt(40) && (window.__count % 3) === 0) {
+//            if (player.omni.nucleus.gt(player.omni.condensed[2].times(10))) OMNI.condense(2);
+//         }
+//     // Auto Condense Rune
+//         if (player.omni.tier.lt(56) && (window.__count % 3) === 0) {
+//             if (player.omni.rune_fragments.gt(player.omni.condensed[3].times(10))) OMNI.condense(3);
+//         }
+//         // !window.__upgrades_unlocked[8] && 
+//         if (window.__automations.reset.transcend && player.omni.tier.lt(20) && (window.__count % 10) === 0) doReset('transcend'); // 2.0 Core
+//         if (!window.__upgrades_unlocked[4] && OMNI.goals[player.omni.tier] !== 'other' && (window.__count % 2) === 0) OMNI.increase(); // 6.0 Omni auto advance
+//         if ((window.__count % 1) === 0) ['os1','os2','os3'].forEach(n => buySharkUpgrade(n)); // 6.0 Omnipotence Upgrades
+//         if ((window.__count % 1) === 0) ['t1','t2'].forEach(n => buyMaxSharkUpgrade(n)); // 6.0 Omnipotence Upgrades
+//         if ((window.__count % 1) === 0) [0,1,2,3,4,5,6].forEach(e => UNDEAD.purchase(e)); // upgrades UNDEAD
+//         if ((window.__count % 2) === 0) purchaseAllDecaySeries(); // upgrades Atomic Nucleus
+//         if ((window.__count % 1) === 0) [0,1,2,3].forEach(e => purchaseRuneUpgrade(e)); // Auto buy Rune Upgrades
+//         // !window.__upgrades_unlocked[8] && 
+//         if (window.__automations.reset.reaction && player.omni.tier.lt(32) && (window.__count % 8) === 0) { 
+//             doReset('reaction');
+//         } // REACTION PRESTIGE
+//         // const hasRebirthUpgrade = !window.__upgrades_unlocked[8];
+//         // player.omni.tier.lt(56) && 
+//         if (window.__automations.reset.rune && (window.__count % 6) === 0) {
+//             doReset('runeification');
+//         } // Auto Runeification
+//         OMNI.enterGod(); // GOD SHARK
+//         if (window.__automations.reset.automation && (window.__count %10) === 0)['shark','su','spu','eu','core_reactor','core_radiation','radioactive_boosts','mining_upgs','humanoid','research','mining_tier','remnant','faith','sing_research','evolution_tree','rocket_part','mining_ascend','nucleobase','gal_eu','osu','ostu','ue','nucleus'].forEach(u => {
+//             buyAutomation(u);
+//             if (AUTOMATION[u].unl()) player.auto[u][1] = true;
+//         });
+//         if ((window.__count % 3) === 0) startFission();
+//         if ((window.__count % 3) === 0 && window.__el.runeSacc.checkVisibility() && window.__el.runeSacc?.textContent.includes('Finish')) RUNE_SACRIFICE.enter();
+
+
+        
+//     }
+//     }catch(e){console.error(e)}
+
+//     window.__count++;
+// },150);
+// window.__setEL_condition_both_texts = (el, condition, trueText, falseText) => {
+//     if (!el) return;
+//     el.textContent = condition ? trueText : falseText;
+// }
+// class Automation_upg { shark=1; exploration=1; core=1; radiation=1; mining=1; shark_faith=1; remnants=1; spaceBase=1; rocketParts=1; mining_asc=1; constellation=1; nucleo=1; }
+// // AUTO RESET ---- 1 = on / 0 = off --- if you already get the ressource per second, it will not reset, even if set to 1 here
+// class Automation_reset { 
+//   #ps; #core; #research; #exploration; #mining; accelerator=1; #dm; reservatories=1; trajectories=1; #fp; #forge; #automation; #ge; #transcend; #reaction; #rune; #dna; #rad;
+//   constructor() { this.core = 0; this.research = 1; this.ps = 0; this.exploration = 1; this.core = 0; this.mining = 1; this.dna = 1; this.forge = 1; this.dm=0; this.fp=0; this.automation=1; this.ge=0; this.rad=1; this.transcend=1; this.reaction=1; this.rune=0; }
+//   get ps() { return this.#ps; } set ps(value) { this.#ps = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.ps.btn,value,'1','0'); }
+//   get core() { return this.#core; } set core(value) { this.#core = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.core.btn,value,'1','0'); }
+//   get transcend() { return this.#transcend; } set transcend(value) { this.#transcend = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.transcend.btn,value,'1','0'); }
+//   get rad() { return this.#rad; } set rad(value) { this.#rad = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.rad.btn,value,'1','0'); }
+//   get reaction() { return this.#reaction; } set reaction(value) { this.#reaction = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.reaction.btn,value,'1','0'); }
+//   get rune() { return this.#rune; } set rune(value) { this.#rune = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.rune.btn,value,'1','0'); }
+//   get dm() { return this.#dm; } set dm(value) { this.#dm = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.dm.btn,value,'1','0'); }
+//   get dna() { return this.#dna; } set dna(value) { this.#dna = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.dna.btn,value,'1','0'); }
+//   get fp() { return this.#fp; } set fp(value) { this.#fp = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.fp.btn,value,'1','0'); }
+//   get ge() { return this.#ge; } set ge(value) { this.#ge = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.ge.btn,value,'1','0'); }
+//   get mining() { return this.#mining; } set mining(value) { this.#mining = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.mining.btn,value,'1','0'); }
+//   get forge() { return this.#forge; } set forge(value) { this.#forge = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.forge.btn,value,'1','0'); }
+//   get research() { return this.#research; } set research(value) { this.#research = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.research.btn,value,'1','0'); }
+//   get exploration() { return this.#exploration; } set exploration(value) { this.#exploration = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.exploration.btn,value,'1','0'); }
+//   get automation() { return this.#automation; } set automation(value) { this.#automation = value; window.__setEL_condition_both_texts(window.__el.auto_toggle.automation.btn,value,'1','0'); }
+// } 
+// // Map of unlocks, so the script doesnt run certain parts unnecessarily
+// window.__automations = {
+//     upg: new Automation_upg(),
+//     reset: new Automation_reset(), 
+// };
+// window.__add_auto_toggle = (isParent,feature,btnCssClass) => {
+//     const obj = window.__el.auto_toggle[feature];
+//     if(isParent) {
+//         const parent = obj.wrapper;
+//         if (!parent.classList.contains('_auto_parent')) {
+//             parent.classList.add('_auto_parent');
+//             const btn = document.createElement('button');
+//             btn.addEventListener('click', () => {
+//                 window.__automations.reset[feature] = !window.__automations.reset[feature];
+//             });
+//             btn.classList.add(btnCssClass ?? '_auto_btn');
+//             parent.appendChild(btn);
+//             obj.btn = btn;
+//             window.__automations.reset[feature] = window.__automations.reset[feature]; // trigger initial textContent
+//         }
+//     } else {
+//         const neighbor = obj.neighbor;
+//         if (!neighbor.classList.contains('_auto_neighbor')) {
+//             neighbor.classList.add('_auto_neighbor');
+//             const btn = document.createElement('button');
+//             btn.addEventListener('click', () => {
+//                 window.__automations.reset[feature] = !window.__automations.reset[feature];
+//             });
+//             btn.classList.add(btnCssClass ?? '_auto_btn_neighbor');
+//             neighbor.insertAdjacentElement('afterend', btn);
+//             obj.btn = btn;
+//             if (feature === 'automation') console.log('auto', obj, neighbor, btn);
+//             window.__automations.reset[feature] = window.__automations.reset[feature]; // trigger initial textContent
+//         }
+//     }
+// };
+// /** WORKAROUND FOR ISSUES
+// AFTER GOD: REBIRTH.doReset();
+// ENTERING OMNI: player.feature = ??? <enter correct Number>
+// */
+
+// window.__add_auto_toggle(1,'ps');
+// window.__add_auto_toggle(1,'core');
+// window.__add_auto_toggle(1,'dm');
+// window.__add_auto_toggle(1,'transcend');
+// window.__add_auto_toggle(1,'reaction');
+// window.__add_auto_toggle(1,'rune');
+// window.__add_auto_toggle(1,'fp');
+// window.__add_auto_toggle(1,'mining','m_btn');
+// window.__add_auto_toggle(0,'dna');
+// window.__add_auto_toggle(0,'forge');
+// window.__add_auto_toggle(0,'research');
+// window.__add_auto_toggle(0,'exploration');
+// window.__add_auto_toggle(0,'ge');
+// window.__add_auto_toggle(0,'rad');
+// window.__add_auto_toggle(0,'automation');
+// window.__temp_core_auto_remember_val = { radiation: 0, exploration: 0 };
+
+// window.__event_radiation_old_ref = window.__event_radiation;
+// window.__event_radiation = (ev) => {
+//     const started = ev.target.textContent.includes('Start');
+//     if (started) {
+//         window.__temp_core_auto_remember_val.radiation = window.__automations.reset.core;
+//         window.__automations.reset.core = 0;
+//     } else {
+//         window.__automations.reset.core = window.__temp_core_auto_remember_val.radiation ?? 0;
+//     }
+// };
+// window.__event_exploration_old_ref = window.__event_exploration;
+// window.__event_exploration = (ev) => {
+//     const started = !ev.target.textContent.includes('Reach');
+//     if (started) {
+//         window.__temp_core_auto_remember_val.exploration = window.__automations.reset.core;
+//         window.__automations.reset.core = 0;
+//     } else {
+//         window.__automations.reset.core = window.__temp_core_auto_remember_val.exploration ?? 0;
+//     }
+// };
+
+// if (window.__event_radiation_old_ref) document.querySelector('#start-cr-experiment').removeEventListener('click', window.__event_radiation_old_ref);
+// if (window.__event_exploration_old_ref) document.querySelector('#explore-4-explore').removeEventListener('click', window.window.__event_exploration_old_ref);
+// document.querySelector('#start-cr-experiment').addEventListener('click', window.window.__event_radiation);
+// document.querySelector('#explore-4-explore').addEventListener('click', window.window.__event_exploration);
+// window.__fp_timer = 48; window.__ignore_stellar_ocean = 0; window.__omniLoop=1;
+
+// ----------------------------------------------------------------------------------------------------------------

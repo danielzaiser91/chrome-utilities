@@ -1,0 +1,63 @@
+name: Daily Selector Check → Discord
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 08:00 Uhr Berlin (UTC+2 Sommer)
+  workflow_dispatch:
+
+jobs:
+  test-and-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Puppeteer
+        run: npm install puppeteer
+
+      - name: Run selector checks
+        id: tests
+        run: |
+          node tests/selector-check.js 2>&1 | tee test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          OUTPUT=$(cat test-output.txt | tail -50)
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          EXIT="${{ steps.tests.outputs.exit_code }}"
+          OUTPUT="${{ steps.tests.outputs.output }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ "$EXIT" = "0" ]; then
+            STATUS="✅ Alle Selektoren OK"
+            COLOR=3066993
+          else
+            STATUS="❌ Selektoren veraltet — Handlungsbedarf"
+            COLOR=15158332
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg status "$STATUS" \
+            --arg output "$OUTPUT" \
+            --arg url "$RUN_URL" \
+            '{
+              embeds: [{
+                title: $status,
+                description: (if $output != "" then ("```\n" + $output + "\n```") else "_Kein Output_" end),
+                color: ($status | if startswith("✅") then 3066993 else 15158332 end),
+                fields: [{ name: "Details", value: ("[GitHub Actions](" + $url + ")"), inline: true }],
+                timestamp: (now | todate)
+              }]
+            }')
+          curl -s -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"

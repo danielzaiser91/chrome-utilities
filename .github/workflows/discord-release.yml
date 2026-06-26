@@ -1,69 +1,34 @@
 name: Release → Discord
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'manifest.json'
+  release:
+    types: [published]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check version bump
-        id: version
-        run: |
-          CURRENT=$(jq -r '.version' manifest.json)
-          PREVIOUS=$(git show HEAD^:manifest.json 2>/dev/null | jq -r '.version' 2>/dev/null || echo "")
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          echo "previous=$PREVIOUS" >> $GITHUB_OUTPUT
-          if [ "$CURRENT" != "$PREVIOUS" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Get changelog
-        id: changelog
-        if: steps.version.outputs.changed == 'true'
-        run: |
-          LOG=$(git log --pretty=format:"• %s" --no-merges -10 | grep -v "Co-Authored\|version bump" | head -15)
-          echo "log<<EOF" >> $GITHUB_OUTPUT
-          echo "$LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Post to Discord
-        if: steps.version.outputs.changed == 'true'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          VERSION="${{ steps.version.outputs.current }}"
-          PREV="${{ steps.version.outputs.previous }}"
-          LOG="${{ steps.changelog.outputs.log }}"
+          VERSION="${{ github.event.release.tag_name }}"
+          NOTES="${{ github.event.release.body }}"
+          RELEASE_URL="${{ github.event.release.html_url }}"
           REPO="${{ github.repository }}"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
-            --arg prev "$PREV" \
-            --arg log "$LOG" \
+            --arg notes "$NOTES" \
+            --arg url "$RELEASE_URL" \
             --arg repo "$REPO" \
-            --arg url "$RUN_URL" \
             '{
               embeds: [{
-                title: ("🚀 v" + $version + " veröffentlicht"),
-                description: (if $log != "" then $log else "_Keine Änderungen im Log_" end),
+                title: ("🚀 " + $version + " veröffentlicht"),
+                description: (if $notes != "" then $notes else "_Keine Release-Notes_" end),
                 color: 5763719,
+                url: $url,
                 footer: { text: $repo },
-                fields: [
-                  { name: "Vorherige Version", value: ("v" + $prev), inline: true },
-                  { name: "Details", value: ("[GitHub Actions](" + $url + ")"), inline: true }
-                ],
                 timestamp: (now | todate)
               }]
             }')

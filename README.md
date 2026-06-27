@@ -1,43 +1,89 @@
-# What is this?
-Browser-Extension, that provides UI/UX improvements for many different websites (dark mode, additional video-player options, etc...)
+# Web Utility Plugin
 
-# currently supported websites
-- KeyForSteam
-- chess.com
-- Fextralife
-- Twitch
-- Crunchyroll
-- Youtube
-- Netflix
-- Amazon Prime
-- DisneyPlus
-- Steam
-- ...Other
+A browser extension that adds quality-of-life improvements to a variety of websites — auto-skipping intros, custom playback speeds, UI fixes, and more.
 
-Check out the [Releases](https://github.com/danielzaiser91/chrome-utilities/releases#hd-b29a9f02), if you are interested in all details of everything that this extension supports
----
-
-# Security
-All info is on your local pc, nothing is shared online, no data at all will be tracked.
-
-If you are sharing your pc, then keep in mind, that the options you set will be the same for the next person (if you set netflix to 1.5 speed for example, next person has this as their default setting)
+> Current version: **v1.3.3** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
 
 ---
 
-# Installation Instructions
+## Supported Sites & Features
 
-extension development target is chrome, so steps might vary if you are using a different browser.
+### YouTube
+- Shorts: displays the upload date (removed by YouTube's design change)
+- Removes ad badges from Shorts/Reels
+- Removes overlay stickers from Shorts
 
-1. download zip, like so:
- ![image](https://github.com/user-attachments/assets/2a43e5e6-efb6-4f94-96a4-2ffb82ee48ad)
-2. unpack the zip file
-3. go here: chrome://extensions/ (if you are using a different browser than chrome, go to it's extension page)
-4. filter for "Web Utility Plugin", if you have already installed this extension, make sure to remove it, before installing the new version.
-5. add the extension, like so:
- ![image](https://github.com/user-attachments/assets/c28f860e-7513-4367-bc3b-e18be17b7c64)
-6. Enjoy
+### Netflix
+- Auto-skip intros and outros
+- Custom playback speed (0.2×–5×)
+- Toggle button in the video controls bar to quickly enable/disable auto-skip
 
-# Updating your version to a new version
-1. check if there is a newer version, than what you are using
-3. do the exact same steps as the installation instruction, replacing your previously downloaded files
-4. Enjoy
+### Disney+
+- Auto-login with profile name
+- Auto-skip intros, recaps, end cards and next-episode button
+- Custom playback speed (0.2×–5×)
+
+### Crunchyroll
+- Auto-skip intros, recaps, credits and openings
+- Auto-login with profile selection
+- Custom playback speed (0.2×–5×)
+- Keyboard shortcuts: `+`/`-` to adjust speed, `Alt+P`/`Alt+N` for previous/next episode
+- Highlights dub availability by language in the episode overview
+
+### Amazon Prime Video
+- Auto-skip intros, recaps and trailer ads
+- Auto next-episode
+- Custom playback speed (0.2×–5×)
+
+### Twitch
+- Auto-collects channel point rewards (chest)
+
+### WowTV
+- Custom playback speed (0.2×–5×)
+- Auto next-episode
+
+### Fextralife Wikis
+- Removes the mini Twitch player that appears on every wiki page
+
+### 1Movies
+- Dark mode
+- Auto-reload when server is unavailable
+
+### DS3 Cheat Sheet
+- Dark mode
+
+### luluvdo / Filemoon
+- Custom playback speed (0.2×–5×)
+
+---
+
+## Installation
+
+> Chrome is the primary target. Steps may vary slightly in other browsers.
+
+1. Go to the [latest release](https://github.com/danielzaiser91/chrome-utilities/releases/latest) and download the source zip
+   ![Download zip](https://github.com/user-attachments/assets/2a43e5e6-efb6-4f94-96a4-2ffb82ee48ad)
+2. Unzip the file
+3. Open `chrome://extensions/` in your browser
+4. If you have an older version installed, remove it first
+5. Enable **Developer mode** (toggle in the top right), then click **Load unpacked** and select the unzipped folder
+   ![Load unpacked](https://github.com/user-attachments/assets/c28f860e-7513-4367-bc3b-e18be17b7c64)
+
+### Updating
+
+Repeat the installation steps with the new version. Remove the old extension first (step 4).
+
+---
+
+## Privacy
+
+All settings are stored locally on your device. No data is collected, tracked or sent anywhere.
+
+Note: settings are stored per browser profile. If multiple people share a browser profile, they share the same extension settings.
+
+---
+
+## Releases & Changelog
+
+New releases are announced automatically on Discord.
+Full changelogs are available on the [Releases page](https://github.com/danielzaiser91/chrome-utilities/releases).

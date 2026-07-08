@@ -613,7 +613,9 @@ function renderOptions() {
   settingsEl.innerHTML = "";
   if (options) {
     Object.entries(options)
-      .filter(([k]) => k !== "actionBarShowCondition")
+      .filter(
+        ([k]) => !["actionBarShowCondition", "featureWeeklyLineupFilter"].includes(k),
+      )
       .forEach(([key, value]) => {
         const featureSelector = key;
         const feature = Object.assign({}, value);
@@ -2854,6 +2856,8 @@ const getAmazonSkipAdvertBtn3 = () => {
   const isSkip = ["Überspringen", "Skip"].some((v) => btn?.textContent);
   return isSkip ? btn : null;
 };
+const getAmznNewVorspannBtn = () => [...document.querySelectorAll('button[aria-label]')].find(b=>
+  ['vorspann','zusammenfassung','intro','summary'].some(t => b.textContent?.toLowerCase().includes(t)));
 const getAmazonSkipNextBtn = () =>
   query(".dv-player-fullscreen .atvwebplayersdk-nextupcard-button");
 const getAmazonBackwardsBtn = () =>
@@ -2869,13 +2873,20 @@ function toggleAmazonSkip() {
 }
 function fixAmazon() {
   // feature skip recap / ad / click next episode
-  const condition = () =>
-    getAmazonSkipRecapBtn2() ||
-    getAmazonSkipRecapBtn() ||
-    getAmazonSkipNextBtn() ||
-    getAmazonSkipAdvertBtn() ||
-    getAmazonSkipAdvertBtn2() ||
-    getAmazonSkipAdvertBtn3();
+  const condition = () => {
+    const anyBtnFound =
+      getAmazonSkipRecapBtn2() ||
+      getAmazonSkipRecapBtn() ||
+      getAmazonSkipNextBtn() ||
+      getAmazonSkipAdvertBtn() ||
+      getAmazonSkipAdvertBtn2() ||
+      getAmazonSkipAdvertBtn3();
+    if (!anyBtnFound) {
+      const anyNewBtnFound = getAmznNewVorspannBtn();
+      return anyNewBtnFound;
+    }
+    return anyBtnFound;
+  }
   amazonSkipLoop = repeatIfCondition(skipAmazonRecap, condition, {
     pauseInBg: false,
   });
@@ -3215,6 +3226,11 @@ function skipAmazonRecap() {
     if (skipRecapBtn2) {
       blockExecution("skipAmazonRecaps");
       return skipRecapBtn2.click();
+    }
+    const newVorspannBtn = getAmznNewVorspannBtn();
+    if (newVorspannBtn) {
+      blockExecution("skipAmazonRecaps");
+      return newVorspannBtn.click();
     }
   }
   const skipNext =
@@ -3964,6 +3980,251 @@ function fixCrunchyroll() {
   // SINCE IFRAME IS REMOVED AND VIDEO IS NOW INTEGRATED -->
   _init_set_video_rate_repeater__generic(); // playbackrate
   _init_skip_opening_listener(); // skip opening
+
+  if (cr_isWeeklyLineupPage()) cr_initWeeklyLineupFilter();
+}
+
+// news/seasonal-lineup weekly programme article (e.g. .../news/seasonal-lineup/2026/7/6/crunchyroll-wochenprogramm-sommer-2026)
+// year/month/day and the title slug change every week, so only the fixed part of the path is matched
+function cr_isWeeklyLineupPage() {
+  return /\/news\/seasonal-lineup\/\d{4}\/\d{1,2}\/\d{1,2}\//.test(
+    location.pathname,
+  );
+}
+
+// each entry's card is rendered as a column widget; the hash suffix in the class changes between
+// deploys, but the "columnsSimpleWidget_col12" part is generated from the component's own class name
+// and is far less likely to change
+const CR_LINEUP_CARD_SELECTOR = '[class*="columnsSimpleWidget_col12"]';
+const CR_LINEUP_FLAG_IMG_SELECTOR = 'img[src*="flag" i]';
+// each weekday heading (Montag, Dienstag, ...) is a generic anchor id, "Tag-1".."Tag-7", used purely
+// as a page-internal jump target -- unlike the surrounding CSS classes it isn't tied to a component
+// name or hash, so it stays stable regardless of layout/build changes
+const CR_DAY_HEADER_SELECTOR = '[id^="Tag-"]';
+
+function cr_getLineupCards() {
+  return toArray(queryAll(CR_LINEUP_CARD_SELECTOR)).filter((card) =>
+    card.querySelector(CR_LINEUP_FLAG_IMG_SELECTOR),
+  );
+}
+
+// a weekday's cards aren't nested under its heading, they're later siblings in the same flow, up
+// until the next weekday heading -- so bucket cards by document position instead
+function cr_groupCardsByDay(cards) {
+  const headers = toArray(queryAll(CR_DAY_HEADER_SELECTOR));
+  return headers.map((header, i) => {
+    const nextHeader = headers[i + 1];
+    const dayCards = cards.filter((card) => {
+      const afterHeader = !!(
+        header.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      const beforeNextHeader =
+        !nextHeader ||
+        !(
+          nextHeader.compareDocumentPosition(card) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+        );
+      return afterHeader && beforeNextHeader;
+    });
+    return { header, cards: dayCards };
+  });
+}
+
+function cr_syncDayVisibility(dayGroups) {
+  dayGroups.forEach(({ header, cards: dayCards }) => {
+    const anyVisible = dayCards.some(
+      (card) => !card.classList.contains("cu-hide"),
+    );
+    header.classList.toggle("cu-hide", !anyVisible);
+  });
+}
+
+// filenames seen in the flag images (e.g. "japan-flag.png", "deutschland-flagge.png") map to a
+// language code, so Intl.DisplayNames can render the label in the page's own language
+const CR_FLAG_LANGUAGE_KEYWORDS = [
+  { keyword: "japan", code: "ja" },
+  { keyword: "deutsch", code: "de" },
+  { keyword: "chin", code: "zh" },
+  { keyword: "korea", code: "ko" },
+  { keyword: "englis", code: "en" },
+  { keyword: "amerik", code: "en" },
+  { keyword: "franz", code: "fr" },
+  { keyword: "spanisch", code: "es" },
+  { keyword: "italien", code: "it" },
+];
+
+function cr_getFlagLanguageCode(flagImg) {
+  const filename = (flagImg?.getAttribute("src") || "").toLowerCase();
+  return (
+    CR_FLAG_LANGUAGE_KEYWORDS.find((entry) => filename.includes(entry.keyword))
+      ?.code ?? null
+  );
+}
+
+function cr_getPageLang() {
+  // the URL locale (e.g. "/de/news/...") reflects the language the page content is actually
+  // rendered in; document.documentElement.lang isn't reliably set, and navigator.language is just
+  // the visitor's browser preference, which is often deliberately different from the page language
+  const urlLocale = location.pathname.split("/")[1];
+  if (/^[a-z]{2}(-[a-z0-9]{2,4})?$/i.test(urlLocale)) return urlLocale.toLowerCase();
+  return (
+    document.documentElement.lang || navigator.language || "en"
+  ).toLowerCase();
+}
+
+function cr_getLanguageLabel(code, fallback) {
+  try {
+    return new Intl.DisplayNames([cr_getPageLang()], {
+      type: "language",
+    }).of(code);
+  } catch {
+    return fallback;
+  }
+}
+
+const CR_FILTER_UI_STRINGS = {
+  de: { filterLabel: "Filter", noFilter: "Kein Filter" },
+  en: { filterLabel: "Filter", noFilter: "No filter" },
+  fr: { filterLabel: "Filtre", noFilter: "Aucun filtre" },
+  es: { filterLabel: "Filtro", noFilter: "Sin filtro" },
+  it: { filterLabel: "Filtro", noFilter: "Nessun filtro" },
+  pt: { filterLabel: "Filtro", noFilter: "Sem filtro" },
+  ru: { filterLabel: "Фильтр", noFilter: "Без фильтра" },
+};
+
+function cr_getUiStrings() {
+  const lang = cr_getPageLang().split("-")[0];
+  return CR_FILTER_UI_STRINGS[lang] ?? CR_FILTER_UI_STRINGS.en;
+}
+
+// the article usually has its own legend table explaining what each flag means, written by the
+// editor in the page's actual language (e.g. "= Japanischer Originalton mit deutschen Untertiteln").
+// that's more accurate than a generic language name, so prefer it when present
+function cr_getLegendLabels() {
+  const labels = new Map();
+  toArray(queryAll("table " + CR_LINEUP_FLAG_IMG_SELECTOR)).forEach(
+    (flagImg) => {
+      const code = cr_getFlagLanguageCode(flagImg);
+      if (!code || labels.has(code)) return;
+      const text = flagImg
+        .closest("td")
+        ?.nextElementSibling?.textContent?.replace(/^\s*=\s*/, "")
+        .trim();
+      if (text) labels.set(code, text);
+    },
+  );
+  return labels;
+}
+
+function cr_initWeeklyLineupFilter() {
+  repeatUntilCondition(
+    cr_renderWeeklyLineupFilter,
+    () => !byId("cu-weekly-filter") && cr_getLineupCards().length > 0,
+  );
+}
+
+function cr_renderWeeklyLineupFilter() {
+  const cards = cr_getLineupCards();
+  const strings = cr_getUiStrings();
+  const lang = cr_getPageLang();
+
+  // group cards by language, in first-seen order
+  const legendLabels = cr_getLegendLabels();
+  const languages = new Map();
+  cards.forEach((card) => {
+    const flagImg = card.querySelector(CR_LINEUP_FLAG_IMG_SELECTOR);
+    const code = cr_getFlagLanguageCode(flagImg);
+    const rawLabel =
+      flagImg.getAttribute("alt") || flagImg.getAttribute("title") || code;
+    const key = code ?? rawLabel;
+    if (!languages.has(key)) {
+      languages.set(key, {
+        label: code
+          ? (legendLabels.get(code) ?? cr_getLanguageLabel(code, rawLabel))
+          : rawLabel,
+        cards: [],
+      });
+    }
+    languages.get(key).cards.push(card);
+  });
+
+  const select = create("select", {
+    id: "cu-weekly-filter-select",
+    className: "cu-weekly-filter-select",
+  });
+  select.appendChild(
+    create("option", { value: "", textContent: strings.noFilter }),
+  );
+  [...languages.entries()]
+    .sort((a, b) => a[1].label.localeCompare(b[1].label, lang))
+    .forEach(([key, { label }]) => {
+      select.appendChild(create("option", { value: key, textContent: label }));
+    });
+  const dayGroups = cr_groupCardsByDay(cards);
+  const applyFilter = (selected) => {
+    languages.forEach((entry, key) => {
+      const show = !selected || key === selected;
+      entry.cards.forEach((card) => card.classList.toggle("cu-hide", !show));
+    });
+    cr_syncDayVisibility(dayGroups);
+  };
+
+  const savedFilter =
+    userOptions.crunchyroll.featureWeeklyLineupFilter.selectedLanguage;
+  select.value = savedFilter.value;
+  if (select.value !== savedFilter.value) select.value = ""; // saved language isn't offered this week
+
+  select.addEventListener("change", () => {
+    savedFilter.value = select.value;
+    saveUserSettings();
+    applyFilter(select.value);
+  });
+  applyFilter(select.value); // apply the restored (or default "no filter") selection on load
+
+  const bar = create("div", {
+    id: "cu-weekly-filter",
+    className: "cu-weekly-filter",
+  });
+  bar.appendChild(
+    create("label", {
+      className: "cu-weekly-filter-label",
+      textContent: strings.filterLabel,
+      for: "cu-weekly-filter-select",
+    }),
+  );
+  bar.appendChild(select);
+
+  const anchor = query(CR_DAY_HEADER_SELECTOR) ?? cards[0];
+  anchor.parentElement.insertBefore(bar, anchor);
+
+  insertCSS(
+    `
+    .cu-weekly-filter {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      background: #23252b;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+    .cu-weekly-filter-select {
+      background: #fff;
+      color: #000;
+      border: 1px solid #f47521;
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+  `,
+    "cu-weekly-filter-css",
+  );
 }
 
 function _init_skip_opening_listener() {
@@ -5343,6 +5604,13 @@ let userOptions = {
             toggle: cr_showDub_again,
           },
         },
+      },
+    },
+    // no toggle/label/description: not rendered as a settings row (see renderOptions' key
+    // filter below), just piggybacks on the same save/load pipeline to remember the dropdown
+    featureWeeklyLineupFilter: {
+      selectedLanguage: {
+        value: "",
       },
     },
   },

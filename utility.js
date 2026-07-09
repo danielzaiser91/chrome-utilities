@@ -2302,22 +2302,33 @@ function toggleAutoSkipDP() {
 
 /** @type {Interval} */
 let generic__AutoSkip;
-const generic__CheckAndClick = (condition, btn) => (condition ? btn?.click() : null);
+// per skip-type pending timer, so a button that's found isn't clicked instantly -- it has to
+// still be there ~1s later (re-fetched right before clicking, not just re-using the old
+// reference) before we act on it. Guards against briefly-flashing/stale buttons, e.g. Crunchyroll
+// showing a skip-opening button for a moment while it's still restoring the real resume position.
+const generic__pendingSkipTimers = {};
+function generic__CheckAndClickDelayed(key, getBtn, delayMs = 1000) {
+  if (!getBtn?.() || generic__pendingSkipTimers[key]) return;
+  generic__pendingSkipTimers[key] = setTimeout(() => {
+    getBtn?.()?.click();
+    delete generic__pendingSkipTimers[key];
+  }, delayMs);
+}
 function generic__activateAutoSkip(options = { getSkipNextBtn: () => {}, getSkipOpeningBtn: () => {}, getSkipRecapBtn: () => {}, getSkipCreditsBtn: () => {} }) {
   generic__AutoSkip = repeatIfCondition(
     () => {
       const { skipNext, skipRecaps, skipOpenings, skipCredits } = getSiteOptions().featureAutoSkip.isEnabled.subFeatures;
       if (isAllowed(skipNext)) {
-        options?.getSkipNextBtn?.()?.click();
+        generic__CheckAndClickDelayed("next", options?.getSkipNextBtn);
       }
       if (isAllowed(skipOpenings)) {
-        options?.getSkipOpeningBtn?.()?.click();
+        generic__CheckAndClickDelayed("opening", options?.getSkipOpeningBtn);
       }
       if (isAllowed(skipRecaps)) {
-        options?.getSkipRecapBtn?.()?.click();
+        generic__CheckAndClickDelayed("recap", options?.getSkipRecapBtn);
       }
       if (isAllowed(skipCredits)) {
-        options?.getSkipCreditsBtn?.()?.click();
+        generic__CheckAndClickDelayed("credits", options?.getSkipCreditsBtn);
       }
     },
     () => isAllowed(getSiteOptions().featureAutoSkip.isEnabled),

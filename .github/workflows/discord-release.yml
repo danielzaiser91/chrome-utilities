@@ -3,6 +3,11 @@ name: Release → Discord
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re-)announce, e.g. v1.3.6"
+        required: true
 
 jobs:
   notify:
@@ -11,13 +16,18 @@ jobs:
       - name: Post to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          VERSION: ${{ github.event.release.tag_name }}
-          NOTES: ${{ github.event.release.body }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
           REPO: ${{ github.repository }}
         run: |
+          # fetch notes/url via API instead of interpolating github.event.release.body into the
+          # script text -- avoids shell injection from quotes/special chars in release notes, and
+          # lets this same step handle both the automatic publish event and a manual re-run
+          NOTES=$(gh release view "$TAG" --json body -q .body)
+          RELEASE_URL=$(gh release view "$TAG" --json url -q .url)
+
           PAYLOAD=$(jq -n \
-            --arg version "$VERSION" \
+            --arg version "$TAG" \
             --arg notes "$NOTES" \
             --arg url "$RELEASE_URL" \
             --arg repo "$REPO" \

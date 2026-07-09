@@ -23,8 +23,8 @@ jobs:
           # fetch notes/url via API instead of interpolating github.event.release.body into the
           # script text -- avoids shell injection from quotes/special chars in release notes, and
           # lets this same step handle both the automatic publish event and a manual re-run
-          NOTES=$(gh release view "$TAG" --json body -q .body)
-          RELEASE_URL=$(gh release view "$TAG" --json url -q .url)
+          NOTES=$(gh release view "$TAG" -R "$REPO" --json body -q .body)
+          RELEASE_URL=$(gh release view "$TAG" -R "$REPO" --json url -q .url)
 
           PAYLOAD=$(jq -n \
             --arg version "$TAG" \

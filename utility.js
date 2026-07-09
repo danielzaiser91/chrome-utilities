@@ -1012,22 +1012,11 @@ function toggleWowTvSkip() {
     : wowTVSkipLoop.pause();
 }
 
-let skipWowTV_click_progress = false;
 function skipWowTV() {
   const skipFeature = userOptions.wowtv.featureAutoSkip.isEnabled;
   if (!isAllowed(skipFeature)) return;
-  if (
-    isAllowed(skipFeature.subFeatures.skipNext) &&
-    !skipWowTV_click_progress
-  ) {
-    skipWowTV_click_progress = true;
-    setTimeout(() => {
-      const skipNextBtn = skipBtn_wowTV();
-      if (skipNextBtn) {
-        skipNextBtn.click();
-      }
-      skipWowTV_click_progress = false;
-    }, 1000);
+  if (isAllowed(skipFeature.subFeatures.skipNext)) {
+    generic__CheckAndClickDelayed("wowtv-next", skipBtn_wowTV);
   }
 }
 
@@ -2272,7 +2261,6 @@ function fixDisneyPlus() {
 
 /** @type {Interval} */
 let dpAutoSkip;
-const dpCheckAndClick = (condition, btn) => (condition ? btn?.click() : null);
 function activateAutoSkipDP() {
   dpAutoSkip = repeatIfCondition(
     () => {
@@ -2281,12 +2269,21 @@ function activateAutoSkipDP() {
       const skipNextBtn = query(".is-showing-transition .skip__button");
       const endCardBtn = query(".play-page button");
       if (skipNextBtn) {
-        return dpCheckAndClick(isAllowed(skipNext), skipNextBtn);
+        if (isAllowed(skipNext)) {
+          generic__CheckAndClickDelayed("dp-next", () =>
+            query(".is-showing-transition .skip__button"),
+          );
+        }
       } else if (endCardBtn) {
-        return dpCheckAndClick(isAllowed(skipEndCard), endCardBtn);
+        if (isAllowed(skipEndCard)) {
+          generic__CheckAndClickDelayed("dp-endcard", () =>
+            query(".play-page button"),
+          );
+        }
+      } else if (isAllowed(skipRecaps)) {
+        // else it is recap / intro
+        generic__CheckAndClickDelayed("dp-recap", () => query(".skip__button"));
       }
-      // else it is recap / intro
-      return dpCheckAndClick(isAllowed(skipRecaps), query(".skip__button"));
     },
     () => query(".skip__button") || query(".play-page button"),
     {
@@ -2302,15 +2299,21 @@ function toggleAutoSkipDP() {
 
 /** @type {Interval} */
 let generic__AutoSkip;
-// per skip-type pending timer, so a button that's found isn't clicked instantly -- it has to
-// still be there ~1s later (re-fetched right before clicking, not just re-using the old
-// reference) before we act on it. Guards against briefly-flashing/stale buttons, e.g. Crunchyroll
-// showing a skip-opening button for a moment while it's still restoring the real resume position.
+// shared by every site's autoskip loop: a button that's found isn't clicked instantly -- it has
+// to still be there ~1s after first being seen (re-fetched right before clicking, not just
+// re-using the old reference) before we act on it. Guards against briefly-flashing/stale buttons,
+// e.g. Crunchyroll showing a skip-opening button for a moment while it's still restoring the real
+// resume position after a reload. All call sites poll on the default 300ms interval, so the
+// delay here is 700ms to land on an effective ~1s from first sighting to click, not 1.3s.
 const generic__pendingSkipTimers = {};
-function generic__CheckAndClickDelayed(key, getBtn, delayMs = 1000) {
+function generic__CheckAndClickDelayed(key, getBtn, { delayMs = 700, onClick } = {}) {
   if (!getBtn?.() || generic__pendingSkipTimers[key]) return;
   generic__pendingSkipTimers[key] = setTimeout(() => {
-    getBtn?.()?.click();
+    const btn = getBtn?.();
+    if (btn) {
+      btn.click();
+      onClick?.();
+    }
     delete generic__pendingSkipTimers[key];
   }, delayMs);
 }
@@ -3201,63 +3204,42 @@ function skipAmazonRecap() {
     ".atvwebplayersdk-overlays-container .atvwebplayersdk-loadingspinner-overlay div",
   )?.checkVisibility?.();
   if (!isAllowed(amazonFeature) || spinner) return;
+
   const skipAds =
     isAllowed(amazonFeature.subFeatures.skipAdverts) &&
     !executionBlock.skipAmazonAdvert;
   if (skipAds) {
-    const skipAdBtn = getAmazonSkipAdvertBtn();
-    if (skipAdBtn) {
-      blockExecution("skipAmazonAdvert");
-      return skipAdBtn.click();
-    }
-    const skipAdBtn2 = getAmazonSkipAdvertBtn2();
-    if (
-      !executionBlock.skipAmazonAdvert &&
-      skipAdBtn2 &&
-      isAllowed(amazonFeature.subFeatures.skipAdverts)
-    ) {
-      blockExecution("skipAmazonAdvert");
-      return skipAdBtn2.click();
-    }
-    const skipAdBtn3 = getAmazonSkipAdvertBtn3();
-    if (
-      !executionBlock.skipAmazonAdvert &&
-      skipAdBtn3 &&
-      isAllowed(amazonFeature.subFeatures.skipAdverts)
-    ) {
-      blockExecution("skipAmazonAdvert");
-      return skipAdBtn3.click();
-    }
+    generic__CheckAndClickDelayed(
+      "amazon-advert",
+      () =>
+        getAmazonSkipAdvertBtn() ||
+        getAmazonSkipAdvertBtn2() ||
+        getAmazonSkipAdvertBtn3(),
+      { onClick: () => blockExecution("skipAmazonAdvert") },
+    );
   }
+
   const skipRecaps =
     isAllowed(amazonFeature.subFeatures.skipRecaps) &&
     !executionBlock.skipAmazonRecaps;
   if (skipRecaps) {
-    const skipRecapBtn = getAmazonSkipRecapBtn();
-    if (skipRecapBtn) {
-      blockExecution("skipAmazonRecaps");
-      return skipRecapBtn.click();
-    }
-    const skipRecapBtn2 = getAmazonSkipRecapBtn2();
-    if (skipRecapBtn2) {
-      blockExecution("skipAmazonRecaps");
-      return skipRecapBtn2.click();
-    }
-    const newVorspannBtn = getAmznNewVorspannBtn();
-    if (newVorspannBtn) {
-      blockExecution("skipAmazonRecaps");
-      return newVorspannBtn.click();
-    }
+    generic__CheckAndClickDelayed(
+      "amazon-recap",
+      () =>
+        getAmazonSkipRecapBtn() ||
+        getAmazonSkipRecapBtn2() ||
+        getAmznNewVorspannBtn(),
+      { onClick: () => blockExecution("skipAmazonRecaps") },
+    );
   }
+
   const skipNext =
     isAllowed(amazonFeature.subFeatures.skipNext) &&
     !executionBlock.skipAmazonNext;
   if (skipNext) {
-    const skipNextBtn = getAmazonSkipNextBtn();
-    if (skipNextBtn) {
-      blockExecution("skipAmazonNext");
-      skipNextBtn.click();
-    }
+    generic__CheckAndClickDelayed("amazon-next", getAmazonSkipNextBtn, {
+      onClick: () => blockExecution("skipAmazonNext"),
+    });
   }
 }
 
@@ -3477,22 +3459,23 @@ function toggleAutoSkipIntro(el) {
   }
 }
 function _netflix_skip() {
-  const skipButton = query(".watch-video--skip-content-button");
-  const skipOutroButton = query('[data-uia*="next-episode"]');
-  if (skipButton && isAllowed(userOptions.netflix.featureAutoSkip.skipIntro)) {
-    skipButton.click();
-    console.info(green("skipped Intro"));
+  if (isAllowed(userOptions.netflix.featureAutoSkip.skipIntro)) {
+    generic__CheckAndClickDelayed(
+      "netflix-intro",
+      () => query(".watch-video--skip-content-button"),
+      { onClick: () => console.info(green("skipped Intro")) },
+    );
   }
-  if (
-    skipOutroButton &&
-    isAllowed(userOptions.netflix.featureAutoSkip.skipOutro)
-  ) {
-    skipOutroButton.click();
-    console.info(green("skipped Outro"));
+  if (isAllowed(userOptions.netflix.featureAutoSkip.skipOutro)) {
     /**
      * extend info by giving video title, by finding the information in the netflix object...
      * TODO: Use netflix api info, for more detailled logs here
      */
+    generic__CheckAndClickDelayed(
+      "netflix-outro",
+      () => query('[data-uia*="next-episode"]'),
+      { onClick: () => console.info(green("skipped Outro")) },
+    );
   }
 }
 

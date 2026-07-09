@@ -725,6 +725,10 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
   };
   input.addEventListener("change", changeValEvent, true);
   input.addEventListener("keyup", changeValEvent, true);
+  // sites often bind single-letter video hotkeys (e.g. "s") on window/document without checking
+  // whether an extension-injected input has focus, since we're not in an isolated iframe -- stop
+  // the keydown from bubbling out of our settings overlay so typing here can't get eaten
+  input.addEventListener("keydown", (e) => e.stopPropagation());
   const label = document.createElement("label");
   label.textContent = feature.label;
   label.setAttribute("for", id);

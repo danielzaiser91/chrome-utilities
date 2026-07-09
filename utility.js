@@ -760,10 +760,11 @@ function loadUserSettings() {
   try { stored = JSON.parse(window.localStorage.getItem('cu:opts')); } catch {}
   if (!stored) return;
 
+  // no version gate: _mergeSiteValues only touches keys that still exist in the current
+  // userOptions[site] schema, so merging across a version bump is safe on its own. Wiping
+  // storage on every mismatch used to nuke saved settings (e.g. playback rate) whenever the
+  // extension auto-updated, unless something happened to trigger a save before the tab closed.
   const { version, ...storedSite } = stored;
-  // Version mismatch: discard stored data but still try to recover values
-  if (version !== userOptions.version) window.localStorage.removeItem('cu:opts');
-
   _mergeSiteValues(site, storedSite);
 }
 

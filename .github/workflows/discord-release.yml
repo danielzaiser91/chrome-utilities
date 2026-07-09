@@ -11,12 +11,11 @@ jobs:
       - name: Post to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ github.event.release.tag_name }}
+          NOTES: ${{ github.event.release.body }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          REPO: ${{ github.repository }}
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          NOTES="${{ github.event.release.body }}"
-          RELEASE_URL="${{ github.event.release.html_url }}"
-          REPO="${{ github.repository }}"
-
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
             --arg notes "$NOTES" \

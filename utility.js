@@ -4245,7 +4245,7 @@ function _init_skip_opening_listener() {
       getSkipRecapBtn: () => { return getBtnWithText(['recap']); },
       getSkipOpeningBtn: () => { return getBtnWithText(['opening', 'intro']); },
     });
-  }, 3000);
+  }, 5000);
 }
 
 function removeNotificationBubbleOnClick() {
@@ -5189,7 +5189,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.3.6",
+  version: "1.3.7",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

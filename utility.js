@@ -4236,11 +4236,16 @@ function _init_skip_opening_listener() {
   const getBtnWithText = (s = []) => {
     return [...document.querySelectorAll('#player-container button')].filter(el => s.some(match => el.textContent?.toLowerCase()?.includes(match)))?.[0];
   }
-  generic__activateAutoSkip({
-    getSkipCreditsBtn: () => { return getBtnWithText(['credits']); },
-    getSkipRecapBtn: () => { return getBtnWithText(['recap']); },
-    getSkipOpeningBtn: () => { return getBtnWithText(['opening', 'intro']); },
-  });
+  // on reload mid-episode, Crunchyroll briefly shows a stale player state (wrong resume
+  // timestamp, skip-opening button visible) before it restores the real position. Without a
+  // delay, autoskip clicks that stale button before Crunchyroll gets the chance to correct it.
+  setTimeout(() => {
+    generic__activateAutoSkip({
+      getSkipCreditsBtn: () => { return getBtnWithText(['credits']); },
+      getSkipRecapBtn: () => { return getBtnWithText(['recap']); },
+      getSkipOpeningBtn: () => { return getBtnWithText(['opening', 'intro']); },
+    });
+  }, 3000);
 }
 
 function removeNotificationBubbleOnClick() {

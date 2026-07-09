@@ -890,8 +890,9 @@ function websiteSelector() {
     new Matcher("wiki.fextralife.com", fixFextralife, true),
     new Matcher("twitch.tv", fixTwitch, true),
 
-    // CRUNCHYROLL REMOVED IFRAME
-
+    // Crunchyroll used to host video playback in a "static.crunchyroll.com" iframe; the code
+    // below targeted that iframe. Crunchyroll now streams directly on the main page without an
+    // iframe, so this is unreachable dead code -- kept in case they ever revert to the old setup.
     // new Matcher(
     //   "static.crunchyroll.com",
     //   crunchyrolliFrameHook,
@@ -4394,13 +4395,13 @@ function autoLogin() {
   );
 }
 
+// dead code: only ever called via the disabled "static.crunchyroll.com" Matcher above, from back
+// when Crunchyroll hosted video playback in a separate iframe. Kept in case they revert to that.
 function crunchyrolliFrameHook() {
   // addCrunchySkipOptionListener();
   // startCrunchySkipInterval();
   // initPlaybackOptionListener();
   // initKeyBindListener();
-
-  // CRUNCHYROLL REMOVED IFRAME
 }
 
 function initKeyBindListener() {

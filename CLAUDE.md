@@ -14,3 +14,11 @@ Chrome Extension (MV3), kein Build-System, einzelne `utility.js` + `manifest.jso
 - Version steht in `manifest.json` (Felder `version` + `version_name`) und in `userOptions.version` in `utility.js`
 - Beide bei Version-Bump gleichzeitig anpassen
 - Commit → Push → GitHub Release erstellen → Discord postet automatisch
+
+### User-facing Texte in den Settings (`disabledReason`, `description`, `label` etc.)
+- Immer sehr einfach, kurz, unternehmerisch/technikfrei formulieren — die Nutzer wollen nichts von
+  AI, Implementierungsdetails oder Ursachenanalyse lesen (z. B. "Currently broken, we're working
+  on a fix!" statt "disabled: isTrusted-event check blocks programmatic clicks...")
+- Technische Begründung (Root Cause, betroffene Mechanismen, Debugging-Hinweise für später)
+  gehört stattdessen in einen Code-Kommentar direkt über dem Feature-Objekt, nicht in den String,
+  der im UI angezeigt wird

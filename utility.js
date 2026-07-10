@@ -5257,12 +5257,18 @@ let userOptions = {
             value: true,
             label: "Next",
             description: "will click the next episode button for you",
+            disabled: true,
+            disabledReason:
+              "currently broken: Disney+ changed their player UI, this needs to be re-verified/fixed",
           },
           skipEndCard: {
             value: false,
             label: "EndCard",
             description:
               "will click the next episode button on the end card for you",
+            disabled: true,
+            disabledReason:
+              "currently broken: Disney+ changed their player UI, this needs to be re-verified/fixed",
           },
         },
       },

@@ -2291,6 +2291,13 @@ function dpGetNextEpisodeBtn() {
   );
 }
 
+// generic__pendingSkipTimers only blocks re-arming WHILE a click is still pending -- with
+// delayMs: 0 that window is a single tick, so if the real button doesn't vanish from the DOM
+// immediately after being clicked (unlike the other autoskip targets, which do), the next 300ms
+// poll re-clicks it again, and again, hammering Disney+'s own tray/navigation state until it gets
+// stuck open. This separate cooldown blocks re-clicking for a while after an actual click fires,
+// regardless of whether the button is still present.
+let dpNextClickedAt = 0;
 function activateAutoSkipDP() {
   dpAutoSkip = repeatIfCondition(
     () => {
@@ -2298,12 +2305,15 @@ function activateAutoSkipDP() {
         userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
       const nextBtn = dpGetNextEpisodeBtn();
       const introRecapBtn = dpGetSkipIntroBtn();
-      if (nextBtn && isAllowed(skipNext)) {
+      const nextOnCooldown = Date.now() - dpNextClickedAt < 8000;
+      if (nextBtn && isAllowed(skipNext) && !nextOnCooldown) {
         // Disney+ auto-clicks this itself after 5s -- click as close to instantly as possible
         // (no stabilization delay like the other autoskip targets) so we beat their own
-        // countdown instead of just matching it. delayMs: 0 still dedupes via the shared
-        // pending-timer guard, so a button present across multiple poll ticks isn't clicked twice.
-        generic__CheckAndClickDelayed("dp-next", () => nextBtn, { delayMs: 0 });
+        // countdown instead of just matching it.
+        generic__CheckAndClickDelayed("dp-next", dpGetNextEpisodeBtn, {
+          delayMs: 0,
+          onClick: () => (dpNextClickedAt = Date.now()),
+        });
       } else if (introRecapBtn && isAllowed(skipRecaps)) {
         generic__CheckAndClickDelayed("dp-recap", dpGetSkipIntroBtn);
       }

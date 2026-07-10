@@ -2262,6 +2262,21 @@ function fixDisneyPlus() {
 
 /** @type {Interval} */
 let dpAutoSkip;
+// Disney+'s intro/recap skip prompt is a nested Web Component (<skip-overlay> containing a
+// <skip-button>, each with its own shadow root) -- document.querySelector() can't pierce shadow
+// boundaries, so the old ".skip__button" class selector never matched anything. The actual button
+// has no data-testid/aria-label of its own (only localized text, e.g. "INTRO ÜBERSPRINGEN"), but
+// the custom element tag names themselves are stable across locales, so walk the shadow chain by
+// tag name instead of ever reading button text.
+function dpGetSkipIntroBtn() {
+  return (
+    document
+      .querySelector("skip-overlay")
+      ?.shadowRoot?.querySelector("skip-button")
+      ?.shadowRoot?.querySelector("button") ?? null
+  );
+}
+
 function activateAutoSkipDP() {
   dpAutoSkip = repeatIfCondition(
     () => {
@@ -2269,6 +2284,7 @@ function activateAutoSkipDP() {
         userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
       const skipNextBtn = query(".is-showing-transition .skip__button");
       const endCardBtn = query(".play-page button");
+      const introRecapBtn = dpGetSkipIntroBtn();
       if (skipNextBtn) {
         if (isAllowed(skipNext)) {
           generic__CheckAndClickDelayed("dp-next", () =>
@@ -2281,12 +2297,14 @@ function activateAutoSkipDP() {
             query(".play-page button"),
           );
         }
-      } else if (isAllowed(skipRecaps)) {
-        // else it is recap / intro
-        generic__CheckAndClickDelayed("dp-recap", () => query(".skip__button"));
+      } else if (introRecapBtn && isAllowed(skipRecaps)) {
+        generic__CheckAndClickDelayed("dp-recap", dpGetSkipIntroBtn);
       }
     },
-    () => query(".skip__button") || query(".play-page button"),
+    () =>
+      query(".is-showing-transition .skip__button") ||
+      query(".play-page button") ||
+      !!dpGetSkipIntroBtn(),
     {
       pauseInBg: false,
       autoplay: isAllowed(userOptions.disneyplus.featureAutoSkip.isEnabled),

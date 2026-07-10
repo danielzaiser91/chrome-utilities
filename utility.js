@@ -5278,6 +5278,12 @@ let userOptions = {
             value: true,
             label: "Next",
             description: "will click the next episode button for you",
+            disabled: true,
+            disabledReason:
+              "disabled: repeatedly clicking Disney+'s next-episode button left it stuck open " +
+              "instead of navigating -- likely the same isTrusted-event check that already blocks " +
+              "the AutoLogin pin field (see that field's note), needs further investigation before " +
+              "re-enabling",
           },
           // EndCard as its own feature is obsolete: Disney+'s post-play "end card" now uses the
           // same next-episode prompt (with their own 5s auto-click) that skipNext already

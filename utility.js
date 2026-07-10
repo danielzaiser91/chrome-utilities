@@ -2277,34 +2277,45 @@ function dpGetSkipIntroBtn() {
   );
 }
 
+// the "next episode" prompt (shown both mid-episode near the end and on the post-play/end-card
+// screen) is the <pivot-tray-overlay> Web Component. The real clickable element is the outer
+// div[role="button"] inside .cta-button-container -- the <button> nested inside it has
+// tabindex="-1"/aria-hidden="true" (decorative), and its aria-label is localized text ("Als
+// Nächstes"), so match by the stable, English, component-internal .cta-button-container class
+// instead of role/label/text.
+function dpGetNextEpisodeBtn() {
+  return (
+    document
+      .querySelector("pivot-tray-overlay")
+      ?.shadowRoot?.querySelector('.cta-button-container [role="button"]') ?? null
+  );
+}
+
 function activateAutoSkipDP() {
   dpAutoSkip = repeatIfCondition(
     () => {
-      const { skipEndCard, skipNext, skipRecaps } =
+      const { skipNext, skipRecaps } =
         userOptions.disneyplus.featureAutoSkip.isEnabled.subFeatures;
-      const skipNextBtn = query(".is-showing-transition .skip__button");
-      const endCardBtn = query(".play-page button");
+      const nextBtn = dpGetNextEpisodeBtn();
       const introRecapBtn = dpGetSkipIntroBtn();
-      if (skipNextBtn) {
-        if (isAllowed(skipNext)) {
-          generic__CheckAndClickDelayed("dp-next", () =>
-            query(".is-showing-transition .skip__button"),
-          );
-        }
-      } else if (endCardBtn) {
-        if (isAllowed(skipEndCard)) {
-          generic__CheckAndClickDelayed("dp-endcard", () =>
-            query(".play-page button"),
-          );
-        }
+      if (nextBtn && isAllowed(skipNext)) {
+        // Disney+ auto-clicks this itself after 5s -- click as close to instantly as possible
+        // (no stabilization delay like the other autoskip targets) so we beat their own
+        // countdown instead of just matching it. delayMs: 0 still dedupes via the shared
+        // pending-timer guard, so a button present across multiple poll ticks isn't clicked twice.
+        generic__CheckAndClickDelayed("dp-next", () => nextBtn, { delayMs: 0 });
       } else if (introRecapBtn && isAllowed(skipRecaps)) {
         generic__CheckAndClickDelayed("dp-recap", dpGetSkipIntroBtn);
       }
+      // EndCard used to be a separate ".play-page button" target; superseded by the unified
+      // next-episode prompt above (see skipEndCard comment in userOptions). Kept for reference:
+      // } else if (endCardBtn) {
+      //   if (isAllowed(skipEndCard)) {
+      //     generic__CheckAndClickDelayed("dp-endcard", () => query(".play-page button"));
+      //   }
+      // }
     },
-    () =>
-      query(".is-showing-transition .skip__button") ||
-      query(".play-page button") ||
-      !!dpGetSkipIntroBtn(),
+    () => !!dpGetNextEpisodeBtn() || !!dpGetSkipIntroBtn(),
     {
       pauseInBg: false,
       autoplay: isAllowed(userOptions.disneyplus.featureAutoSkip.isEnabled),
@@ -5257,19 +5268,16 @@ let userOptions = {
             value: true,
             label: "Next",
             description: "will click the next episode button for you",
-            disabled: true,
-            disabledReason:
-              "currently broken: Disney+ changed their player UI, this needs to be re-verified/fixed",
           },
-          skipEndCard: {
-            value: false,
-            label: "EndCard",
-            description:
-              "will click the next episode button on the end card for you",
-            disabled: true,
-            disabledReason:
-              "currently broken: Disney+ changed their player UI, this needs to be re-verified/fixed",
-          },
+          // EndCard as its own feature is obsolete: Disney+'s post-play "end card" now uses the
+          // same next-episode prompt (with their own 5s auto-click) that skipNext already
+          // handles. Kept commented out instead of deleted in case Disney+ splits them again.
+          // skipEndCard: {
+          //   value: false,
+          //   label: "EndCard",
+          //   description:
+          //     "will click the next episode button on the end card for you",
+          // },
         },
       },
     },

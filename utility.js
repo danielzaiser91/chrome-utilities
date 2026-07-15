@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version}</div>
+        <div id="text">v${userOptions.version} - debug build 6</div>
         <div class="cu-settings-options">
 
         </div>

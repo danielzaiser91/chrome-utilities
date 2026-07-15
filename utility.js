@@ -3670,6 +3670,14 @@ function initYTCSS() {
     #masthead-ad {
       display: none !important;
     }
+    /* the hover-preview thumbnail (#video-preview-container) is a single shared, repositioned
+       element reused for every video card -- previously an ad's own hover-preview was hidden
+       behind the (now-hidden-above) ad card itself, so hiding it needs to be scoped to only the
+       instance that links to an ad, identified by its googleadservices.com href, not the shared
+       container in general (that would break hover-previews for real videos too). */
+    #video-preview-container:has(a[href*="googleadservices"]) {
+      display: none !important;
+    }
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }

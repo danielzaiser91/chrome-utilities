@@ -366,6 +366,18 @@ const svg = {
     '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="603" height="182" fill="#221f1f"><path fill="#f90" d="M374 142a234 234 0 0 1-287-21c-4-3-1-7 3-4a318 318 0 0 0 279 17c6-3 11 4 5 8"/><path fill="#f90" d="M389 126c-5-6-30-3-41-2-4 1-4-2-1-5 20-14 53-10 57-5 3 5-1 38-20 54-3 2-6 1-5-3 5-10 14-34 10-39"/><path d="M348 20V6c0-2 2-3 4-3h61c2 0 4 1 4 3v12l-5 9-32 45c12 0 25 1 35 8 3 1 3 3 4 5v14c0 2-3 5-5 4a71 71 0 0 0-65 0c-2 1-4-1-4-3V86c0-3 0-6 2-10l37-52h-32c-2 0-4-2-4-4m-223 85h-19c-1 0-3-1-3-3V7c0-2 2-4 4-4h17c2 0 3 2 3 3v13h1c4-12 13-18 24-18 12 0 19 6 24 18 5-12 15-18 26-18 8 0 17 3 22 11 6 8 4 19 4 30v60c0 2-1 3-3 3h-19c-2 0-3-1-3-3V51l-1-18c-1-6-5-8-11-8-4 0-9 3-11 8s-1 13-1 18v51c0 2-2 3-4 3h-19c-2 0-3-1-3-3V51c0-10 2-26-12-26-13 0-12 15-12 26v51c0 2-2 3-4 3M470 1c27 0 42 24 42 54 0 29-16 52-42 52-28 0-42-23-42-53s15-53 42-53m0 20c-14 0-15 18-15 30s0 37 15 37c14 0 15-20 15-33 0-8-1-17-3-25-2-7-6-9-12-9m78 84h-19c-1 0-3-1-3-3V6c0-1 2-3 4-3h17c2 0 3 1 3 3v14h1c5-13 12-19 25-19 8 0 17 3 22 11s5 21 5 30v60c-1 2-2 3-4 3h-19c-1 0-3-1-3-3V50c0-10 1-25-12-25-4 0-8 3-10 7-3 6-3 12-3 18v52c0 2-2 3-4 3"/><use xlink:href="#a" transform="translate(244)"/><path id="a" d="M55 60v-4c-13 0-27 3-27 18 0 9 4 14 11 14 5 0 10-3 13-8 3-7 3-13 3-20m19 45-4 1c-7-6-8-8-11-13-10 11-17 14-31 14-15 0-28-10-28-29 0-15 9-26 20-31 10-4 24-5 35-6v-3c0-4 1-9-2-13-2-4-7-5-10-5-8 0-14 4-15 11-1 2-2 4-4 4L6 33c-1-1-3-2-3-4C8 7 27 0 45 0c9 0 21 3 28 10 9 8 8 19 8 32v29c0 8 4 12 7 17 2 2 2 4 0 5l-14 12"/></svg>',
   youtube:
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24"><path fill="#FF0000" d="M23.498 6.186a2.994 2.994 0 0 0-2.112-2.12C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.386.521A2.994 2.994 0 0 0 .502 6.186 31.26 31.26 0 0 0 0 12a31.26 31.26 0 0 0 .502 5.814 2.994 2.994 0 0 0 2.112 2.12c1.881.521 9.386.521 9.386.521s7.505 0 9.386-.521a2.994 2.994 0 0 0 2.112-2.12A31.26 31.26 0 0 0 24 12a31.26 31.26 0 0 0-.502-5.814z"/><path fill="#FFF" d="M9.545 15.568V8.432L15.818 12z"/></svg>',
+  // no verified official logo path data available for these -- simple generic placeholder
+  // icons (color block + initials/symbol) instead of guessing at exact brand artwork
+  disneyplus:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#113CCF"/><text x="30" y="40" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#fff" text-anchor="middle">D+</text></svg>',
+  ds3cheatsheet:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#1a1a1a"/><text x="30" y="38" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#c9a227" text-anchor="middle">DS3</text></svg>',
+  luluvdo:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#2b6cb0"/><text x="30" y="40" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#fff" text-anchor="middle">LV</text></svg>',
+  filemoon:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#0f172a"/><path d="M38 18a15 15 0 1 0 0 24 12 12 0 1 1 0-24z" fill="#facc15"/></svg>',
+  wowtv:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#dc2626"/><text x="30" y="38" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">TV</text></svg>',
 };
 function prepareActionBar() {
   if (Interval.exists("_prepareActionBar")) return;

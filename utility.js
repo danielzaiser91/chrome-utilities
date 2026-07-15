@@ -3744,6 +3744,38 @@ function inURL(arr) {
 }
 
 let ytContainerIndex = 0;
+// tracked once globally: mouseleave/relatedTarget turned out to be unreliable here. YouTube's
+// shared #video-preview hover-tooltip resets its own state (playing/active attrs) on a fixed
+// ~1.2s cycle independent of the actual mouse, and that reset alone was enough to fire a
+// mouseleave that our cleanup mistook for the user genuinely moving away. Checking where the
+// mouse ACTUALLY is (via elementFromPoint) after a short grace period sidesteps interpreting
+// *why* a given mouseleave fired and just asks the DOM directly.
+let __cuMouseX = 0;
+let __cuMouseY = 0;
+window.addEventListener(
+  "mousemove",
+  (e) => {
+    __cuMouseX = e.clientX;
+    __cuMouseY = e.clientY;
+  },
+  { passive: true },
+);
+function cu_scheduleHoverRecheck() {
+  setTimeout(() => {
+    const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
+    const preview = byId("video-preview");
+    const stillHovering =
+      !!atPoint &&
+      (!!atPoint.closest(".cu-no-interest-container") ||
+        (preview && preview.contains(atPoint)));
+    if (stillHovering) return;
+    const toRemove = [...document.body.classList].filter((c) =>
+      c.includes("cu-hovered-container"),
+    );
+    if (toRemove.length) document.body.classList.remove(...toRemove);
+  }, 60);
+}
+
 function noInterestButton() {
   let lastVidHovered = "";
   repeatUntilCondition(
@@ -3752,6 +3784,7 @@ function noInterestButton() {
       preview.addEventListener("mouseenter", () =>
         document.body.classList.add("cu-hovering-" + lastVidHovered),
       );
+      preview.addEventListener("mouseleave", cu_scheduleHoverRecheck);
     },
     () => query("#video-preview"),
   );
@@ -3801,16 +3834,7 @@ function noInterestButton() {
         document.body.classList.add("cu-hovering-" + id);
         lastVidHovered = id;
       });
-      vid.addEventListener("mouseleave", (e) => {
-        // #video-preview appearing directly over the card fires a real browser mouseleave on
-        // "vid" even though the cursor never moved -- the browser sees a new element now under
-        // the pointer. Ignore that case (relatedTarget lands inside #video-preview) so our class
-        // doesn't get pulled the moment the hover-preview shows up; only clear it when the mouse
-        // genuinely moves somewhere else entirely.
-        const preview = byId("video-preview");
-        if (preview && e.relatedTarget && preview.contains(e.relatedTarget)) return;
-        document.body.classList.remove("cu-hovering-" + id);
-      });
+      vid.addEventListener("mouseleave", cu_scheduleHoverRecheck);
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while
       // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
       // high z-index on every card would make #video-preview lose to ALL of them at once,
@@ -3870,17 +3894,6 @@ function noInterestButton() {
     allVideos,
     { interval: 1000 },
   );
-  const getPreviewEl = () => query("#video-preview");
-  repeatUntilCondition(() => {
-    const previewEl = getPreviewEl();
-    previewEl.addEventListener("mouseleave", () => {
-      const toRemove = Array.from(document.body.classList).filter((c) =>
-        c.includes("cu-hovered-container"),
-      );
-      if (!toRemove.length) return;
-      document.body.classList.remove(...toRemove);
-    });
-  }, getPreviewEl);
 }
 /*
 function addControlsToShorts(shortsGetter) {

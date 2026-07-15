@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 13 (delegated hover + icon back)</div>
+        <div id="text">v${userOptions.version} - debug build 14 (icon disabled again, z-index fixed)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3874,7 +3874,7 @@ function noInterestButton() {
       // including the ~24 cards NOT currently being hovered, hiding the preview entirely
       insertCSS(
         `.cu-hovering-${id} .${id} .cu-no-interest{display:block}
-         .cu-hovering-${id} .${id}.cu-no-interest-container{z-index:2147483647}`,
+         .cu-hovering-${id} .${id}.cu-no-interest-container{z-index:9999999}`,
         id,
       );
       vid.classList.add("cu-no-interest-container");
@@ -3901,7 +3901,9 @@ function noInterestButton() {
           document.body.classList.remove("cu-menu--hide");
         }, 100);
       };
-      vid.appendChild(div);
+      // DEBUG build 14: icon insertion disabled again to isolate whether appendChild(div) (vs.
+      // the delegated hover listeners) is what re-broke the native hover-preview in build 13
+      // vid.appendChild(div);
     });
   };
   insertCSS(

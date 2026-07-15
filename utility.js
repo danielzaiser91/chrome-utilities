@@ -3843,7 +3843,12 @@ function noInterestButton() {
     `
     .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:999999;}
     .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
-    .cu-no-interest-container{position:relative; cursor:pointer}
+    /* needs its OWN positive z-index, not just its descendant icon -- an element with
+       position:relative and no z-index of its own sits in the "z-index:auto" stacking tier,
+       which loses to ANY sibling with an explicit positive z-index (like #video-preview's capped
+       1) no matter how high a z-index its descendants use locally. This promotes the whole card
+       into the same competing tier so it can actually out-rank #video-preview. */
+    .cu-no-interest-container{position:relative; cursor:pointer; z-index:2}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     
     // .cu-no-interest-container:hover .cu-no-interest{display:block}

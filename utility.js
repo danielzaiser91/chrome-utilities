@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 8</div>
+        <div id="text">v${userOptions.version} - debug build 9 (noInterestButton disabled)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3558,7 +3558,10 @@ const initShortsControl = () => {
 function fixYoutube() {
   initYTCSS();
   // initDateVisibilityListener();
-  noInterestButton();
+  // DEBUG: temporarily disabled to isolate whether this specific function is what's breaking
+  // hover-preview, or whether it's something else in fixYoutube() (ad-hiding CSS, settings icon,
+  // playback rate repeater) that was never actually confirmed as the culprit
+  // noInterestButton();
   ytShortsDate();
   _init_set_video_rate_repeater__generic(); // playbackrate
   // hideYoutubeAds();

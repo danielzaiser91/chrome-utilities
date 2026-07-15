@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 9 (noInterestButton disabled)</div>
+        <div id="text">v${userOptions.version} - debug build 10 (no position:relative)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3558,10 +3558,7 @@ const initShortsControl = () => {
 function fixYoutube() {
   initYTCSS();
   // initDateVisibilityListener();
-  // DEBUG: temporarily disabled to isolate whether this specific function is what's breaking
-  // hover-preview, or whether it's something else in fixYoutube() (ad-hiding CSS, settings icon,
-  // playback rate repeater) that was never actually confirmed as the culprit
-  // noInterestButton();
+  noInterestButton();
   ytShortsDate();
   _init_set_video_rate_repeater__generic(); // playbackrate
   // hideYoutubeAds();
@@ -3893,7 +3890,10 @@ function noInterestButton() {
        _addNoInterestIcon(), which promotes ONLY the currently-hovered card. A permanent z-index
        on every card at once would make the shared #video-preview hover-tooltip lose to ALL ~25
        cards simultaneously (not just the hovered one), hiding it behind the surrounding grid. */
-    .cu-no-interest-container{position:relative; cursor:pointer}
+    /* DEBUG: position:relative temporarily removed to test whether it's what breaks regular-video
+       hover-preview -- this CSS rule pre-dates today, but never actually applied to regular video
+       cards before, since the old selector matched zero of them. */
+    .cu-no-interest-container{cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     
     // .cu-no-interest-container:hover .cu-no-interest{display:block}

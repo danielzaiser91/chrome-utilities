@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 7</div>
+        <div id="text">v${userOptions.version} - debug build 8</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3760,31 +3760,36 @@ window.addEventListener(
   },
   { passive: true },
 );
-function cu_scheduleHoverRecheck() {
+// which card id is currently considered "active" (last one to receive a mouseenter), and a
+// registry of id -> card element so a recheck for one specific id can tell whether the cursor is
+// STILL on that particular card, not just "on some marked card" -- moving directly from card A to
+// card B must clear A's class even though B's class should now be set.
+let __cuLastVidHovered = "";
+const __cuCardRegistry = {};
+function cu_scheduleHoverRecheck(id) {
   setTimeout(() => {
+    const vid = __cuCardRegistry[id];
     const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
     const preview = byId("video-preview");
-    const stillHovering =
+    const stillOnThisCard =
       !!atPoint &&
-      (!!atPoint.closest(".cu-no-interest-container") ||
-        (preview && preview.contains(atPoint)));
-    if (stillHovering) return;
-    const toRemove = [...document.body.classList].filter((c) =>
-      c.includes("cu-hovered-container"),
-    );
-    if (toRemove.length) document.body.classList.remove(...toRemove);
+      ((vid && vid.contains(atPoint)) ||
+        (preview && preview.contains(atPoint) && __cuLastVidHovered === id));
+    if (stillOnThisCard) return;
+    document.body.classList.remove("cu-hovering-" + id);
   }, 60);
 }
 
 function noInterestButton() {
-  let lastVidHovered = "";
   repeatUntilCondition(
     () => {
       const preview = query("#video-preview");
       preview.addEventListener("mouseenter", () =>
-        document.body.classList.add("cu-hovering-" + lastVidHovered),
+        document.body.classList.add("cu-hovering-" + __cuLastVidHovered),
       );
-      preview.addEventListener("mouseleave", cu_scheduleHoverRecheck);
+      preview.addEventListener("mouseleave", () =>
+        cu_scheduleHoverRecheck(__cuLastVidHovered),
+      );
     },
     () => query("#video-preview"),
   );
@@ -3826,15 +3831,16 @@ function noInterestButton() {
     videos.forEach((vid) => {
       const id = "cu-hovered-container-" + ++ytContainerIndex;
       vid.classList.add(id);
+      __cuCardRegistry[id] = vid;
       // matches the class the CSS rule below actually checks for ("cu-hovering-" prefix), so the
       // icon shows immediately on hovering the card itself -- not just as a side effect of
       // YouTube's own #video-preview tooltip firing its separate mouseenter listener further
       // down, which Shorts cards never trigger at all (they don't use that shared element)
       vid.addEventListener("mouseenter", () => {
         document.body.classList.add("cu-hovering-" + id);
-        lastVidHovered = id;
+        __cuLastVidHovered = id;
       });
-      vid.addEventListener("mouseleave", cu_scheduleHoverRecheck);
+      vid.addEventListener("mouseleave", () => cu_scheduleHoverRecheck(id));
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while
       // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
       // high z-index on every card would make #video-preview lose to ALL of them at once,

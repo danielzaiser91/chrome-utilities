@@ -378,8 +378,6 @@ const svg = {
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#2b6cb0"/><text x="30" y="40" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#fff" text-anchor="middle">LV</text></svg>',
   filemoon:
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#0f172a"/><path d="M38 18a15 15 0 1 0 0 24 12 12 0 1 1 0-24z" fill="#facc15"/></svg>',
-  wowtv:
-    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#dc2626"/><text x="30" y="38" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">TV</text></svg>',
 };
 function prepareActionBar() {
   if (Interval.exists("_prepareActionBar")) return;

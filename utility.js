@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 19 (no scroll lag)</div>
+        <div id="text">v${userOptions.version} - debug build 20 (icon behind top bar)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3894,7 +3894,7 @@ function noInterestButton() {
   };
   insertCSS(
     `
-    #cu-no-interest-overlay{position:absolute;top:0;left:0;display:none;z-index:9999999;}
+    #cu-no-interest-overlay{position:absolute;top:0;left:0;display:none;z-index:2000;}
     #cu-no-interest-overlay svg{background:white;border-radius:50%;width:24px;height:24px;cursor:pointer;}
     .cu-no-interest-container{cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}

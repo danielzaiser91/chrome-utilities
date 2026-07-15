@@ -3800,7 +3800,14 @@ function noInterestButton() {
         document.body.classList.add("cu-hovering-" + id);
         lastVidHovered = id;
       });
-      vid.addEventListener("mouseleave", () => {
+      vid.addEventListener("mouseleave", (e) => {
+        // #video-preview appearing directly over the card fires a real browser mouseleave on
+        // "vid" even though the cursor never moved -- the browser sees a new element now under
+        // the pointer. Ignore that case (relatedTarget lands inside #video-preview) so our class
+        // doesn't get pulled the moment the hover-preview shows up; only clear it when the mouse
+        // genuinely moves somewhere else entirely.
+        const preview = byId("video-preview");
+        if (preview && e.relatedTarget && preview.contains(e.relatedTarget)) return;
         document.body.classList.remove("cu-hovering-" + id);
       });
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while

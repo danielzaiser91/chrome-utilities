@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 15 (polling instead of hover listeners)</div>
+        <div id="text">v${userOptions.version} - debug build 16 (icon as floating overlay)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3769,18 +3769,30 @@ let __cuPollStarted = false;
 // Shorts (confirmed via isolated debug builds). A plain "mousemove" listener on window does NOT
 // cause this, so hover state is derived by polling elementFromPoint() against tracked mouse coords.
 function cu_pollHover() {
+  const overlay = byId("cu-no-interest-overlay");
   const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
-  if (!atPoint) return;
+  if (!atPoint) {
+    __cuLastVidHovered = "";
+    if (overlay) overlay.style.display = "none";
+    return;
+  }
   const preview = byId("video-preview");
-  if (preview && preview.contains(atPoint)) return; // stay on current card while its preview overlay is under the cursor
+  if (preview && preview.contains(atPoint) && __cuLastVidHovered) return; // keep current card's icon while its preview overlay covers it
   const card = atPoint.closest && atPoint.closest(".cu-no-interest-container");
   const id = card
     ? [...card.classList].find((c) => c.startsWith("cu-hovered-container-")) || ""
     : "";
-  if (id === __cuLastVidHovered) return;
-  if (__cuLastVidHovered) document.body.classList.remove("cu-hovering-" + __cuLastVidHovered);
   __cuLastVidHovered = id;
-  if (id) document.body.classList.add("cu-hovering-" + id);
+  if (!overlay) return;
+  if (!id || !card) {
+    overlay.style.display = "none";
+    return;
+  }
+  overlay.dataset.cuId = id;
+  const rect = card.getBoundingClientRect();
+  overlay.style.top = rect.top + "px";
+  overlay.style.left = rect.left + "px";
+  overlay.style.display = "block";
 }
 function cu_startHoverPoll() {
   if (__cuPollStarted) return;
@@ -3822,64 +3834,53 @@ function noInterestButton() {
   // const allVideos = () => queryAll('#dismissible:not(.cu-no-interest-container)[class*=ytd-rich-grid]');
   const svg =
     '<svg height="24" viewBox="0 0 24 24" width="24" focusable="false"><path d="M18.71 6C20.13 7.59 21 9.69 21 12c0 4.97-4.03 9-9 9-2.31 0-4.41-.87-6-2.29L18.71 6zM3 12c0-4.97 4.03-9 9-9 2.31 0 4.41.87 6 2.29L5.29 18C3.87 16.41 3 14.31 3 12zm9-10c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" fill-rule="evenodd"></path></svg>';
+  // single shared overlay, positioned via cu_pollHover() -- NOT inserted into a video card's own
+  // DOM subtree. Adding a child element into the card (vid.appendChild/.prepend) broke YouTube's
+  // native hover-preview for regular videos specifically (confirmed via isolated debug builds),
+  // so the icon lives in document.body and is repositioned on top of the hovered card instead.
+  if (!byId("cu-no-interest-overlay")) {
+    const overlay = create("div", {
+      id: "cu-no-interest-overlay",
+      className: "cu-no-interest",
+      title: "not interested",
+    });
+    overlay.insertAdjacentHTML("afterbegin", svg);
+    overlay.querySelector("svg").onclick = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = overlay.dataset.cuId;
+      if (!id) return;
+      const btnEls = queryAll("div." + id + " button");
+      const dropdownTrigger = [...btnEls][btnEls.length - 1];
+      if (!dropdownTrigger) return;
+      document.body.classList.add("cu-menu--hide");
+      dropdownTrigger.click();
+      setTimeout(() => {
+        // FOR SHORTS IT IS the 2nd to last one...
+        const noInterestBtn = query(
+          "yt-list-item-view-model:nth-last-child(3)",
+        );
+        if (noInterestBtn) noInterestBtn.click();
+        document.body.classList.remove("cu-menu--hide");
+      }, 100);
+    };
+    document.body.appendChild(overlay);
+  }
   const _addNoInterestIcon = () => {
     const videos = allVideos();
     if (!videos || !videos.length) return;
     videos.forEach((vid) => {
       const id = "cu-hovered-container-" + ++ytContainerIndex;
       vid.classList.add(id);
-      // hover detection is done via polling (see cu_startHoverPoll) -- attaching mouseenter/
-      // mouseleave/mouseover/mouseout listeners on or near the card broke YouTube's native
-      // hover-preview
-      // the z-index promotion (see .cu-no-interest-container comment below) only applies while
-      // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
-      // high z-index on every card would make #video-preview lose to ALL of them at once,
-      // including the ~24 cards NOT currently being hovered, hiding the preview entirely
-      insertCSS(
-        `.cu-hovering-${id} .${id} .cu-no-interest{display:block}
-         .cu-hovering-${id} .${id}.cu-no-interest-container{z-index:9999999}`,
-        id,
-      );
       vid.classList.add("cu-no-interest-container");
-      // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
-      const div = create("div", {
-        className: "cu-no-interest",
-        title: "not interested",
-      });
-      div.insertAdjacentHTML("afterbegin", svg);
-      div.querySelector("svg").onclick = (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const btnEls = queryAll("div." + id + " button");
-        const dropdownTrigger = [...btnEls][btnEls.length - 1];
-        if (!dropdownTrigger) return;
-        document.body.classList.add("cu-menu--hide");
-        dropdownTrigger.click();
-        setTimeout(() => {
-          // FOR SHORTS IT IS the 2nd to last one...
-          const noInterestBtn = query(
-            "yt-list-item-view-model:nth-last-child(3)",
-          );
-          if (noInterestBtn) noInterestBtn.click();
-          document.body.classList.remove("cu-menu--hide");
-        }, 100);
-      };
-      vid.appendChild(div);
     });
   };
   insertCSS(
     `
-    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:999999;}
-    .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
-    /* no permanent z-index here -- see the per-card "cu-hovering" rule generated in
-       _addNoInterestIcon(), which promotes ONLY the currently-hovered card. A permanent z-index
-       on every card at once would make the shared #video-preview hover-tooltip lose to ALL ~25
-       cards simultaneously (not just the hovered one), hiding it behind the surrounding grid. */
-    .cu-no-interest-container{position:relative; cursor:pointer}
+    #cu-no-interest-overlay{position:fixed;top:0;left:0;display:none;z-index:9999999;}
+    #cu-no-interest-overlay svg{background:white;border-radius:50%;width:24px;height:24px;cursor:pointer;}
+    .cu-no-interest-container{cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
-    
-    // .cu-no-interest-container:hover .cu-no-interest{display:block}
-    // .cu-vidref-short .cu-no-interest{display:block}
   `,
     "cu-no-interest",
   );

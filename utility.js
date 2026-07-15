@@ -3833,7 +3833,7 @@ function noInterestButton() {
   };
   insertCSS(
     `
-    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:2;}
+    .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:999999;}
     .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
     .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}

@@ -3684,6 +3684,14 @@ function initYTCSS() {
     #video-preview-container:has(a[href*="googleadservices"]) {
       display: none !important;
     }
+    /* #video-preview is a single element YouTube repositions over whichever card is hovered
+       (confirmed for both regular videos AND Shorts) -- it's a sibling of the card in the DOM,
+       not a descendant, so no z-index set on our "not interested" icon (nested inside the card)
+       can ever out-rank it, no matter how high. Capping #video-preview's own z-index instead
+       reliably wins against our icon's much higher one, regardless of stacking-context nesting. */
+    #video-preview {
+      z-index: 1 !important;
+    }
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }

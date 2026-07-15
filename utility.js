@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 12 (no hover listeners)</div>
+        <div id="text">v${userOptions.version} - debug build 13 (delegated hover + icon back)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3780,7 +3780,41 @@ function cu_scheduleHoverRecheck(id) {
   }, 60);
 }
 
+let __cuDelegatedListenersAdded = false;
+// event delegation instead of vid.addEventListener(...) per card -- attaching mouseenter/
+// mouseleave listeners directly to the card element broke YouTube's own native hover-preview
+// for both regular videos and Shorts (confirmed via isolated debug builds)
+function cu_setupDelegatedHoverListeners() {
+  if (__cuDelegatedListenersAdded) return;
+  __cuDelegatedListenersAdded = true;
+  const findId = (target) => {
+    const card = target.closest(".cu-no-interest-container");
+    if (!card) return null;
+    return [...card.classList].find((c) => c.startsWith("cu-hovered-container-"));
+  };
+  document.addEventListener(
+    "mouseover",
+    (e) => {
+      const id = findId(e.target);
+      if (!id || id === __cuLastVidHovered) return;
+      __cuLastVidHovered = id;
+      document.body.classList.add("cu-hovering-" + id);
+    },
+    { passive: true },
+  );
+  document.addEventListener(
+    "mouseout",
+    (e) => {
+      const id = findId(e.target);
+      if (!id) return;
+      cu_scheduleHoverRecheck(id);
+    },
+    { passive: true },
+  );
+}
+
 function noInterestButton() {
+  cu_setupDelegatedHoverListeners();
   repeatUntilCondition(
     () => {
       const preview = query("#video-preview");
@@ -3832,17 +3866,8 @@ function noInterestButton() {
       const id = "cu-hovered-container-" + ++ytContainerIndex;
       vid.classList.add(id);
       __cuCardRegistry[id] = vid;
-      // matches the class the CSS rule below actually checks for ("cu-hovering-" prefix), so the
-      // icon shows immediately on hovering the card itself -- not just as a side effect of
-      // YouTube's own #video-preview tooltip firing its separate mouseenter listener further
-      // down, which Shorts cards never trigger at all (they don't use that shared element)
-      // DEBUG build 12: listeners temporarily disabled to test whether attaching mouseenter/
-      // mouseleave to the card itself is what breaks YouTube's native hover-preview
-      // vid.addEventListener("mouseenter", () => {
-      //   document.body.classList.add("cu-hovering-" + id);
-      //   __cuLastVidHovered = id;
-      // });
-      // vid.addEventListener("mouseleave", () => cu_scheduleHoverRecheck(id));
+      // hover detection itself is delegated (see cu_setupDelegatedHoverListeners) -- attaching
+      // listeners directly to vid broke YouTube's native hover-preview
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while
       // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
       // high z-index on every card would make #video-preview lose to ALL of them at once,
@@ -3876,9 +3901,7 @@ function noInterestButton() {
           document.body.classList.remove("cu-menu--hide");
         }, 100);
       };
-      // DEBUG: icon insertion temporarily skipped to test whether the icon DOM node itself (as
-      // opposed to the class/listeners on vid) is what breaks hover-preview
-      // vid.appendChild(div);
+      vid.appendChild(div);
     });
   };
   insertCSS(

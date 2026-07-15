@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 14 (icon disabled again, z-index fixed)</div>
+        <div id="text">v${userOptions.version} - debug build 15 (polling instead of hover listeners)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3760,73 +3760,36 @@ window.addEventListener(
   },
   { passive: true },
 );
-// which card id is currently considered "active" (last one to receive a mouseenter), and a
-// registry of id -> card element so a recheck for one specific id can tell whether the cursor is
-// STILL on that particular card, not just "on some marked card" -- moving directly from card A to
-// card B must clear A's class even though B's class should now be set.
+// which card id is currently considered "active"
 let __cuLastVidHovered = "";
-const __cuCardRegistry = {};
-function cu_scheduleHoverRecheck(id) {
-  setTimeout(() => {
-    const vid = __cuCardRegistry[id];
-    const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
-    const preview = byId("video-preview");
-    const stillOnThisCard =
-      !!atPoint &&
-      ((vid && vid.contains(atPoint)) ||
-        (preview && preview.contains(atPoint) && __cuLastVidHovered === id));
-    if (stillOnThisCard) return;
-    document.body.classList.remove("cu-hovering-" + id);
-  }, 60);
+let __cuPollStarted = false;
+// polling instead of any mouseenter/mouseleave/mouseover/mouseout listener on or near the card --
+// even a delegated document-level listener that merely detects hover over a card (doing nothing
+// but a classList change) broke YouTube's own native hover-preview for both regular videos and
+// Shorts (confirmed via isolated debug builds). A plain "mousemove" listener on window does NOT
+// cause this, so hover state is derived by polling elementFromPoint() against tracked mouse coords.
+function cu_pollHover() {
+  const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
+  if (!atPoint) return;
+  const preview = byId("video-preview");
+  if (preview && preview.contains(atPoint)) return; // stay on current card while its preview overlay is under the cursor
+  const card = atPoint.closest && atPoint.closest(".cu-no-interest-container");
+  const id = card
+    ? [...card.classList].find((c) => c.startsWith("cu-hovered-container-")) || ""
+    : "";
+  if (id === __cuLastVidHovered) return;
+  if (__cuLastVidHovered) document.body.classList.remove("cu-hovering-" + __cuLastVidHovered);
+  __cuLastVidHovered = id;
+  if (id) document.body.classList.add("cu-hovering-" + id);
 }
-
-let __cuDelegatedListenersAdded = false;
-// event delegation instead of vid.addEventListener(...) per card -- attaching mouseenter/
-// mouseleave listeners directly to the card element broke YouTube's own native hover-preview
-// for both regular videos and Shorts (confirmed via isolated debug builds)
-function cu_setupDelegatedHoverListeners() {
-  if (__cuDelegatedListenersAdded) return;
-  __cuDelegatedListenersAdded = true;
-  const findId = (target) => {
-    const card = target.closest(".cu-no-interest-container");
-    if (!card) return null;
-    return [...card.classList].find((c) => c.startsWith("cu-hovered-container-"));
-  };
-  document.addEventListener(
-    "mouseover",
-    (e) => {
-      const id = findId(e.target);
-      if (!id || id === __cuLastVidHovered) return;
-      __cuLastVidHovered = id;
-      document.body.classList.add("cu-hovering-" + id);
-    },
-    { passive: true },
-  );
-  document.addEventListener(
-    "mouseout",
-    (e) => {
-      const id = findId(e.target);
-      if (!id) return;
-      cu_scheduleHoverRecheck(id);
-    },
-    { passive: true },
-  );
+function cu_startHoverPoll() {
+  if (__cuPollStarted) return;
+  __cuPollStarted = true;
+  setInterval(cu_pollHover, 150);
 }
 
 function noInterestButton() {
-  cu_setupDelegatedHoverListeners();
-  repeatUntilCondition(
-    () => {
-      const preview = query("#video-preview");
-      preview.addEventListener("mouseenter", () =>
-        document.body.classList.add("cu-hovering-" + __cuLastVidHovered),
-      );
-      preview.addEventListener("mouseleave", () =>
-        cu_scheduleHoverRecheck(__cuLastVidHovered),
-      );
-    },
-    () => query("#video-preview"),
-  );
+  cu_startHoverPoll();
   // const hasDismissibles = () =>
   //   query(
   //     "#dismissible:not(.cu-no-interest-container)[class*=ytd-compact-video-renderer]"
@@ -3865,9 +3828,9 @@ function noInterestButton() {
     videos.forEach((vid) => {
       const id = "cu-hovered-container-" + ++ytContainerIndex;
       vid.classList.add(id);
-      __cuCardRegistry[id] = vid;
-      // hover detection itself is delegated (see cu_setupDelegatedHoverListeners) -- attaching
-      // listeners directly to vid broke YouTube's native hover-preview
+      // hover detection is done via polling (see cu_startHoverPoll) -- attaching mouseenter/
+      // mouseleave/mouseover/mouseout listeners on or near the card broke YouTube's native
+      // hover-preview
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while
       // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
       // high z-index on every card would make #video-preview lose to ALL of them at once,
@@ -3901,9 +3864,7 @@ function noInterestButton() {
           document.body.classList.remove("cu-menu--hide");
         }, 100);
       };
-      // DEBUG build 14: icon insertion disabled again to isolate whether appendChild(div) (vs.
-      // the delegated hover listeners) is what re-broke the native hover-preview in build 13
-      // vid.appendChild(div);
+      vid.appendChild(div);
     });
   };
   insertCSS(

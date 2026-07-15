@@ -3775,11 +3775,11 @@ function noInterestButton() {
   // ];
   const hasDismissibles = () =>
     query(
-      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)",
+      "yt-lockup-view-model > .ytLockupViewModelHost:not(.cu-no-interest-container)",
     );
   const getDismissibles = () => [
     ...queryAll(
-      "yt-lockup-view-model > .yt-lockup-view-model:not(.cu-no-interest-container)",
+      "yt-lockup-view-model > .ytLockupViewModelHost:not(.cu-no-interest-container)",
     ),
   ];
   const allVideos = () =>

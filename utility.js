@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 10 (no position:relative)</div>
+        <div id="text">v${userOptions.version} - debug build 11 (no icon insertion)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3874,12 +3874,9 @@ function noInterestButton() {
           document.body.classList.remove("cu-menu--hide");
         }, 100);
       };
-      // appendChild, not prepend: prepending as the first child risks breaking YouTube's own
-      // hover-preview init if it relies on the first child being a specific element (e.g. the
-      // thumbnail link) -- this selector never matched anything for a while (YouTube renamed the
-      // class), so this insertion hasn't actually run on regular video cards until the selector
-      // fix earlier today, which may be what surfaced this.
-      vid.appendChild(div);
+      // DEBUG: icon insertion temporarily skipped to test whether the icon DOM node itself (as
+      // opposed to the class/listeners on vid) is what breaks hover-preview
+      // vid.appendChild(div);
     });
   };
   insertCSS(
@@ -3890,10 +3887,7 @@ function noInterestButton() {
        _addNoInterestIcon(), which promotes ONLY the currently-hovered card. A permanent z-index
        on every card at once would make the shared #video-preview hover-tooltip lose to ALL ~25
        cards simultaneously (not just the hovered one), hiding it behind the surrounding grid. */
-    /* DEBUG: position:relative temporarily removed to test whether it's what breaks regular-video
-       hover-preview -- this CSS rule pre-dates today, but never actually applied to regular video
-       cards before, since the old selector matched zero of them. */
-    .cu-no-interest-container{cursor:pointer}
+    .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     
     // .cu-no-interest-container:hover .cu-no-interest{display:block}

@@ -3657,8 +3657,19 @@ function hideYoutubeAds() {
 
 function initYTCSS() {
   insertCSS(
-    // [id$="-ad"] { display: none !important }
     `
+    /* ad slots: ytd-ad-slot-renderer is the stable custom-element wrapper YouTube uses for both
+       in-feed and search-result ads (confirmed against real captured markup). Hiding just the
+       inner ad renderer would leave an empty gap in the video grid, so also collapse the
+       ytd-rich-item-renderer grid cell that contains it via :has(). This only hides the already-
+       rendered ad after the fact (no network requests blocked, no DOM removal, no auto-clicking),
+       which is the least likely to trip YouTube's own ad-blocker-detection banner. */
+    ytd-ad-slot-renderer,
+    ytd-in-feed-ad-layout-renderer,
+    ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+    #masthead-ad {
+      display: none !important;
+    }
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }

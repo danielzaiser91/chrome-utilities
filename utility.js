@@ -3684,14 +3684,6 @@ function initYTCSS() {
     #video-preview-container:has(a[href*="googleadservices"]) {
       display: none !important;
     }
-    /* #video-preview is a single element YouTube repositions over whichever card is hovered
-       (confirmed for both regular videos AND Shorts) -- it's a sibling of the card in the DOM,
-       not a descendant, so no z-index set on our "not interested" icon (nested inside the card)
-       can ever out-rank it, no matter how high. Capping #video-preview's own z-index instead
-       reliably wins against our icon's much higher one, regardless of stacking-context nesting. */
-    #video-preview {
-      z-index: 1 !important;
-    }
     [darker-dark-theme] #contenteditable-root { color: white !important }
     ytd-page-manager { overflow-x: auto !important; }
     .ytp-settings-menu .ytp-panel, .ytp-settings-menu { height: calc(100% - 33px) !important; }
@@ -3845,10 +3837,14 @@ function noInterestButton() {
     .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
     /* needs its OWN positive z-index, not just its descendant icon -- an element with
        position:relative and no z-index of its own sits in the "z-index:auto" stacking tier,
-       which loses to ANY sibling with an explicit positive z-index (like #video-preview's capped
-       1) no matter how high a z-index its descendants use locally. This promotes the whole card
-       into the same competing tier so it can actually out-rank #video-preview. */
-    .cu-no-interest-container{position:relative; cursor:pointer; z-index:2}
+       which loses to ANY sibling with an explicit positive z-index no matter how high a z-index
+       its descendants use locally. This promotes the whole card into the same competing tier as
+       the shared #video-preview hover-tooltip so it can out-rank it -- deliberately NOT capping
+       #video-preview's own z-index (tried that, it then rendered *behind the entire grid*
+       instead, since every card was ALSO promoted to a fixed z-index of 2 at the time). Using
+       the practical CSS z-index ceiling here means #video-preview keeps whatever natural z-index
+       it has and still safely loses, without needing to know or touch that value at all. */
+    .cu-no-interest-container{position:relative; cursor:pointer; z-index:2147483647}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     
     // .cu-no-interest-container:hover .cu-no-interest{display:block}

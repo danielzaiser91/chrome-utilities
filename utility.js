@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 17 (faster card marking)</div>
+        <div id="text">v${userOptions.version} - debug build 18 (rect-based hover fallback)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3776,9 +3776,22 @@ function cu_pollHover() {
     if (overlay) overlay.style.display = "none";
     return;
   }
-  const preview = byId("video-preview");
-  if (preview && preview.contains(atPoint) && __cuLastVidHovered) return; // keep current card's icon while its preview overlay covers it
-  const card = atPoint.closest && atPoint.closest(".cu-no-interest-container");
+  let card = atPoint.closest && atPoint.closest(".cu-no-interest-container");
+  if (!card) {
+    // atPoint can land inside YouTube's shared #video-preview overlay, which visually covers a
+    // card without being a DOM descendant of it -- fall back to a mouse-position rect check
+    // against the actual cards instead of blindly trusting whichever card was hovered last
+    // (that caused the icon to get stuck on the previous card when quickly hovering Shorts)
+    card = [...queryAll(".cu-no-interest-container")].find((c) => {
+      const r = c.getBoundingClientRect();
+      return (
+        __cuMouseX >= r.left &&
+        __cuMouseX <= r.right &&
+        __cuMouseY >= r.top &&
+        __cuMouseY <= r.bottom
+      );
+    });
+  }
   const id = card
     ? [...card.classList].find((c) => c.startsWith("cu-hovered-container-")) || ""
     : "";

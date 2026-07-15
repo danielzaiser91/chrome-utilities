@@ -391,7 +391,6 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 21 (hide promo banner)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -5304,7 +5303,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.3.9",
+  version: "1.4.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

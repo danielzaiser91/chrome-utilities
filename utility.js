@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 16 (icon as floating overlay)</div>
+        <div id="text">v${userOptions.version} - debug build 17 (faster card marking)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3889,7 +3889,7 @@ function noInterestButton() {
       _addNoInterestIcon();
     },
     allVideos,
-    { interval: 1000 },
+    { interval: 300 },
   );
 }
 /*

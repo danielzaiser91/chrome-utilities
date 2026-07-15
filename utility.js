@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 11 (no icon insertion)</div>
+        <div id="text">v${userOptions.version} - debug build 12 (no hover listeners)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3836,11 +3836,13 @@ function noInterestButton() {
       // icon shows immediately on hovering the card itself -- not just as a side effect of
       // YouTube's own #video-preview tooltip firing its separate mouseenter listener further
       // down, which Shorts cards never trigger at all (they don't use that shared element)
-      vid.addEventListener("mouseenter", () => {
-        document.body.classList.add("cu-hovering-" + id);
-        __cuLastVidHovered = id;
-      });
-      vid.addEventListener("mouseleave", () => cu_scheduleHoverRecheck(id));
+      // DEBUG build 12: listeners temporarily disabled to test whether attaching mouseenter/
+      // mouseleave to the card itself is what breaks YouTube's native hover-preview
+      // vid.addEventListener("mouseenter", () => {
+      //   document.body.classList.add("cu-hovering-" + id);
+      //   __cuLastVidHovered = id;
+      // });
+      // vid.addEventListener("mouseleave", () => cu_scheduleHoverRecheck(id));
       // the z-index promotion (see .cu-no-interest-container comment below) only applies while
       // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
       // high z-index on every card would make #video-preview lose to ALL of them at once,

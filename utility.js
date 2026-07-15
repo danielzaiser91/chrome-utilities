@@ -3803,7 +3803,15 @@ function noInterestButton() {
       vid.addEventListener("mouseleave", () => {
         document.body.classList.remove("cu-hovering-" + id);
       });
-      insertCSS(`.cu-hovering-${id} .${id} .cu-no-interest{display:block}`, id);
+      // the z-index promotion (see .cu-no-interest-container comment below) only applies while
+      // THIS card is the one being hovered, via the same cu-hovering-${id} flag -- a permanent
+      // high z-index on every card would make #video-preview lose to ALL of them at once,
+      // including the ~24 cards NOT currently being hovered, hiding the preview entirely
+      insertCSS(
+        `.cu-hovering-${id} .${id} .cu-no-interest{display:block}
+         .cu-hovering-${id} .${id}.cu-no-interest-container{z-index:2147483647}`,
+        id,
+      );
       vid.classList.add("cu-no-interest-container");
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
       const div = create("div", {
@@ -3835,16 +3843,11 @@ function noInterestButton() {
     `
     .cu-no-interest{position:absolute;top:0;left:0;display:none;z-index:999999;}
     .cu-no-interest svg{background:white;border-radius:50%;width:24px;height:24px;}
-    /* needs its OWN positive z-index, not just its descendant icon -- an element with
-       position:relative and no z-index of its own sits in the "z-index:auto" stacking tier,
-       which loses to ANY sibling with an explicit positive z-index no matter how high a z-index
-       its descendants use locally. This promotes the whole card into the same competing tier as
-       the shared #video-preview hover-tooltip so it can out-rank it -- deliberately NOT capping
-       #video-preview's own z-index (tried that, it then rendered *behind the entire grid*
-       instead, since every card was ALSO promoted to a fixed z-index of 2 at the time). Using
-       the practical CSS z-index ceiling here means #video-preview keeps whatever natural z-index
-       it has and still safely loses, without needing to know or touch that value at all. */
-    .cu-no-interest-container{position:relative; cursor:pointer; z-index:2147483647}
+    /* no permanent z-index here -- see the per-card "cu-hovering" rule generated in
+       _addNoInterestIcon(), which promotes ONLY the currently-hovered card. A permanent z-index
+       on every card at once would make the shared #video-preview hover-tooltip lose to ALL ~25
+       cards simultaneously (not just the hovered one), hiding it behind the surrounding grid. */
+    .cu-no-interest-container{position:relative; cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}
     
     // .cu-no-interest-container:hover .cu-no-interest{display:block}

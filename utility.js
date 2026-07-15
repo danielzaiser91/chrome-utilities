@@ -505,6 +505,10 @@ function prepareActionBar() {
         right: 40%;
       }
     }
+    .cu-actions-container.youtube {
+      left: 200px;
+      transform: none;
+    }
     .cu-action svg { fill: #000 }
     .cu-action {
       height: 100%;
@@ -902,7 +906,7 @@ function websiteSelector() {
     // ),
     new Matcher("crunchyroll.com", fixCrunchyroll, true),
     new Matcher("defenestration.co/pg/surveying", fixPGSurveyHelper),
-    new Matcher("youtube.com", fixYoutube),
+    new Matcher("youtube.com", fixYoutube, true),
     new Matcher("netflix.com", fixNetflix, true),
     new Matcher("1movies.life", fix1movies, true),
     new Matcher(".amazon.", fixAmazon, true),
@@ -3554,6 +3558,7 @@ function fixYoutube() {
   // initDateVisibilityListener();
   noInterestButton();
   ytShortsDate();
+  _init_set_video_rate_repeater__generic(); // playbackrate
   // hideYoutubeAds();
   // hideYoutubeAdsReels();
 
@@ -5365,6 +5370,27 @@ let userOptions = {
         disabledReason: "will be coming soon, not yet implemented",
         label: "Activate",
         description: "",
+      },
+    },
+  },
+  youtube: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
+          },
+        },
       },
     },
   },

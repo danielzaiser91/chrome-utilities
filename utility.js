@@ -5317,7 +5317,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.4.0",
+  version: "1.4.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

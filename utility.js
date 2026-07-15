@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 20 (icon behind top bar)</div>
+        <div id="text">v${userOptions.version} - debug build 21 (hide promo banner)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3683,6 +3683,13 @@ function initYTCSS() {
        instance that links to an ad, identified by its googleadservices.com href, not the shared
        container in general (that would break hover-previews for real videos too). */
     #video-preview-container:has(a[href*="googleadservices"]) {
+      display: none !important;
+    }
+    /* home-page promo banner ("Bleib am Ball" football promo etc.) -- #big-yoodle and #dismissible
+       are both reused by YouTube for unrelated things (other banner types / dialogs like video
+       upload), so scope to the specific renderer this promo banner actually uses, confirmed
+       against captured markup (ytd-statement-banner-renderer[location="slot-zero-home"]) */
+    #big-yoodle:has(ytd-statement-banner-renderer) {
       display: none !important;
     }
     [darker-dark-theme] #contenteditable-root { color: white !important }

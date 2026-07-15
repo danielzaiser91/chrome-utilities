@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 18 (rect-based hover fallback)</div>
+        <div id="text">v${userOptions.version} - debug build 19 (no scroll lag)</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3772,8 +3772,8 @@ function cu_pollHover() {
   const overlay = byId("cu-no-interest-overlay");
   const atPoint = document.elementFromPoint(__cuMouseX, __cuMouseY);
   if (!atPoint) {
+    if (__cuLastVidHovered && overlay) overlay.style.display = "none";
     __cuLastVidHovered = "";
-    if (overlay) overlay.style.display = "none";
     return;
   }
   let card = atPoint.closest && atPoint.closest(".cu-no-interest-container");
@@ -3795,6 +3795,7 @@ function cu_pollHover() {
   const id = card
     ? [...card.classList].find((c) => c.startsWith("cu-hovered-container-")) || ""
     : "";
+  if (id === __cuLastVidHovered) return; // same card as last tick -- already positioned/shown, nothing to do
   __cuLastVidHovered = id;
   if (!overlay) return;
   if (!id || !card) {
@@ -3802,9 +3803,12 @@ function cu_pollHover() {
     return;
   }
   overlay.dataset.cuId = id;
+  // position:absolute in document coordinates instead of position:fixed + per-tick viewport
+  // coordinates -- the overlay then scrolls together with the page natively, instead of visibly
+  // lagging behind the card between 150ms poll ticks while the user scrolls during a hover
   const rect = card.getBoundingClientRect();
-  overlay.style.top = rect.top + "px";
-  overlay.style.left = rect.left + "px";
+  overlay.style.top = rect.top + window.scrollY + "px";
+  overlay.style.left = rect.left + window.scrollX + "px";
   overlay.style.display = "block";
 }
 function cu_startHoverPoll() {
@@ -3890,7 +3894,7 @@ function noInterestButton() {
   };
   insertCSS(
     `
-    #cu-no-interest-overlay{position:fixed;top:0;left:0;display:none;z-index:9999999;}
+    #cu-no-interest-overlay{position:absolute;top:0;left:0;display:none;z-index:9999999;}
     #cu-no-interest-overlay svg{background:white;border-radius:50%;width:24px;height:24px;cursor:pointer;}
     .cu-no-interest-container{cursor:pointer}
     .cu-menu--hide ytd-menu-popup-renderer{display:none}

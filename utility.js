@@ -3773,15 +3773,13 @@ function noInterestButton() {
   //     )
   //   ),
   // ];
-  const hasDismissibles = () =>
-    query(
-      "yt-lockup-view-model > .ytLockupViewModelHost:not(.cu-no-interest-container)",
-    );
-  const getDismissibles = () => [
-    ...queryAll(
-      "yt-lockup-view-model > .ytLockupViewModelHost:not(.cu-no-interest-container)",
-    ),
-  ];
+  // regular video cards (feed/watch-page recommendations) and Shorts shelf cards use two
+  // completely different component trees, so both need their own clause here
+  const dismissibleSelector =
+    "yt-lockup-view-model > .ytLockupViewModelHost:not(.cu-no-interest-container), " +
+    "ytm-shorts-lockup-view-model.shortsLockupViewModelHost:not(.cu-no-interest-container)";
+  const hasDismissibles = () => query(dismissibleSelector);
+  const getDismissibles = () => [...queryAll(dismissibleSelector)];
   const allVideos = () =>
     !inURL(["@", "subscriptions"]) && hasDismissibles() && getDismissibles();
   // commented out inclusion of shorts...
@@ -3794,14 +3792,18 @@ function noInterestButton() {
     videos.forEach((vid) => {
       const id = "cu-hovered-container-" + ++ytContainerIndex;
       vid.classList.add(id);
+      // matches the class the CSS rule below actually checks for ("cu-hovering-" prefix), so the
+      // icon shows immediately on hovering the card itself -- not just as a side effect of
+      // YouTube's own #video-preview tooltip firing its separate mouseenter listener further
+      // down, which Shorts cards never trigger at all (they don't use that shared element)
       vid.addEventListener("mouseenter", () => {
-        document.body.classList.add(id);
+        document.body.classList.add("cu-hovering-" + id);
         lastVidHovered = id;
       });
-      insertCSS(
-        `.${id} .${id}:hover .cu-no-interest, .cu-hovering-${id} .${id} .cu-no-interest{display:block}`,
-        id,
-      );
+      vid.addEventListener("mouseleave", () => {
+        document.body.classList.remove("cu-hovering-" + id);
+      });
+      insertCSS(`.cu-hovering-${id} .${id} .cu-no-interest{display:block}`, id);
       vid.classList.add("cu-no-interest-container");
       // TODO: Add no-interest-container to ytd-video-preview of yt-shorts preview thumbnail on hover, because it is on top of the icon
       const div = create("div", {

@@ -391,7 +391,7 @@ function prepareActionBar() {
           ${svg[site] ?? ""}
           Chrome Extension: Utility - Settings for ${site}:
         </div>
-        <div id="text">v${userOptions.version} - debug build 6</div>
+        <div id="text">v${userOptions.version} - debug build 7</div>
         <div class="cu-settings-options">
 
         </div>
@@ -3868,7 +3868,12 @@ function noInterestButton() {
           document.body.classList.remove("cu-menu--hide");
         }, 100);
       };
-      vid.prepend(div);
+      // appendChild, not prepend: prepending as the first child risks breaking YouTube's own
+      // hover-preview init if it relies on the first child being a specific element (e.g. the
+      // thumbnail link) -- this selector never matched anything for a while (YouTube renamed the
+      // class), so this insertion hasn't actually run on regular video cards until the selector
+      // fix earlier today, which may be what surfaced this.
+      vid.appendChild(div);
     });
   };
   insertCSS(

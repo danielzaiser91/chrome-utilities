@@ -521,6 +521,7 @@ function prepareActionBar() {
       align-items: center;
       padding: 0 5px;
       z-index: 2;
+      cursor: pointer;
     }
 
     .cu-settings-container {

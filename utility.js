@@ -4175,9 +4175,20 @@ function cr_initSubtitleUmlautFix() {
     ".bitmovinplayer-container li { display: inline !important; }",
     "cr-subtitle-cue-display-fix",
   );
-  repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR), {
-    interval: 50,
-  });
+  // a fixed-interval poll races against the player re-rendering cue text from its own (unfixed)
+  // data, which happens on its own schedule -- confirmed by the fix intermittently "losing" even
+  // at a 50ms interval. A MutationObserver reacts synchronously to every DOM change instead of
+  // sampling, so it can't lose that race.
+  repeatUntilCondition(
+    () => {
+      new MutationObserver(cr_fixSubtitleCues).observe(
+        query(".bitmovinplayer-container"),
+        { childList: true, subtree: true, characterData: true },
+      );
+      cr_fixSubtitleCues();
+    },
+    () => query(".bitmovinplayer-container"),
+  );
 }
 
 // news/seasonal-lineup weekly programme article (e.g. .../news/seasonal-lineup/2026/7/6/crunchyroll-wochenprogramm-sommer-2026)

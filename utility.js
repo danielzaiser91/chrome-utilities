@@ -4060,15 +4060,28 @@ function cr_initSubtitleUmlautFix() {
   // data, which happens on its own schedule -- confirmed by the fix intermittently "losing" even
   // at a 50ms interval. A MutationObserver reacts synchronously to every DOM change instead of
   // sampling, so it can't lose that race.
-  repeatUntilCondition(
+  //
+  // The observer itself was originally attached once via a one-shot repeatUntilCondition, with no
+  // way to notice if Crunchyroll ever replaces the .bitmovinplayer-container node (an internal
+  // player re-init) -- confirmed happening: a broken cue stayed broken for the rest of that
+  // viewing session (observer stuck watching the old, now-detached container) but a reload fixed
+  // it immediately (fresh attach to the live container). Slow backstop poll re-attaches whenever
+  // the container reference actually changes, same pattern as watchListColors.
+  let observedContainer;
+  repeatIfCondition(
     () => {
-      new MutationObserver(cr_fixSubtitleCues).observe(
-        query(".bitmovinplayer-container"),
-        { childList: true, subtree: true, characterData: true },
-      );
+      const container = query(".bitmovinplayer-container");
+      if (!container || container === observedContainer) return;
+      observedContainer = container;
+      new MutationObserver(cr_fixSubtitleCues).observe(container, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
       cr_fixSubtitleCues();
     },
     () => query(".bitmovinplayer-container"),
+    { interval: 1000 },
   );
 }
 

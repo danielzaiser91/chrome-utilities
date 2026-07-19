@@ -4130,10 +4130,25 @@ function cr_fixSubtitleUmlauts(text) {
     .replace(/[oO](ö|Ö)/g, "$1")
     .replace(/[uU](ü|Ü)/g, "$1");
 }
+// Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
+// cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users
+// who just want the translation can opt to strip those out
+function cr_stripAudioDescriptions(text) {
+  return text
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 function cr_fixSubtitleCues() {
+  const removeAudioDescriptions = isAllowed(
+    userOptions.crunchyroll.featureRemoveAudioDescriptions?.isEnabled,
+  );
   queryAll(CR_SUBTITLE_CUE_SELECTOR).forEach((li) => {
-    const fixed = cr_fixSubtitleUmlauts(li.textContent);
-    if (fixed !== li.textContent) li.textContent = fixed;
+    let fixed = cr_fixSubtitleUmlauts(li.textContent);
+    if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
+    if (fixed === li.textContent) return;
+    li.textContent = fixed;
+    li.style.display = fixed ? "" : "none";
   });
 }
 function cr_initSubtitleUmlautFix() {
@@ -5707,6 +5722,16 @@ let userOptions = {
     //   featureDescription:
     //     "this feature allows you to set the playbackrate for videos. Select your desired speed in the video player settings (⚙️).",
     // },
+    featureRemoveAudioDescriptions: {
+      featureName: "RemoveAudioDescriptions",
+      featureDescription:
+        "removes bracketed sound descriptions like [dramatic music] from subtitles, keeping only spoken dialogue",
+      isEnabled: {
+        value: false,
+        label: "Activate",
+        description: "hide audio-description tags in subtitles",
+      },
+    },
     featureHotkeys: {
       featureName: "Hotkeys",
       featureDescription:

@@ -41,6 +41,22 @@ jobs:
                 timestamp: (now | todate)
               }]
             }')
-          curl -s -X POST "$DISCORD_WEBHOOK" \
+          # ?wait=true makes Discord return the created message object (incl. its id) instead of
+          # a bare 204 No Content -- without this the message id is unrecoverable afterwards, and
+          # a duplicate post (e.g. from deleting+recreating a GitHub release for the same version)
+          # can never be individually cleaned up again
+          RESPONSE=$(curl -s -X POST "${DISCORD_WEBHOOK}?wait=true" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+            -d "$PAYLOAD")
+          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+
+          if [ -n "$MESSAGE_ID" ]; then
+            echo "Discord message id for $TAG: $MESSAGE_ID"
+            {
+              echo "### Discord message posted for $TAG"
+              echo "- Message ID: \`$MESSAGE_ID\`"
+              echo "- To delete: \`curl -X DELETE \"\$DISCORD_WEBHOOK/messages/$MESSAGE_ID\"\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Warning: could not extract Discord message id from response: $RESPONSE"
+          fi

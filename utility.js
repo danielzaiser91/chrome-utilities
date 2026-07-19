@@ -4319,16 +4319,36 @@ function _init_skip_opening_listener() {
   const getBtnWithText = (s = []) => {
     return [...document.querySelectorAll('#player-container button')].filter(el => s.some(match => el.textContent?.toLowerCase()?.includes(match)))?.[0];
   }
-  // on reload mid-episode, Crunchyroll briefly shows a stale player state (wrong resume
-  // timestamp, skip-opening button visible) before it restores the real position. Without a
-  // delay, autoskip clicks that stale button before Crunchyroll gets the chance to correct it.
-  setTimeout(() => {
+  const activate = () => {
     generic__activateAutoSkip({
       getSkipCreditsBtn: () => { return getBtnWithText(['credits']); },
       getSkipRecapBtn: () => { return getBtnWithText(['recap']); },
       getSkipOpeningBtn: () => { return getBtnWithText(['opening', 'intro']); },
     });
-  }, 5000);
+  };
+  // Crunchyroll's own "resume where you left off" logic seeks the video shortly after the
+  // player loads, on an unpredictable schedule. If autoskip clicks the intro/recap-skip button
+  // before that seek lands, the click's target timestamp overrides (undoes) Crunchyroll's
+  // legitimate resume position -- confirmed via a screen recording where the progress bar jumped
+  // to the real resume point (18:28) and then got yanked back to an early recap-skip target
+  // (1:44) by our own click. A blind fixed delay (previously 5000ms unconditionally) either
+  // wastes time on fresh episodes with no resume jump, or isn't long enough for a slow one.
+  // Instead, detect the jump itself: the video fires a native "seeking" event for any
+  // discontinuous position change, which a real resume-seek is but normal playback isn't. Watch
+  // for that during a short initial window before ever clicking; only pay the generous delay if
+  // a jump was actually observed.
+  let resumeSeekDetected = false;
+  repeatUntilCondition(
+    () => query("video").addEventListener("seeking", () => { resumeSeekDetected = true; }, { once: true }),
+    () => query("video"),
+  );
+  setTimeout(() => {
+    if (resumeSeekDetected) {
+      setTimeout(activate, 4000);
+    } else {
+      activate();
+    }
+  }, 1000);
 }
 
 function removeNotificationBubbleOnClick() {

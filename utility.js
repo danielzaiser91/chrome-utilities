@@ -4131,6 +4131,15 @@ function cr_fixSubtitleUmlauts(text) {
     .replace(/[uU](ü|Ü)/g, "$1")
     .replace(/sß/g, "ß");
 }
+// confirmed native Crunchyroll bug (still present with the extension disabled): a quoted word
+// right after a comma sometimes loses its opening quote (and the space before it), while the
+// closing position gets two different quote characters instead of one, e.g.
+// "die sich,Mana"" nennt." instead of 'die sich, "Mana" nennt.'
+function cr_fixSubtitleQuotes(text) {
+  return text
+    .replace(/,(\p{Lu}\p{Ll}*)["“”„‟]{2,}(?=\s)/gu, ', "$1"')
+    .replace(/["“”„‟]{2,}/g, '"');
+}
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users
 // who just want the translation can opt to strip those out
@@ -4158,7 +4167,7 @@ function cr_fixSubtitleCues() {
   );
   queryAll(CR_SUBTITLE_CUE_SELECTOR).forEach((li) => {
     const original = cr_extractCueText(li);
-    let fixed = cr_fixSubtitleUmlauts(original);
+    let fixed = cr_fixSubtitleQuotes(cr_fixSubtitleUmlauts(original));
     if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
     if (fixed === original) return;
     // writing textContent clears the <li>'s children, which also wipes the cue's own inline

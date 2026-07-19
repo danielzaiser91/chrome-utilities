@@ -4133,11 +4133,15 @@ function cr_fixSubtitleUmlauts(text) {
 }
 // confirmed native Crunchyroll bug (still present with the extension disabled): a quoted word
 // right after a comma sometimes loses its opening quote (and the space before it), while the
-// closing position gets two different quote characters instead of one, e.g.
-// "die sich,Mana"" nennt." instead of 'die sich, "Mana" nennt.'
+// closing position keeps only 1-2 quote characters (sometimes two different ones) instead of
+// exactly one, e.g. "die sich,Mana"" nennt." instead of 'die sich, "Mana" nennt.', or with the
+// cue ending right there: "die sich,Geber"" instead of 'die sich, "Geber"'. The quote run can be
+// 1 or more characters, and can sit at the very end of the cue (end of string), not just before
+// a space -- an earlier version of this fix required 2+ quote chars AND trailing whitespace,
+// which missed the single-quote/end-of-cue variant.
 function cr_fixSubtitleQuotes(text) {
   return text
-    .replace(/,(\p{Lu}\p{Ll}*)["“”„‟]{2,}(?=\s)/gu, ', "$1"')
+    .replace(/,(\p{Lu}\p{Ll}*)["“”„‟]+(?=\s|$)/gu, ', "$1"')
     .replace(/["“”„‟]{2,}/g, '"');
 }
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only

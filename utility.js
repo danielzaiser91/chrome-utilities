@@ -2148,27 +2148,53 @@ function fixBuggedTooltipCSS() {
 
 function moveDailyPuzzleUp() {
   const getEl = () => query('[data-category="dailyPuzzle"]')?.parentElement;
-  const condition = () => getEl() && getEl().style.marginTop !== "0px";
-  const fn = () => {
+  const fix = () => {
     const el = getEl();
+    if (!el || el.style.marginTop === "0px") return;
     el.parentElement.insertAdjacentElement("afterbegin", el);
     el.parentElement.children[1].classList.add("v5-section");
     el.style.marginTop = 0;
   };
-  repeatIfCondition(fn, condition, { pauseInBg: false, interval: 500 });
+  // chess.com's own React re-renders reset this element's position/margin without any permanent
+  // marker, so a poll (previously 500ms) can leave it visibly out of place between ticks --
+  // MutationObserver reacts to every re-render immediately instead
+  repeatUntilCondition(
+    () => {
+      new MutationObserver(fix).observe(getEl().parentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+      fix();
+    },
+    () => getEl(),
+    [],
+    false,
+  );
 }
 
 function removeNewTag() {
-  const condition = () => query(".nav-tag");
   const remove = () => {
     const el = Array.from(queryAll(".nav-tag")).find(
       (el) => el.textContent === "new",
     );
-    if (el) {
-      el.classList.add("cu-hide");
-    }
+    if (el) el.classList.add("cu-hide");
   };
-  repeatIfCondition(remove, condition, { pauseInBg: false, interval: 1000 });
+  // chess.com keeps injecting new ".nav-tag" badges over time with no permanent marker, so a poll
+  // (previously 1000ms) can let a badge flash visible before being hidden
+  repeatUntilCondition(
+    () => {
+      new MutationObserver(remove).observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      remove();
+    },
+    () => document.body,
+    [],
+    false,
+  );
 }
 
 function unhideResultQuickAnalysis() {
@@ -3921,12 +3947,21 @@ function noInterestButton() {
   `,
     "cu-no-interest",
   );
-  repeatIfCondition(
+  // YouTube continuously injects new cards via infinite scroll -- react to them as soon as they
+  // appear instead of on up to a 300ms poll delay. _addNoInterestIcon() already self-guards via
+  // allVideos() (excluded URLs, no dismissibles found), so it's safe to call unconditionally on
+  // every mutation.
+  repeatUntilCondition(
     () => {
+      new MutationObserver(_addNoInterestIcon).observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
       _addNoInterestIcon();
     },
-    allVideos,
-    { interval: 300 },
+    () => document.body,
+    [],
+    false,
   );
 }
 /*
@@ -4530,10 +4565,27 @@ function watchListColors() {
       },
     );
   }
-  repeatIfCondition(fn, () => isOnWatchList() && !isInLoadingState(), {
-    pauseInBg: false,
-    interval: 500,
-  });
+  // the watchlist re-renders/virtualizes cards, which can wipe the cu-added-watch-status marker
+  // and briefly show an unmarked card again -- a MutationObserver on the list container reacts
+  // to that instantly. Kept a slower outer poll (was 500ms, now 1000ms) purely as a backstop to
+  // (re-)attach the observer when navigating to the page or when the container gets replaced by
+  // an SPA remount (compared by identity, not just existence).
+  let watchedContainer;
+  repeatIfCondition(
+    () => {
+      fn();
+      const container = query('[class*="my-lists-item"]')?.parentElement;
+      if (container && container !== watchedContainer) {
+        watchedContainer = container;
+        new MutationObserver(fn).observe(container, {
+          childList: true,
+          subtree: true,
+        });
+      }
+    },
+    () => isOnWatchList() && !isInLoadingState(),
+    { pauseInBg: false, interval: 1000 },
+  );
 }
 function cr_dubMethod() {
   const metaTagsEl = cr_getDubTagsEl();

@@ -4139,14 +4139,27 @@ function cr_stripAudioDescriptions(text) {
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
+// li.textContent ignores <br> line breaks entirely (no separator), so multi-line cues would have
+// their words glued together once flattened back to plain text below -- walk the tree ourselves
+// and insert a space wherever a <br> was
+function cr_extractCueText(node) {
+  let text = "";
+  node.childNodes.forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) text += child.textContent;
+    else if (child.nodeName === "BR") text += " ";
+    else text += cr_extractCueText(child);
+  });
+  return text;
+}
 function cr_fixSubtitleCues() {
   const removeAudioDescriptions = isAllowed(
     userOptions.crunchyroll.featureRemoveAudioDescriptions?.isEnabled,
   );
   queryAll(CR_SUBTITLE_CUE_SELECTOR).forEach((li) => {
-    let fixed = cr_fixSubtitleUmlauts(li.textContent);
+    const original = cr_extractCueText(li);
+    let fixed = cr_fixSubtitleUmlauts(original);
     if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
-    if (fixed === li.textContent) return;
+    if (fixed === original) return;
     // writing textContent clears the <li>'s children, which also wipes the cue's own inline
     // style="display: inline; ..." set by Crunchyroll's player -- without it the <li> falls back
     // to the UA default display:list-item and the cue's black background stretches to full width

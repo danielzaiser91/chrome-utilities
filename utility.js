@@ -4128,7 +4128,8 @@ function cr_fixSubtitleUmlauts(text) {
   return text
     .replace(/[aA](ä|Ä)/g, "$1")
     .replace(/[oO](ö|Ö)/g, "$1")
-    .replace(/[uU](ü|Ü)/g, "$1");
+    .replace(/[uU](ü|Ü)/g, "$1")
+    .replace(/sß/g, "ß");
 }
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users
@@ -4175,7 +4176,7 @@ function cr_initSubtitleUmlautFix() {
     "cr-subtitle-cue-display-fix",
   );
   repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR), {
-    interval: 150,
+    interval: 50,
   });
 }
 

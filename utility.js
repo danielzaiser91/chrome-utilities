@@ -4161,7 +4161,9 @@ function cr_initSubtitleUmlautFix() {
     ".bitmovinplayer-container li { display: inline !important; }",
     "cr-subtitle-cue-display-fix",
   );
-  repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR));
+  repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR), {
+    interval: 150,
+  });
 }
 
 // news/seasonal-lineup weekly programme article (e.g. .../news/seasonal-lineup/2026/7/6/crunchyroll-wochenprogramm-sommer-2026)

@@ -4113,8 +4113,31 @@ function fixCrunchyroll() {
   // SINCE IFRAME IS REMOVED AND VIDEO IS NOW INTEGRATED -->
   _init_set_video_rate_repeater__generic(); // playbackrate
   _init_skip_opening_listener(); // skip opening
+  cr_initSubtitleUmlautFix(); // fix "Koönig" -> "König" style subtitle typos
 
   if (cr_isWeeklyLineupPage()) cr_initWeeklyLineupFilter();
+}
+
+// German subtitle cues are sometimes rendered with a duplicated base vowel right before the
+// umlaut (e.g. "Koönig" instead of "König", confirmed against a captured cue) -- collapse the
+// pair, keeping the umlaut's own case. Cues are plain text inside <li> elements rendered directly
+// into the player container (no shadow DOM, no distinguishing class -- confirmed via captured
+// markup), so this scopes to the player instead of the whole page.
+const CR_SUBTITLE_CUE_SELECTOR = ".bitmovinplayer-container li";
+function cr_fixSubtitleUmlauts(text) {
+  return text
+    .replace(/[aA](ä|Ä)/g, "$1")
+    .replace(/[oO](ö|Ö)/g, "$1")
+    .replace(/[uU](ü|Ü)/g, "$1");
+}
+function cr_fixSubtitleCues() {
+  queryAll(CR_SUBTITLE_CUE_SELECTOR).forEach((li) => {
+    const fixed = cr_fixSubtitleUmlauts(li.textContent);
+    if (fixed !== li.textContent) li.textContent = fixed;
+  });
+}
+function cr_initSubtitleUmlautFix() {
+  repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR));
 }
 
 // news/seasonal-lineup weekly programme article (e.g. .../news/seasonal-lineup/2026/7/6/crunchyroll-wochenprogramm-sommer-2026)

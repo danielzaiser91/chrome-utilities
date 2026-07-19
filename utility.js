@@ -4144,6 +4144,13 @@ function cr_fixSubtitleQuotes(text) {
     .replace(/,(\p{Lu}\p{Ll}*)["“”„‟]+(?=\s|$)/gu, ', "$1"')
     .replace(/["“”„‟]{2,}/g, '"');
 }
+// confirmed native Crunchyroll bug: some cues start with a stray ". " that doesn't belong there,
+// e.g. ". ergeben bloße Zahlen auch Stärke." instead of "ergeben bloße Zahlen auch Stärke.". The
+// negative lookahead avoids stripping a genuine leading ellipsis ("...") used for a trailing-off
+// continuation from the previous cue.
+function cr_fixSubtitleLeadingDot(text) {
+  return text.replace(/^\.(?!\.)\s+/, "");
+}
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users
 // who just want the translation can opt to strip those out
@@ -4171,7 +4178,9 @@ function cr_fixSubtitleCues() {
   );
   queryAll(CR_SUBTITLE_CUE_SELECTOR).forEach((li) => {
     const original = cr_extractCueText(li);
-    let fixed = cr_fixSubtitleQuotes(cr_fixSubtitleUmlauts(original));
+    let fixed = cr_fixSubtitleLeadingDot(
+      cr_fixSubtitleQuotes(cr_fixSubtitleUmlauts(original)),
+    );
     if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
     if (fixed === original) return;
     // writing textContent clears the <li>'s children, which also wipes the cue's own inline

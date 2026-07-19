@@ -2146,10 +2146,21 @@ function moveDailyPuzzleUp() {
   };
   // chess.com's own React re-renders reset this element's position/margin without any permanent
   // marker, so a poll (previously 500ms) can leave it visibly out of place between ticks --
-  // MutationObserver reacts to every re-render immediately instead
-  repeatUntilCondition(
+  // MutationObserver reacts to every re-render immediately instead. Re-attach via a slow backstop
+  // poll (not a one-shot attach) since React can replace the observed container itself, not just
+  // mutate within it -- a one-shot attach would orphan the observer permanently once that happens
+  // (confirmed happening for the same pattern in Crunchyroll's subtitle fix: broken state
+  // persisted for the rest of a session, only a reload recovered it).
+  let observedContainer;
+  repeatIfCondition(
     () => {
-      new MutationObserver(fix).observe(getEl().parentElement, {
+      const container = getEl()?.parentElement;
+      if (!container || container === observedContainer) {
+        fix();
+        return;
+      }
+      observedContainer = container;
+      new MutationObserver(fix).observe(container, {
         childList: true,
         subtree: true,
         attributes: true,
@@ -2158,8 +2169,7 @@ function moveDailyPuzzleUp() {
       fix();
     },
     () => getEl(),
-    [],
-    false,
+    { pauseInBg: false, interval: 1000 },
   );
 }
 

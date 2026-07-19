@@ -37,12 +37,4 @@ Reload the extension + reload each page before testing.
 - `video.playbackRate` / JS-property corrections — not DOM-observable, MutationObserver structurally can't see them (WowTV, Filemoon, Luluvdo, generic helper, Amazon, Netflix)
 - Genuine state/existence polling (streetview toggle, Prime panel open/close, SPA URL-change detection, countdown timers)
 
-## Side-finding: dead code discovered during the audit
-
-Not related to MutationObserver, but surfaced while reading through call sites:
-
-- `addPlayBackRateButton` (Amazon, ~line 3172/3208) — function is never called anywhere
-- The entire `crunchyhook` / `crunchyrolliFrameHook` chain (~lines 4671, 4721, 4765, 4809) — the matcher that would activate this site is commented out, so none of it is reachable
-- Five YouTube ad-hiding/autoskip helpers — `hideYoutubeAdsReels` (~3664), `hideYoutubeAds` (~3675), `ytAutoskipAdd` (~3735), `noYTAdBlockBanner` (~3747), `noYTBanner` (~3759) — all commented out in `fixYoutube`, never called
-
-Decision needed: delete, or re-enable if still wanted (especially the two YouTube ad-hiders — `initYTCSS()`'s existing CSS-based ad hiding may already cover the same ground, worth checking before deleting vs. re-enabling).
+A dead-code side-finding surfaced during this audit (unrelated to MutationObserver) — tracked separately in [findings-dead-code.md](findings-dead-code.md), not here, since it's an independent topic.

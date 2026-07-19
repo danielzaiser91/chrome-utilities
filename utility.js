@@ -4147,11 +4147,20 @@ function cr_fixSubtitleCues() {
     let fixed = cr_fixSubtitleUmlauts(li.textContent);
     if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
     if (fixed === li.textContent) return;
+    // writing textContent clears the <li>'s children, which also wipes the cue's own inline
+    // style="display: inline; ..." set by Crunchyroll's player -- without it the <li> falls back
+    // to the UA default display:list-item and the cue's black background stretches to full width
+    // instead of hugging the text. Re-enforced with !important CSS below instead of trying to
+    // preserve/restore the exact inline value here (an empty cue then naturally renders as a
+    // zero-width, invisible box, no explicit hide/show logic needed)
     li.textContent = fixed;
-    li.style.display = fixed ? "" : "none";
   });
 }
 function cr_initSubtitleUmlautFix() {
+  insertCSS(
+    ".bitmovinplayer-container li { display: inline !important; }",
+    "cr-subtitle-cue-display-fix",
+  );
   repeatIfCondition(cr_fixSubtitleCues, () => query(CR_SUBTITLE_CUE_SELECTOR));
 }
 

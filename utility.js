@@ -908,17 +908,6 @@ function websiteSelector() {
     new Matcher("chess.com", fixChessDotCom),
     new Matcher("wiki.fextralife.com", fixFextralife, true),
     new Matcher("twitch.tv", fixTwitch, true),
-
-    // Crunchyroll used to host video playback in a "static.crunchyroll.com" iframe; the code
-    // below targeted that iframe. Crunchyroll now streams directly on the main page without an
-    // iframe, so this is unreachable dead code -- kept in case they ever revert to the old setup.
-    // new Matcher(
-    //   "static.crunchyroll.com",
-    //   crunchyrolliFrameHook,
-    //   false,
-    //   "crunchyHook",
-    //   true,
-    // ),
     new Matcher("crunchyroll.com", fixCrunchyroll, true),
     new Matcher("defenestration.co/pg/surveying", fixPGSurveyHelper),
     new Matcher("youtube.com", fixYoutube, true),
@@ -3011,7 +3000,6 @@ function fixAmazon() {
 
   // feature add a button for playbackRate
   _init_set_video_rate_repeater__generic();
-  // addPlayBackRateButton();
 
   // feature: remove xray when mouse leaves window immidiatly (no fade-out animation or delay)
   immidiatlyRemoveUiWhenLeavingMouse();
@@ -3124,114 +3112,6 @@ function xrayToggle() {
     },
     { pauseInBg: false, interval: 1000 },
   );
-}
-
-const enable_amazon_playback_option = () => {
-  updateAmznVideoPlayrate(
-    userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed
-      .value,
-  );
-};
-const _amazon_setPlayerValue = (val, playBackInput) => {
-  if (Number.isNaN(val)) return;
-  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
-  userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
-    val;
-  updateAmznVideoPlayrate(val);
-};
-const _amazon_adjustVal = (e, playBackInput) => {
-  e.stopPropagation();
-  if (!e.srcElement?.value) return;
-  const newValue = +(+e.srcElement.value)?.toFixed(2);
-  _amazon_setPlayerValue(newValue, playBackInput);
-};
-function updateAmznVideoPlayrate(val) {
-  /** @type {HTMLVideoElement} */
-  const videos = queryAll("video");
-  const allowed = isAllowed(userOptions.amazon.featurePlayBackSpeed.isEnabled);
-  if (videos.length === 0) return;
-  for (const video of videos) {
-    video.playbackRate = !allowed ? 1 : val;
-  }
-}
-
-function addPlayBackRateButton() {
-  const getVideoActionsContainer = () => query(
-      "#dv-web-player-2 > div > div.atvwebplayersdk-player-container > div > div > div > div > div > div:nth-child(2) > div > div:nth-child(2) > div",
-    ) ?? query('#dv-web-player > div > div.atvwebplayersdk-player-container > div > div > div > div > div > div:nth-child(2) > div > div:nth-child(2) > div');
-  const amazonVideoPlaying = () => query(".dv-player-fullscreen");
-  const _addPlayBackRateButton = () => {
-    const container = getVideoActionsContainer();
-    const div = create("div", { className: "cu-playback-rate cu-el" });
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none">
-        <path d="M15 16L12 18L12 6L21 12L18 14M12 13.8L5 18L5 6L8.5 8.1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>`;
-    insertCSS(
-      `
-      .cu-el { margin-right: 10px; display: inline-block; line-height: 0.8; }
-      .cu-playback-rate { outline: 2px solid; padding: 3px; border-radius: 6px; margin-right: 20px; }
-      .cu-playback-rate:hover { cursor: pointer; }
-      .cu_playback { background: black !important; color: white;  }
-      .cu_playback::-webkit-inner-spin-button { transform: scale(1.5); }
-      input.cu_playback[type=number]::-webkit-inner-spin-button { opacity: 1 }
-      .atvwebplayersdk-hideabletopbuttons-container { height: 28px !important }
-      .cu-is-open { margin-right: 10px; }
-    `,
-      "cu-playback-rate",
-    );
-    const playbackSettings = create("div", {
-      className: "cu-hide cu-playback-settings",
-    });
-    const value =
-      userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
-        .playBackSpeed.value;
-    /** @type {HTMLInputElement} */
-    const playbackInput = create("input", {
-      type: "number",
-      step: "0.1",
-      min: "0.2",
-      max: "5",
-      value,
-      className: "cu_playback cu-el",
-      id: "cu_playback",
-    });
-    repeatIfCondition(
-      () => {
-        const currVal =
-          userOptions.amazon.featurePlayBackSpeed.isEnabled.subFeatures
-            .playBackSpeed.value;
-        updateAmznVideoPlayrate(currVal);
-      },
-      () => query("video"),
-      { pauseInBg: false, interval: 1000 },
-    );
-    playbackInput.addEventListener("keydown", (e) =>
-      _amazon_adjustVal(e, playbackInput),
-    );
-    playbackInput.addEventListener("input", (e) =>
-      _amazon_adjustVal(e, playbackInput),
-    );
-    const playbackLabel = create("label", {
-      textContent: "Speed:",
-      for: "cu_playback",
-      className: "cu-el",
-    });
-    playbackSettings.prepend(playbackInput);
-    playbackSettings.prepend(playbackLabel);
-    div.onclick = () => {
-      playbackSettings.classList.toggle("cu-hide");
-      div.classList.toggle("cu-is-open");
-    };
-    div.insertAdjacentHTML("afterbegin", svg);
-    container.prepend(div, playbackSettings);
-  };
-  const checkIfNeedToAddIcon = () => {
-    if (getVideoActionsContainer()?.querySelector(".cu-playback-rate")) return;
-    if (!getVideoActionsContainer()) return;
-    _addPlayBackRateButton();
-  };
-  // repeat until there is a video, then check if the element already has the playback button added
-  repeatIfCondition(checkIfNeedToAddIcon, amazonVideoPlaying);
 }
 
 const toggleUIVisible = (op) => {
@@ -3600,19 +3480,14 @@ function fixYoutube() {
   noInterestButton();
   ytShortsDate();
   _init_set_video_rate_repeater__generic(); // playbackrate
-  // hideYoutubeAds();
-  // hideYoutubeAdsReels();
 
   // disable reload on ad enforcer, because youtube added blocker
-  // noYTBanner(); // make toggleable, let user decide
-  // noYTAdBlockBanner();
   // initListenerForAdEnforcer();
 
   /* FIXME: work in progress...
     need to figure out how to prevent pause click, or trigger it again, so that clicking progress bar to skip forward, does not pause video...
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
-  // ytAutoskipAdd();
   // initShortsControl();
 }
 
@@ -3679,28 +3554,6 @@ function initListenerForAdEnforcer() {
   repeatIfCondition(() => location.reload(), getEl, { pauseInBg: false });
 }
 
-function hideYoutubeAdsReels() {
-  const condition = () => query("ad-badge-view-model");
-  const hide = () =>
-    Array.from(queryAll("ad-badge-view-model")).forEach((e) => {
-      const parent = e.closest("ytd-reel-video-renderer");
-      if (!parent) return;
-      parent.style.display = "none";
-    });
-  repeatIfCondition(hide, condition, { pauseInBg: false });
-}
-
-function hideYoutubeAds() {
-  const condition = () => query("ytd-in-feed-ad-layout-renderer");
-  const hide = () =>
-    Array.from(queryAll("ytd-in-feed-ad-layout-renderer")).forEach((e) => {
-      const parent = e.closest("ytd-rich-item-renderer");
-      if (!parent) return;
-      parent.style.display = "none";
-    });
-  repeatIfCondition(hide, condition, { pauseInBg: false });
-}
-
 function initYTCSS() {
   insertCSS(
     `
@@ -3754,35 +3607,6 @@ function initYTCSS() {
   `,
     "yt-anti-ad",
   );
-}
-
-function ytAutoskipAdd() {
-  const getBtn = () => query(".ytp-skip-ad-button");
-  repeatIfCondition(() => getBtn().click(), getBtn, { pauseInBg: false });
-}
-
-/** start the current video */
-function ytPlay() {
-  query("video")?.play();
-}
-
-function noYTAdBlockBanner() {
-  // 1. is the button of the banner on the bottom left
-  // 2. is the ad overlay in the video --- can not be done, because yt detects and blocks this...
-  const banner = () => query("yt-mealbar-promo-renderer button"); // || query('.ytp-ad-skip-button-modern');
-  repeatIfCondition(
-    () => {
-      banner().click();
-      ytPlay();
-    },
-    () => banner() && banner().checkVisibility(),
-    { interval: 500, pauseInBg: false },
-  );
-}
-
-function noYTBanner() {
-  const banner = () => query("#big-yoodle");
-  repeatIfCondition(() => banner().remove(), banner, { interval: 1000 });
 }
 
 function inURL(arr) {
@@ -4676,173 +4500,6 @@ function autoLogin() {
   );
 }
 
-// dead code: only ever called via the disabled "static.crunchyroll.com" Matcher above, from back
-// when Crunchyroll hosted video playback in a separate iframe. Kept in case they revert to that.
-function crunchyrolliFrameHook() {
-  // addCrunchySkipOptionListener();
-  // startCrunchySkipInterval();
-  // initPlaybackOptionListener();
-  // initKeyBindListener();
-}
-
-function initKeyBindListener() {
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "n") {
-      const vid = query("#vilosControlsContainer");
-      if (!vid) return;
-      vid.click();
-      const getNextButton = () =>
-        query(
-          "#vilosControlsContainer > div > div > div:nth-child(2) > div:nth-child(3) > div > div:nth-child(3)",
-        );
-      repeatUntilCondition(() => getNextButton().click(), getNextButton);
-    }
-  });
-}
-
-function addCrunchySkipOptionListener() {
-  const checked = userOptions.crunchyhook.featureAutoSkip.isEnabled.value;
-  const skipIntroInput = create("input", {
-    type: "checkbox",
-    checked,
-    className: "cu_skipIntro",
-    id: "cu_skipIntro",
-  });
-  const skipIntroContainer = create("div", {
-    className: "cu_skipIntroContainer",
-  });
-  const skipIntroLabel = create("label", {
-    className: "cu_skipIntroLabel",
-    textContent: "AutoSkip",
-    for: "cu_skipIntro",
-  });
-  skipIntroInput.addEventListener("change", (ev) => {
-    userOptions.crunchyhook.featureAutoSkip.isEnabled.value = ev.target.checked;
-    startCrunchySkipInterval();
-  });
-  skipIntroContainer.appendChild(skipIntroLabel);
-  skipIntroContainer.appendChild(skipIntroInput);
-  insertCSS(
-    `
-    .cu_skipIntro { width: 50px; background-color: inherit; color: white; border: 1px solid rgb(40, 189, 187); padding: 2px 0 2px 25px; outline: none; cursor: pointer; }
-    .cu_skipIntroLabel { display: flex; align-items: center; cursor: pointer; }
-    .cu_skipIntroContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
-    .cu_skipIntroContainer:hover { background-color: rgb(35,37,43); }
-  `,
-    "addCrunchySkipOptionListener",
-  );
-  //  --- init Listener ---
-  const getMenu = () => query("#velocity-settings-menu div");
-  repeatIfCondition(
-    () => {
-      const menu = getMenu();
-      const prevent = Array.from(menu.children).some((child) =>
-        child.classList.contains("cu_skipIntroContainer"),
-      );
-      if (prevent) return;
-      skipIntroInput.checked =
-        userOptions.crunchyhook.featureAutoSkip.isEnabled.value;
-      menu.insertBefore(skipIntroContainer, menu.firstElementChild);
-    },
-    getMenu,
-    { interval: 100 },
-  );
-}
-
-const _crunchyhook_setPlayerValue = (val, playBackInput) => {
-  if (isNaN(val)) return;
-  lastVideoUrl = query("video").src; // this line does not do anything, since on next episode iframe reloads and entire script is reapplied
-  val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
-  userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
-    val;
-  byId("player0").playbackRate = val;
-};
-const _crunchyhook_adjustVal = (playBackInput) => {
-  if (isNaN(playBackInput.value)) return;
-  const newValue = +(+playBackInput.value).toFixed(2);
-  _crunchyhook_setPlayerValue(newValue, playBackInput);
-};
-let lastVideoUrl = "";
-function incorrectPlaybackRate() {
-  return (
-    userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures
-      .playBackSpeed.value !== query("video").playbackRate
-  );
-}
-function initPlaybackOptionListener() {
-  // --- prepare input Element to insert ---
-  const _value =
-    userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures
-      .playBackSpeed.value;
-  const playBackInput = create("input", {
-    type: "number",
-    id: "cu_playback",
-    step: "0.1",
-    min: "0.2",
-    max: "5",
-    value: _value,
-    className: "cu_playback",
-  });
-  repeatIfCondition(
-    () =>
-      _crunchyhook_setPlayerValue(
-        userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures
-          .playBackSpeed.value,
-        playBackInput,
-      ),
-    incorrectPlaybackRate,
-    { pauseInBg: false, interval: 500 },
-  );
-  const playBackContainer = create("div", {
-    className: "cu_playBackContainer",
-  });
-  const playBackLabel = create("label", {
-    className: "cu_playBackLabel",
-    textContent: "playBackSpeed",
-    for: "cu_playback",
-  });
-  playBackInput.addEventListener("input", (e) => {
-    e.stopImmediatePropagation();
-    _crunchyhook_adjustVal(playBackInput);
-  });
-  playBackInput.addEventListener("keydown", (e) => e.stopPropagation());
-  window.addEventListener("keydown", (e) => {
-    if (!["+", "-"].includes(e.key) || isNaN(playBackInput.value)) return;
-    playBackInput.value = +(
-      +playBackInput.value + (e.key === "+" ? 0.1 : -0.1)
-    ).toFixed(2);
-    _crunchyhook_adjustVal(playBackInput);
-  });
-  playBackContainer.appendChild(playBackLabel);
-  playBackContainer.appendChild(playBackInput);
-  insertCSS(
-    `
-    .cu_playback { width: 50px; background-color: inherit; color: white; border: 1px solid rgb(40, 189, 187); padding: 2px 0 2px 25px; outline: none }
-    .cu_playBackLabel { display: flex; align-items: center; cursor: pointer; }
-    .cu_playBackContainer { display: flex; justify-content: space-between; padding: 10px 19px; color: white; font-size: 14px; }
-    .cu_playBackContainer:hover { background-color: rgb(35,37,43); }
-  `,
-    "initPlaybackOptionListener",
-  );
-
-  //  --- init Listener ---
-  const getMenu = () => query("#velocity-settings-menu div");
-  repeatIfCondition(
-    () => {
-      const menu = getMenu();
-      const prevent = Array.from(menu.children).some((child) =>
-        child.classList.contains("cu_playBackContainer"),
-      );
-      if (prevent) return;
-      playBackInput.value =
-        userOptions.crunchyhook.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
-      menu.insertBefore(playBackContainer, menu.firstElementChild);
-    },
-    getMenu,
-    { interval: 100 },
-  );
-}
-
 function addHotkeysForNextAndPrevious() {
   window.addEventListener("keyup", (ev) => {
     if (!ev.altKey) return;
@@ -4854,31 +4511,6 @@ function addHotkeysForNextAndPrevious() {
   });
 }
 
-/** @type {Interval} */
-let initSkip = false;
-let _crunchySkipInterval = null;
-function startCrunchySkipInterval() {
-  if (!isAllowed(userOptions.crunchyhook.featureAutoSkip.isEnabled)) {
-    _crunchySkipInterval?.pause();
-    return;
-  }
-  const getSkipBtn = () => query('[data-testid="skipButton"] div');
-  const skipWithDelay = () => {
-    initSkip = true;
-    setTimeout(() => {
-      getSkipBtn()?.click();
-      setTimeout(() => (initSkip = false), 500);
-    }, 1000);
-  };
-  if (!_crunchySkipInterval) {
-    _crunchySkipInterval = repeatIfCondition(
-      skipWithDelay,
-      () => getSkipBtn() && !initSkip,
-      { autoplay: false, pauseInBg: false },
-    );
-  }
-  _crunchySkipInterval.play();
-}
 // GlobalFix
 function fixForAllWebsites() {
   const filetypeMatcher = [{ filetype: ".png", fix: fixImages }];
@@ -5692,25 +5324,6 @@ let userOptions = {
   },
   amazon: {
     actionBarShowCondition: "amazonshowCondition",
-    // featurePlayBackSpeed: {
-    //   featureName: "PlayBackSpeed",
-    //   featureDescription: "this feature will set the speed for video playback",
-    //   isEnabled: {
-    //     value: true,
-    //     label: "PlayBackSpeed",
-    //     description: "set your desired PlayBackSpeed",
-    //     toggle: enable_amazon_playback_option,
-    //     subFeatures: {
-    //       playBackSpeed: {
-    //         value: 1,
-    //         min: 0.2,
-    //         max: 5,
-    //         step: 0.1,
-    //         toggle: (e, input) => _amazon_adjustVal(e, input),
-    //       },
-    //     },
-    //   },
-    // },
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",
@@ -5793,36 +5406,6 @@ let userOptions = {
         value: true,
         label: "Activate",
         description: "automatically collect view reward (chest)",
-      },
-    },
-  },
-  crunchyhook: {
-    featurePlayBackSpeed: {
-      featureName: "PlayBackSpeed",
-      featureDescription: "this feature will set the speed for video playback",
-      isEnabled: {
-        value: true,
-        label: "PlayBackSpeed",
-        description: "set your desired PlayBackSpeed",
-        subFeatures: {
-          playBackSpeed: {
-            value: 1,
-            min: 0.2,
-            max: 5,
-            step: 0.1,
-            toggle: (e, input) => _crunchyhook_adjustVal(input),
-          },
-        },
-      },
-    },
-    featureAutoSkip: {
-      featureName: "AutoSkip",
-      featureDescription: "automatically skip Intro",
-      isEnabled: {
-        value: false,
-        label: "Activate",
-        description: "turn skipping on or off",
-        toggle: startCrunchySkipInterval,
       },
     },
   },

@@ -4020,6 +4020,14 @@ function cr_fixSubtitleQuotes(text) {
 function cr_fixSubtitleLeadingDot(text) {
   return text.replace(/^\.(?!\.)\s+/, "");
 }
+// confirmed native Crunchyroll bug: cues sometimes start with an empty two-speaker dialogue
+// marker "- -" (dash, space, dash) with nothing between the dashes, e.g.
+// "- -Hast echt an alles gedacht," instead of "Hast echt an alles gedacht,". Only strips the
+// pair when there's nothing but whitespace between the two dashes -- a real single-dash speaker
+// marker ("-Hast...") or a marker with actual content between the dashes is left untouched.
+function cr_fixSubtitleEmptyDash(text) {
+  return text.replace(/^-\s*-(?=\S)/, "");
+}
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users
 // who just want the translation can opt to strip those out
@@ -4051,6 +4059,9 @@ function cr_fixSubtitleCues() {
       cr_fixSubtitleQuotes(cr_fixSubtitleUmlauts(original)),
     );
     if (removeAudioDescriptions) fixed = cr_stripAudioDescriptions(fixed);
+    // run last: catches both the native empty-dash bug and any empty pair left behind if
+    // audio-description stripping just removed bracketed content that used to sit between dashes
+    fixed = cr_fixSubtitleEmptyDash(fixed);
     if (fixed === original) return;
     // writing textContent clears the <li>'s children, which also wipes the cue's own inline
     // style="display: inline; ..." set by Crunchyroll's player -- without it the <li> falls back

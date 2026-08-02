@@ -4020,19 +4020,24 @@ function cr_fixSubtitleQuotes(text) {
 function cr_fixSubtitleLeadingDot(text) {
   return text.replace(/^\.(?!\.)\s+/, "");
 }
-// confirmed native Crunchyroll bug: cues sometimes have an empty two-speaker dialogue marker
-// with nothing where that speaker's line should be. Leading pair: "- -Hast echt an alles
-// gedacht," or "- - Wusste ich's doch." (with/without a space before the text), or the cue is
-// JUST "- -" (whole cue becomes empty). Trailing single marker: "-Wie hast du's hergeschafft? -"
-// -- a real first-speaker line followed by an empty, orphaned second-speaker marker at the very
-// end. The trailing case requires whitespace before the dash (a marker is its own token, not
-// part of a word) so a genuine interrupted-sentence dash ("Ich wollte nur-", no space before it)
-// is left alone. A real single-dash speaker marker ("-Hast...") or a marker with actual content
-// on both sides ("-Frage? -Antwort!") is untouched either way.
+// confirmed native Crunchyroll bug: a dash marks each speaker's segment in a two-speaker cue
+// (e.g. "- Oh. - Hm."), but sometimes one (or both) segments are empty, leaving orphaned dashes
+// that don't mark anything real -- leading pair ("- -Hast echt an alles gedacht,"), the whole cue
+// being just "- -", or a trailing orphan after a real first line ("-Wie hast du's hergeschafft?
+// -"), or dashes on BOTH ends wrapping a single real line ("- Aus dem Weg! -"). A dash only makes
+// sense to disambiguate 2+ actual speakers, so: split on every "standalone" dash (one that starts
+// the string or is preceded by whitespace -- this excludes a dash glued directly to a word, e.g.
+// a genuine interrupted-sentence dash like "Ich wollte nur-"), count the non-empty segments; if
+// fewer than 2 have real content there's nothing to disambiguate, so strip every dash and keep
+// only the actual text. 2+ real segments (including plain mid-sentence dash-asides like "Er hat -
+// wie immer - nichts gesagt.") are left completely untouched.
 function cr_fixSubtitleEmptyDash(text) {
-  return text
-    .replace(/^-\s*-\s*/, "")
-    .replace(/\s+-\s*$/, "");
+  if (!text.includes("-")) return text;
+  const segments = text
+    .split(/(?:^|(?<=\s))-/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return segments.length >= 2 ? text : segments.join(" ");
 }
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users

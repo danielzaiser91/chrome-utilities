@@ -4022,13 +4022,14 @@ function cr_fixSubtitleLeadingDot(text) {
 }
 // confirmed native Crunchyroll bug: cues sometimes start with an empty two-speaker dialogue
 // marker "- -" (dash, space, dash) with nothing between the dashes, e.g.
-// "- -Hast echt an alles gedacht," instead of "Hast echt an alles gedacht,", or sometimes the
-// cue is JUST "- -" with no dialogue at all (whole cue should become empty). Only strips the
-// pair when there's nothing but whitespace between the two dashes -- a real single-dash speaker
-// marker ("-Hast...") or a marker with actual content between the dashes is left untouched. The
-// lookahead allows either real content or end-of-string right after the pair.
+// "- -Hast echt an alles gedacht," or "- - Wusste ich's doch." (with a space before the text
+// too) instead of just the dialogue text, or sometimes the cue is JUST "- -" with no dialogue at
+// all (whole cue should become empty). Strips the pair plus any surrounding whitespace -- only
+// matches when there's nothing but whitespace between the two dashes, so a real single-dash
+// speaker marker ("-Hast...") or a marker with actual content between the dashes is left
+// untouched (requiring a second literal "-" right after the whitespace rules those out).
 function cr_fixSubtitleEmptyDash(text) {
-  return text.replace(/^-\s*-(?=\S|$)/, "");
+  return text.replace(/^-\s*-\s*/, "");
 }
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users

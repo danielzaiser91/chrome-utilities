@@ -4020,16 +4020,19 @@ function cr_fixSubtitleQuotes(text) {
 function cr_fixSubtitleLeadingDot(text) {
   return text.replace(/^\.(?!\.)\s+/, "");
 }
-// confirmed native Crunchyroll bug: cues sometimes start with an empty two-speaker dialogue
-// marker "- -" (dash, space, dash) with nothing between the dashes, e.g.
-// "- -Hast echt an alles gedacht," or "- - Wusste ich's doch." (with a space before the text
-// too) instead of just the dialogue text, or sometimes the cue is JUST "- -" with no dialogue at
-// all (whole cue should become empty). Strips the pair plus any surrounding whitespace -- only
-// matches when there's nothing but whitespace between the two dashes, so a real single-dash
-// speaker marker ("-Hast...") or a marker with actual content between the dashes is left
-// untouched (requiring a second literal "-" right after the whitespace rules those out).
+// confirmed native Crunchyroll bug: cues sometimes have an empty two-speaker dialogue marker
+// with nothing where that speaker's line should be. Leading pair: "- -Hast echt an alles
+// gedacht," or "- - Wusste ich's doch." (with/without a space before the text), or the cue is
+// JUST "- -" (whole cue becomes empty). Trailing single marker: "-Wie hast du's hergeschafft? -"
+// -- a real first-speaker line followed by an empty, orphaned second-speaker marker at the very
+// end. The trailing case requires whitespace before the dash (a marker is its own token, not
+// part of a word) so a genuine interrupted-sentence dash ("Ich wollte nur-", no space before it)
+// is left alone. A real single-dash speaker marker ("-Hast...") or a marker with actual content
+// on both sides ("-Frage? -Antwort!") is untouched either way.
 function cr_fixSubtitleEmptyDash(text) {
-  return text.replace(/^-\s*-\s*/, "");
+  return text
+    .replace(/^-\s*-\s*/, "")
+    .replace(/\s+-\s*$/, "");
 }
 // Crunchyroll's German subtitle track doubles as an audio-description track, so dialogue-only
 // cues are interleaved with bracketed sound descriptions (e.g. "[dramatische Musik]") -- users

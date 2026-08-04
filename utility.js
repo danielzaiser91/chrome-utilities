@@ -4134,17 +4134,33 @@ const CR_LINEUP_FLAG_IMG_SELECTOR = 'img[src*="flag" i]';
 // as a page-internal jump target -- unlike the surrounding CSS classes it isn't tied to a component
 // name or hash, so it stays stable regardless of layout/build changes
 const CR_DAY_HEADER_SELECTOR = '[id^="Tag-"]';
+// the weekly schedule (Montag..Sonntag) is followed by an unrelated "Katalogtitel" section that
+// happens to use the same card markup and also has flag-tagged entries -- confirmed via a
+// captured page. Its container has a stable id="Katalog", used to exclude it entirely so it never
+// bleeds into the weekly-lineup filter's card list, language dropdown, or day grouping.
+const CR_CATALOG_BOUNDARY_ID = "Katalog";
 
 function cr_getLineupCards() {
-  return toArray(queryAll(CR_LINEUP_CARD_SELECTOR)).filter((card) =>
-    card.querySelector(CR_LINEUP_FLAG_IMG_SELECTOR),
-  );
+  const catalogBoundary = byId(CR_CATALOG_BOUNDARY_ID);
+  return toArray(queryAll(CR_LINEUP_CARD_SELECTOR)).filter((card) => {
+    if (!card.querySelector(CR_LINEUP_FLAG_IMG_SELECTOR)) return false;
+    if (!catalogBoundary) return true;
+    return !(
+      catalogBoundary.compareDocumentPosition(card) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+  });
 }
 
 // a weekday's cards aren't nested under its heading, they're later siblings in the same flow, up
 // until the next weekday heading -- so bucket cards by document position instead
 function cr_groupCardsByDay(cards) {
   const headers = toArray(queryAll(CR_DAY_HEADER_SELECTOR));
+  // belt-and-suspenders: cr_getLineupCards() already excludes catalog-section cards from `cards`,
+  // but re-check here too in case this ever gets called with a differently-sourced list -- without
+  // this boundary, the last day header (usually Sonntag) has no "next" day header to stop at and
+  // would silently absorb every card/flag further down the page too.
+  const catalogBoundary = byId(CR_CATALOG_BOUNDARY_ID);
   return headers.map((header, i) => {
     const nextHeader = headers[i + 1];
     const dayCards = cards.filter((card) => {
@@ -4157,7 +4173,13 @@ function cr_groupCardsByDay(cards) {
           nextHeader.compareDocumentPosition(card) &
           Node.DOCUMENT_POSITION_FOLLOWING
         );
-      return afterHeader && beforeNextHeader;
+      const beforeCatalog =
+        !catalogBoundary ||
+        !(
+          catalogBoundary.compareDocumentPosition(card) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+        );
+      return afterHeader && beforeNextHeader && beforeCatalog;
     });
     return { header, cards: dayCards };
   });
@@ -4261,24 +4283,32 @@ function cr_renderWeeklyLineupFilter() {
   const strings = cr_getUiStrings();
   const lang = cr_getPageLang();
 
-  // group cards by language, in first-seen order
+  // group cards by language, in first-seen order. A single card can list multiple broadcasts
+  // (e.g. a Japanese-sub slot AND a separate German-dub slot, each its own flag+time line), so it
+  // must be counted under every language it actually offers, not just the first one found --
+  // confirmed via a captured card ("The 100 Girlfriends (Staffel 3)") that has both a
+  // japan-flag.png and a deutschland-flagge.png line and was wrongly hidden under the German
+  // filter because only the first (Japanese) flag was ever looked at.
   const legendLabels = cr_getLegendLabels();
-  const languages = new Map();
+  const languages = new Map(); // key -> label, for the dropdown options
+  const cardLanguageKeys = new Map(); // card -> Set of every language key that card offers
   cards.forEach((card) => {
-    const flagImg = card.querySelector(CR_LINEUP_FLAG_IMG_SELECTOR);
-    const code = cr_getFlagLanguageCode(flagImg);
-    const rawLabel =
-      flagImg.getAttribute("alt") || flagImg.getAttribute("title") || code;
-    const key = code ?? rawLabel;
-    if (!languages.has(key)) {
-      languages.set(key, {
-        label: code
-          ? (legendLabels.get(code) ?? cr_getLanguageLabel(code, rawLabel))
-          : rawLabel,
-        cards: [],
-      });
-    }
-    languages.get(key).cards.push(card);
+    const keys = new Set();
+    toArray(card.querySelectorAll(CR_LINEUP_FLAG_IMG_SELECTOR)).forEach((flagImg) => {
+      const code = cr_getFlagLanguageCode(flagImg);
+      const rawLabel =
+        flagImg.getAttribute("alt") || flagImg.getAttribute("title") || code;
+      const key = code ?? rawLabel;
+      keys.add(key);
+      if (!languages.has(key)) {
+        languages.set(key, {
+          label: code
+            ? (legendLabels.get(code) ?? cr_getLanguageLabel(code, rawLabel))
+            : rawLabel,
+        });
+      }
+    });
+    cardLanguageKeys.set(card, keys);
   });
 
   const select = create("select", {
@@ -4295,9 +4325,12 @@ function cr_renderWeeklyLineupFilter() {
     });
   const dayGroups = cr_groupCardsByDay(cards);
   const applyFilter = (selected) => {
-    languages.forEach((entry, key) => {
-      const show = !selected || key === selected;
-      entry.cards.forEach((card) => card.classList.toggle("cu-hide", !show));
+    // decide per card (via its own full set of language keys), not per language bucket -- a card
+    // can belong to multiple buckets, and toggling bucket-by-bucket would make the outcome depend
+    // on which bucket happens to be processed last for that shared card
+    cards.forEach((card) => {
+      const show = !selected || cardLanguageKeys.get(card).has(selected);
+      card.classList.toggle("cu-hide", !show);
     });
     cr_syncDayVisibility(dayGroups);
   };

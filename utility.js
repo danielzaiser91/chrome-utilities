@@ -3984,7 +3984,7 @@ function fixCrunchyroll() {
   _init_skip_opening_listener(); // skip opening
   cr_initSubtitleUmlautFix(); // fix "Koönig" -> "König" style subtitle typos
 
-  if (cr_isWeeklyLineupPage()) cr_initWeeklyLineupFilter();
+  cr_initWeeklyLineupFilter();
 }
 
 // German subtitle cues are sometimes rendered with a duplicated base vowel right before the
@@ -4272,9 +4272,23 @@ function cr_getLegendLabels() {
 }
 
 function cr_initWeeklyLineupFilter() {
-  repeatUntilCondition(
-    cr_renderWeeklyLineupFilter,
-    () => !byId("cu-weekly-filter") && cr_getLineupCards().length > 0,
+  // Crunchyroll is an SPA -- navigating here from another page (e.g. the homepage) via in-app
+  // routing never re-runs fixCrunchyroll(), so the old one-shot "only start if already on a
+  // lineup page" check never got a second chance. Poll indefinitely instead (same pattern as
+  // cr_showDub()'s own href-watcher) so arriving at a lineup page via SPA navigation, or
+  // navigating between different weekly-lineup dates, both (re-)render the filter.
+  let lastHref = null;
+  repeatIfCondition(
+    () => {
+      lastHref = location.href;
+      byId("cu-weekly-filter")?.remove();
+      cr_renderWeeklyLineupFilter();
+    },
+    () =>
+      cr_isWeeklyLineupPage() &&
+      location.href !== lastHref &&
+      cr_getLineupCards().length > 0,
+    { interval: 500 },
   );
 }
 

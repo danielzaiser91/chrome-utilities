@@ -4283,16 +4283,18 @@ function cr_initWeeklyLineupFilter() {
   // trigger. Without this the poll dies after the very first navigation away from wherever
   // fixCrunchyroll() originally ran, explaining why the filter never appeared after SPA nav even
   // though the polling logic itself was otherwise correct.
-  let lastHref = null;
+  //
+  // Re-render condition is "is there currently a live #cu-weekly-filter in the DOM", NOT "did the
+  // URL change" -- an earlier version compared location.href to a remembered lastHref, which
+  // fails for the (confirmed) case of navigating away and back to the exact SAME lineup URL: the
+  // href comparison sees no change, so it never re-renders, even though the SPA tore down and
+  // rebuilt the entire page in between and the old filter bar (and its DOM node) is long gone.
+  // Checking live presence directly is correct regardless of whether the URL actually changed.
   repeatIfCondition(
-    () => {
-      lastHref = location.href;
-      byId("cu-weekly-filter")?.remove();
-      cr_renderWeeklyLineupFilter();
-    },
+    cr_renderWeeklyLineupFilter,
     () =>
       cr_isWeeklyLineupPage() &&
-      location.href !== lastHref &&
+      !byId("cu-weekly-filter") &&
       cr_getLineupCards().length > 0,
     { interval: 500, pauseInBg: false },
   );

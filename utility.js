@@ -4277,6 +4277,12 @@ function cr_initWeeklyLineupFilter() {
   // lineup page" check never got a second chance. Poll indefinitely instead (same pattern as
   // cr_showDub()'s own href-watcher) so arriving at a lineup page via SPA navigation, or
   // navigating between different weekly-lineup dates, both (re-)render the filter.
+  // pauseInBg: false is required, not optional here -- the default (true) clears this interval
+  // entirely on the next "beforeunload"-triggering event (see stopIntervals()) and it never
+  // resumes on its own until the tab itself is refocused, which normal in-page link clicks don't
+  // trigger. Without this the poll dies after the very first navigation away from wherever
+  // fixCrunchyroll() originally ran, explaining why the filter never appeared after SPA nav even
+  // though the polling logic itself was otherwise correct.
   let lastHref = null;
   repeatIfCondition(
     () => {
@@ -4288,7 +4294,7 @@ function cr_initWeeklyLineupFilter() {
       cr_isWeeklyLineupPage() &&
       location.href !== lastHref &&
       cr_getLineupCards().length > 0,
-    { interval: 500 },
+    { interval: 500, pauseInBg: false },
   );
 }
 

@@ -32,6 +32,8 @@ jobs:
             --arg url "$RELEASE_URL" \
             --arg repo "$REPO" \
             '{
+              content: "<@&1535341253653168138>",
+              allowed_mentions: { roles: ["1535341253653168138"] },
               embeds: [{
                 title: ("🚀 " + $version + " veröffentlicht"),
                 description: (if $notes != "" then $notes else "_Keine Release-Notes_" end),

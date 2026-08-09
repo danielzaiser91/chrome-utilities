@@ -6,10 +6,19 @@ const getSiteOptions = () => userOptions[getSiteName()];
  * Chrome - Utility (cu)
  *
  * BIG TODO:
- * 1. observed on: twitch
- *   _issue: content script are executed multiple times, because of "all_frames": true, in manifest
- *   _solution #1: Implement background script, send message from content script to background script, that it has been loaded already, and stop further execution
- *              this background script holds single shared state, where we can check if we want to allow multiple executions or not (crunchyroll + static.crunchyroll for example)
+ * 1. observed on: twitch, and 08.08.2026 on Amazon Prime Video (SPA navigation)
+ *   _issue: content script gets re-injected into the SAME already-loaded document multiple
+ *     times. NOT actually caused by "all_frames" (tested both true and false on Amazon, both
+ *     still duplicated the injection) -- looks tied to SPA client-side navigation specifically.
+ *   _fix 08.08.2026, confirmed working: DOM-based dedup marker
+ *     (`document.documentElement.dataset.cuInjected`, set right before `websiteSelector()` runs,
+ *     see below) -- a JS variable doesn't work here because each re-injection gets its own fresh
+ *     isolated JS world, but they all share the same document, so a marker written to the DOM
+ *     itself is the only thing that survives across re-injections.
+ *   _solution #1 (superseded by the DOM marker above, kept for context): Implement background
+ *     script, send message from content script to background script, that it has been loaded
+ *     already, and stop further execution -- this background script holds single shared state,
+ *     where we can check if we want to allow multiple executions or not (crunchyroll + static.crunchyroll for example)
  *   _solution #2: move static.crunchyroll script to seperate extension...
  *   _solution #3: check url of iframes and exclude...
  *
@@ -73,6 +82,23 @@ const reset = (text) => `${Log.reset}${text}`;
 const query = (str) => document.querySelector(str);
 /** @returns {NodeList} */
 const queryAll = (str) => document.querySelectorAll(str);
+/**
+ * Wie query(), aber wenn mehrere Elemente auf den Selektor passen, wird gezielt das
+ * tatsächlich sichtbar gerenderte gewählt (offsetParent !== null), statt blind das erste
+ * Dokument-Treffer (querySelector-Standardverhalten). Manche SPA-Seiten (bestätigt: Amazon
+ * Prime Video nach clientseitiger Navigation) lassen eine alte, unsichtbare Kopie eines
+ * Elements im DOM stehen, während die eigentlich sichtbare eine spätere Dokumentposition hat
+ * -- normales query() trifft dann konsequent die falsche, tote Kopie.
+ * @returns {HTMLElement | null}
+ */
+const queryVisible = (str) => {
+  const matches = document.querySelectorAll(str);
+  return (
+    Array.from(matches).find((el) => el.offsetParent !== null) ||
+    matches[0] ||
+    null
+  );
+};
 /** @returns {HTMLElement | null} */
 const byId = (str) => document.getElementById(str);
 /**
@@ -313,6 +339,24 @@ document.addEventListener(
     // timeout workaround to fix crunchyroll bug of infinite loading...
     setTimeout(
       () => {
+        // BIG TODO #1 (see file header) — confirmed 08.08.2026 on Amazon Prime Video: SPA
+        // client-side navigation can get this content script re-injected into the SAME
+        // already-loaded document (identical location.href across up to 4 simultaneous "Web
+        // Utility Plugin" execution contexts in DevTools, independent of all_frames -- tested
+        // both true and false, both still duplicated). Each re-injection is a fresh isolated
+        // JS world with its own fresh module-level state (disableFeature etc. don't carry
+        // over), but all of them share the same underlying document -- so only a DOM-based
+        // marker, not a JS variable, reliably survives across re-injections.
+        if (document.documentElement.dataset.cuInjected) {
+          console.info(
+            yellow(
+              "skipping duplicate content-script injection into this document",
+            ),
+          );
+          return;
+        }
+        document.documentElement.dataset.cuInjected = "1";
+
         websiteSelector();
         if (!matcher?.allowInIframe) return;
         fixForAllWebsites();
@@ -1128,8 +1172,13 @@ function addPlayBackRateButton_wowTv() {
     container.insertAdjacentElement("beforeend", div2);
     // container.prepend(div, playbackSettings);
   };
-  // repeat until there is a video, then check if the element already has the playback button added
-  repeatIfCondition(_addPlayBackRateButton, condition, { interval: 1000 });
+  // repeat until there is a video, then check if the element already has the playback button added.
+  // pauseInBg:false, sonst überlebt der Poll keine SPA-Navigationskette ohne echten Reload
+  // (derselbe Bug, gefunden und gefixt bei Amazons Version dieses Musters, 08.08.2026)
+  repeatIfCondition(_addPlayBackRateButton, condition, {
+    interval: 1000,
+    pauseInBg: false,
+  });
 
   // const conditionFn = () => {
   //   const container = query('[data-test-id="volume"]')?.parentElement;
@@ -1237,7 +1286,7 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
     });
     const value =
       userOptions[getSiteName()].featurePlayBackSpeed.isEnabled.subFeatures
-        .playBackSpeed;
+        .playBackSpeed.value;
     const playbackInput = create("input", {
       type: "number",
       step: "0.1",
@@ -1269,8 +1318,13 @@ function addPlaybackRateButton__generic(containerQuery, conditionFn) {
     container.classList.add("cu-playbackrate-added");
     container.prepend(div, playbackSettings);
   };
-  // repeat until there is a video, then check if the element already has the playback button added
-  repeatIfCondition(_addPlayBackRateButton, conditionFn, { interval: 1000 });
+  // repeat until there is a video, then check if the element already has the playback button added.
+  // pauseInBg:false, sonst überlebt der Poll keine SPA-Navigationskette ohne echten Reload
+  // (Amazon nutzt diese Funktion inzwischen aktiv, bestätigt 08.08.2026)
+  repeatIfCondition(_addPlayBackRateButton, conditionFn, {
+    interval: 1000,
+    pauseInBg: false,
+  });
 }
 
 // ----
@@ -2974,6 +3028,38 @@ function toggleAmazonSkip() {
     ? amazonSkipLoop.play()
     : amazonSkipLoop.pause();
 }
+let _amazonPlaybackRateButtonStarted = false;
+function addPlaybackRateButton_amazon() {
+  // repeatIfCondition() re-checks its condition on every tick, not just once — if this
+  // function runs more than once (real 08.08.2026: fixAmazon() firing again around an
+  // episode change), each call spawns its OWN polling loop. Interval.exists() can't catch
+  // that here because repeatIfCondition's internal handler is always named "repeatIf", never
+  // the wrapped function's name — so this guard, not Interval.exists, is what actually
+  // prevents duplicate buttons (same pattern as _init_set_video_rate_repeater__generic above).
+  if (_amazonPlaybackRateButtonStarted) return;
+  _amazonPlaybackRateButtonStarted = true;
+
+  // top-right icon row (Untertitel/Einstellungen/Lautstärke/Vollbild/Schließen sitzen
+  // hier direkt als Flex-Geschwister); bestätigt per HTML-Dump 08.08.2026, weil
+  // .atvwebplayersdk-overlays-container (alte Struktur) auf der aktuellen Amazon-UI
+  // gar nicht mehr existiert
+  const getContainer = () => query(".atvwebplayersdk-hideabletopbuttons-container");
+  const condition = () => {
+    // NOT container.classList.contains("cu-playbackrate-added"): this container is
+    // React-rendered and gets its className reset on every re-render (real 08.08.2026,
+    // triggered by Amazon's own show/hide-controls-on-hover) — React doesn't touch children
+    // it doesn't own, so our appended button survives, but a classList marker on the
+    // container itself does not. Check for the button's actual presence instead.
+    return getContainer() && !query(".cu-playback-rate");
+  };
+  // ohne diese Höhe schiebt unser Button die ganze Icon-Zeile auf
+  insertCSS(
+    ".atvwebplayersdk-hideabletopbuttons-container { height: 28px !important; }",
+    "cu-amazon-playbackrate-row-fix",
+  );
+  addPlaybackRateButton__generic(getContainer, condition);
+}
+
 function fixAmazon() {
   // feature skip recap / ad / click next episode
   const condition = () => {
@@ -3009,6 +3095,7 @@ function fixAmazon() {
   });
 
   // feature add a button for playbackRate
+  addPlaybackRateButton_amazon();
   _init_set_video_rate_repeater__generic();
 
   // feature: remove xray when mouse leaves window immidiatly (no fade-out animation or delay)
@@ -3022,6 +3109,83 @@ function fixAmazon() {
 
   // feature: move video-action buttons lower
   moveVideoActionsLower();
+
+  // feature: work around Amazon's own bug where the "up next" carousel ("Jetzt folgt")
+  // never gets a Show button once hidden — only a Hide button while shown
+  fixAmazonCarouselShowButton();
+}
+
+// Amazon-Bug (bestätigt reproduzierbar auch mit deaktivierter Extension, 08.08.2026): das
+// "Jetzt folgt"-Karussell zeigt einen "Hide"-Button, solange es sichtbar ist; einmal
+// versteckt, rendert Amazon dort GAR KEINEN Button mehr (nicht nur unsichtbar — das Element
+// fehlt komplett im DOM, bestätigt per HTML-Dump). Der native Klick-Handler zum
+// Wieder-Einblenden hängt aber weiterhin am Karussell-Container selbst, nur ohne
+// sichtbaren Auslöser. Fix: eigener "Show"-Button an derselben Stelle, der per
+// dispatchEvent denselben Klick simuliert, den ein User sonst blind auf das versteckte
+// Element machen müsste.
+let _amazonCarouselHideBtnStarted = false;
+let _amazonCarouselHideBtnTemplate = null; // Klon von Amazons echtem Hide-Button, für Style-Parität
+function fixAmazonCarouselShowButton() {
+  if (_amazonCarouselHideBtnStarted) return;
+  _amazonCarouselHideBtnStarted = true;
+
+  const markerClass = "cu-amazon-carousel-show";
+  const getRow = () => {
+    const belowFold = query(".atvwebplayersdk-BelowFold");
+    const label = belowFold?.querySelector('[aria-label="Jetzt folgt"]');
+    return label?.parentElement?.parentElement;
+  };
+  const getRealHideButton = (row) =>
+    Array.from(row?.querySelectorAll("button") ?? []).find(
+      (b) => !b.classList.contains(markerClass),
+    );
+
+  const insertShowButton = () => {
+    const row = getRow();
+    if (!row || getRealHideButton(row) || row.querySelector(`.${markerClass}`)) return;
+    if (!_amazonCarouselHideBtnTemplate) return; // noch nie einen echten Hide-Button gesehen
+    const btn = _amazonCarouselHideBtnTemplate.cloneNode(true);
+    btn.classList.add(markerClass);
+    const span = btn.querySelector("span");
+    if (span) span.textContent = "Show"; // Amazons Hide-Button ist selbst Englisch, nicht "Ausblenden"
+    const svg = btn.querySelector("svg");
+    if (svg) svg.style.transform = "scaleY(-1)"; // Abwärts- zu Aufwärts-Pfeil spiegeln
+    btn.onclick = (ev) => {
+      ev.stopPropagation();
+      btn.remove(); // sofort weg, nicht erst auf den nächsten Poll-Tick warten
+      query(".atvwebplayersdk-BelowFold")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    };
+    row.appendChild(btn);
+  };
+
+  // sofortige Reaktion auf den echten Klick, statt auf den nächsten Poll-Tick zu warten;
+  // capture:true + setTimeout(0), damit Amazons eigenes Entfernen des Buttons zuerst
+  // durchläuft (sonst sieht getRealHideButton() ihn noch als vorhanden)
+  document.addEventListener(
+    "click",
+    (ev) => {
+      const clicked = ev.target.closest?.("button");
+      if (!clicked || clicked.textContent?.trim() !== "Hide") return;
+      if (clicked.classList.contains(markerClass)) return; // das ist unser eigener Klon
+      _amazonCarouselHideBtnTemplate = clicked.cloneNode(true);
+      setTimeout(insertShowButton, 0);
+    },
+    true,
+  );
+
+  // Backstop: falls die Seite direkt im versteckten Zustand geladen wurde (kein Klick in
+  // dieser Session gesehen) oder der Klick-Listener etwas verpasst hat
+  repeatIfCondition(
+    () => {
+      const real = getRealHideButton(getRow());
+      if (real) _amazonCarouselHideBtnTemplate = real.cloneNode(true);
+      insertShowButton();
+    },
+    () => query(".atvwebplayersdk-BelowFold"),
+    { pauseInBg: false, interval: 2000 },
+  );
 }
 
 function moveVideoActionsLower() {
@@ -3039,13 +3203,16 @@ function moveVideoActionsLower() {
   );
   repeatIfCondition(
     () => {
-      const btn = query(".atvwebplayersdk-fastseekback-button");
+      // queryVisible() statt query(): sonst wird bei Duplikaten (bestätigt 08.08.2026, siehe
+      // toggleUIVisible) die unsichtbare/veraltete Button-Kopie markiert, während die
+      // tatsächlich sichtbare nie das cu-moved-lower-Tag bekommt und mittig stehen bleibt.
+      const btn = queryVisible(".atvwebplayersdk-fastseekback-button");
       btn.parentElement.parentElement.parentElement.classList.add(
         "cu-moved-lower",
       );
     },
     () => {
-      const btn = query(".atvwebplayersdk-fastseekback-button");
+      const btn = queryVisible(".atvwebplayersdk-fastseekback-button");
       return (
         btn &&
         !btn.parentElement.parentElement.parentElement.classList.contains(
@@ -3053,6 +3220,11 @@ function moveVideoActionsLower() {
         )
       );
     },
+    // ohne pauseInBg:false stirbt dieser Poll bei einem Hintergrund-Event während einer
+    // Amazon-SPA-Navigationskette (z. B. Suche -> Übersicht -> Episode ohne echten Reload)
+    // und wacht nie wieder auf -- die Steuerelemente bleiben dann mittig statt nach unten
+    // verschoben, bestätigt 08.08.2026
+    { pauseInBg: false },
   );
 }
 
@@ -3124,34 +3296,64 @@ function xrayToggle() {
   );
 }
 
+// Merkt sich exakt die Elemente, die der letzte "remove"-Aufruf tatsächlich versteckt hat --
+// beim "add" GENAU diese wieder freigeben, statt neu zu suchen. Grund: queryVisible() erkennt
+// "sichtbar" über offsetParent !== null, aber beim Wieder-Einblenden ist das gesuchte Element
+// ja ABSICHTLICH gerade unsichtbar (wir haben es selbst versteckt) -- nicht unterscheidbar von
+// einem toten Duplikat-Knoten. Nur das Nachhalten der eigenen Referenzen ist robust.
+let lastHiddenAmazonUIElements = [];
+
 const toggleUIVisible = (op) => {
   if (disableFeature) return;
-  // const subtitlesEl = query('.atvwebplayersdk-overlays-container > div:nth-child(5) > div > div');
-  const topActionBarEl = query(
-    ".atvwebplayersdk-overlays-container > div:nth-child(5) > div > div:nth-child(2)",
-  );
-  const bottomActionBarEl = query(".atvwebplayersdk-bottompanel-container");
-  const opacityOverlayEl = query(".atvwebplayersdk-overlays-container > div");
-  const centerActionsEl = query(
-    ".atvwebplayersdk-overlays-container > div:nth-child(4) > div:nth-child(2)",
-  );
-  const titleEl = query(".atvwebplayersdk-title-text");
-  const subtitleEl = query(".atvwebplayersdk-subtitle-text");
 
-  [
+  if (op !== "remove") {
+    lastHiddenAmazonUIElements.forEach((e) => e.classList.remove("cu-hide"));
+    lastHiddenAmazonUIElements = [];
+    return;
+  }
+
+  // .atvwebplayersdk-overlays-container (die alte gemeinsame Ahnen-Klasse) existiert auf der
+  // aktuellen Amazon-UI nicht mehr (bestätigt per HTML-Dump 08.08.2026) — topActionBarEl und
+  // centerActionsEl unten auf stabile, direkt vorhandene Klassen umgestellt.
+  // queryVisible() statt query(): bestätigt 08.08.2026 per Debug-Log, dass Amazon nach
+  // SPA-Navigation für die meisten dieser Klassen 2 Treffer im DOM stehen hat (eine alte,
+  // unsichtbare Kopie + die echte) und query() (=querySelector, erstes Dokument-Match)
+  // zuverlässig die falsche, unsichtbare traf -- deshalb blendete bisher nur subtitleEl
+  // (einziges Element ohne Duplikat) tatsächlich aus.
+  const topActionBarEl = queryVisible(
+    ".atvwebplayersdk-hideabletopbuttons-container",
+  );
+  const bottomActionBarEl = queryVisible(".atvwebplayersdk-bottompanel-container");
+  // Backdrop-Gradient hat keine atvwebplayersdk-*-Klasse, nur gehashte Fela-Klassen -- per
+  // DevTools "Copy selector" gefunden (09.08.2026): erstes Kind von .fpqiyer (seit dem ersten
+  // Dump heute durchgehend stabil beobachtet), selbst .f8hspre.f1makowq. Entspricht der alten
+  // (toten) removeBackdropShadow()-Logik "erstes Kind des Overlay-Containers", nur mit dem
+  // neuen Anker. Die im DevTools-Selektor enthaltene ID (#dv-web-player-2) und die
+  // unbeschrifteten Zwischen-divs bewusst weggelassen -- die Zahl in der ID ist vermutlich
+  // instabil (Amazon hängt sie an, wenn mehrere Player-Instanzen gleichzeitig existieren,
+  // siehe die bereits gefundene Duplikat-Problematik).
+  const opacityOverlayEl = queryVisible(
+    ".atvwebplayersdk-player-container .fpqiyer > .f8hspre.f1makowq",
+  );
+  // .cu-moved-lower ist unsere eigene Markierung aus moveVideoActionsLower() auf demselben
+  // Wrapper, den centerActionsEl früher über den (jetzt toten) nth-child-Pfad traf.
+  const centerActionsEl = queryVisible(".cu-moved-lower");
+  const titleEl = queryVisible(".atvwebplayersdk-title-text");
+  const subtitleEl = queryVisible(".atvwebplayersdk-subtitle-text");
+  // eigenes Geschwister-Element, kein Kind von topActionBarEl (bestätigt per HTML-Dump)
+  const closeButtonEl = queryVisible(".atvwebplayersdk-closebutton-wrapper");
+
+  const elements = [
     topActionBarEl,
     bottomActionBarEl,
     opacityOverlayEl,
     centerActionsEl,
     titleEl,
     subtitleEl,
-  ]
-    .filter((e) => !!e)
-    .forEach((e) =>
-      op === "remove"
-        ? e.classList.add("cu-hide")
-        : e.classList.remove("cu-hide"),
-    );
+    closeButtonEl,
+  ].filter((e) => !!e);
+  elements.forEach((e) => e.classList.add("cu-hide"));
+  lastHiddenAmazonUIElements = elements;
 };
 let disableFeature = true;
 function immidiatlyRemoveUiWhenLeavingMouse() {
@@ -3164,7 +3366,10 @@ function immidiatlyRemoveUiWhenLeavingMouse() {
   repeatIfCondition(
     () => (disableFeature = !amazonVideoPlaying()),
     amazonVideoPlaying,
-    { interval: 300 },
+    // dieselbe SPA-Falle wie bei moveVideoActionsLower() -- ohne pauseInBg:false bleibt
+    // disableFeature nach einer Navigationskette ohne echten Reload auf "true" hängen und
+    // toggleUIVisible() bricht dann ganz oben ab
+    { interval: 300, pauseInBg: false },
   );
 }
 
@@ -5217,7 +5422,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.4.8",
+  version: "1.4.9",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

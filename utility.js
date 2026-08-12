@@ -2676,8 +2676,6 @@ const ADN_POSITION_SAVE_EVERY_MS = 2000;
 // a version switch reloads the source and rebuilds the quality menu; a quality picked into the
 // old menu during that window is discarded, so the quality step waits this long after a switch
 const ADN_SOURCE_SETTLE_MS = 2500;
-// how long after loading a resumed position is guarded against the player falling back to 0
-const ADN_RESUME_WATCH_MS = 15000;
 
 // applied once per episode instead of enforced on every tick, so a manual change in the player
 // isn't fought by the extension. location.pathname is the episode identity (SPA, no reload).
@@ -2690,8 +2688,6 @@ let _adn_prefs = {
   autoplayWaitsForGesture: false,
   sourceChangedAt: 0,
   positionSavedAt: 0,
-  resumeTarget: 0,
-  resumeWatchUntil: 0,
 };
 
 function adn_initPlayerPreferences() {
@@ -2711,8 +2707,6 @@ function adn_resetPlayerPreferences() {
   _adn_prefs.autoplayDone = false;
   _adn_prefs.sourceChangedAt = 0;
   _adn_prefs.positionSavedAt = 0;
-  _adn_prefs.resumeTarget = 0;
-  _adn_prefs.resumeWatchUntil = 0;
 }
 
 function adn_applyPlayerPreferences() {
@@ -2753,25 +2747,15 @@ function adn_applyPlayerPreferences() {
 
 // Resuming hangs off "playing" -- the moment playback actually runs -- rather than off metadata
 // or a timer. By then the player and its UI are genuinely up, so the seek isn't racing the source
-// still being wired together, and there is no waiting around for a settle window either. Every
-// later "playing" is used as well: a source switch drags the player back to the start, and that
-// is exactly when the position has to be put right again.
+// still being wired together, and there is no waiting around for a settle window either.
+//
+// Exactly ONCE per episode, not on every "playing": the flag lives in _adn_prefs and is only
+// cleared when location.pathname changes. Otherwise every pause-and-play in the first seconds of
+// an episode would drag the viewer back to where they resumed from.
 /** @param {HTMLVideoElement} video */
 function adn_onPlaying(video) {
-  if (!_adn_prefs.resumeDone) {
-    adn_resumePosition(video);
-    return;
-  }
-  // bounded twice over, so this can never fight a deliberate rewind: only while the guard window
-  // is open, and only when the player is back at the very beginning
-  if (!_adn_prefs.resumeTarget) return;
-  if (Date.now() > _adn_prefs.resumeWatchUntil) {
-    _adn_prefs.resumeTarget = 0;
-    return;
-  }
-  if (adn_isSourceSwitching() || video.seeking) return;
-  if (video.currentTime >= ADN_POSITION_MIN_SECONDS) return;
-  video.currentTime = _adn_prefs.resumeTarget;
+  if (_adn_prefs.resumeDone) return;
+  adn_resumePosition(video);
 }
 
 // The periodic save alone is always a moment behind: jumping somewhere and reloading right after
@@ -2801,8 +2785,16 @@ function adn_isSourceSwitching() {
   );
 }
 
+// The stored position is keyed to the EPISODE, taken from the page URL -- never from the video
+// source, which is a blob/CDN URL ADN is free to change whenever it likes. Preferred is the
+// numeric episode id in the path (".../25624-folge-1" -> "25624"), so the entry also survives a
+// changed slug or watching the same episode under a different site language; the pathname is the
+// fallback. location.href deliberately isn't used: its query string and hash would make the same
+// episode look like a different one depending on which link you arrived through.
+const ADN_EPISODE_ID_IN_PATH = /\/video\/[^/]+\/(\d+)/;
 function adn_getPositionKey() {
-  return ADN_POSITION_KEY_PREFIX + location.pathname;
+  const episodeId = location.pathname.match(ADN_EPISODE_ID_IN_PATH)?.[1];
+  return ADN_POSITION_KEY_PREFIX + (episodeId ?? location.pathname);
 }
 
 /** @param {HTMLVideoElement} video */
@@ -2820,10 +2812,6 @@ function adn_resumePosition(video) {
     saved > video.duration - ADN_POSITION_END_MARGIN_SECONDS
   )
     return;
-  // watched even when no seek is needed -- a later source switch can still drag the player back
-  // to the start, and then it has to be put right again
-  _adn_prefs.resumeTarget = saved;
-  _adn_prefs.resumeWatchUntil = Date.now() + ADN_RESUME_WATCH_MS;
   // ADN resumes on its own for a signed-in account; only seek when that left us somewhere else
   if (Math.abs(video.currentTime - saved) < 5) return;
   video.currentTime = saved;

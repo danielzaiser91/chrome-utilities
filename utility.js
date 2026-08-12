@@ -2685,6 +2685,7 @@ let _adn_prefs = {
   qualityDone: false,
   resumeDone: false,
   autoplayDone: false,
+  autoplayWaitsForGesture: false,
   sourceChangedAt: 0,
   positionSavedAt: 0,
 };
@@ -2837,10 +2838,31 @@ function adn_autoPlay(video) {
   if (document.hidden) return;
   _adn_prefs.autoplayDone = true;
   if (!video.paused) return;
-  // browsers only allow autoplay with sound once the site has enough media engagement, and
-  // starting muted would be worse than not starting at all for a video someone came to watch --
-  // so this tries once and then leaves the site's own play button alone if it was refused
-  video.play?.().catch(() => {});
+  video.play?.().catch(() => adn_playOnNextUserGesture(video));
+}
+
+// Browsers refuse to start a video with sound until the page has been interacted with (Chrome
+// makes an exception once a site has enough "media engagement", which is why it works on some
+// machines and not others), and starting muted would be worse for something someone came to
+// watch. So a refused start isn't given up on -- it rides the next gesture anywhere on the page,
+// the earliest moment the browser allows. This is also the explanation for the confusing symptom
+// it replaces: nothing happened for ten seconds, and then clicking ANY control started playback.
+/** @param {HTMLVideoElement} video */
+function adn_playOnNextUserGesture(video) {
+  if (_adn_prefs.autoplayWaitsForGesture) return;
+  _adn_prefs.autoplayWaitsForGesture = true;
+  const start = () => {
+    stopWaiting();
+    // not if the gesture was the user pausing on purpose
+    if (video.paused) video.play?.().catch(() => {});
+  };
+  const stopWaiting = () => {
+    _adn_prefs.autoplayWaitsForGesture = false;
+    window.removeEventListener("pointerdown", start, true);
+    window.removeEventListener("keydown", start, true);
+  };
+  window.addEventListener("pointerdown", start, true);
+  window.addEventListener("keydown", start, true);
 }
 
 function adn_applyPreferredVersion() {

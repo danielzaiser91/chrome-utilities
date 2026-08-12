@@ -2924,11 +2924,18 @@ function adn_applyPreferredQuality() {
   if (adn_isSourceSwitching()) return;
   const items = [...queryAll(ADN_QUALITY_MENU_ITEMS)];
   if (!items.length) return; // menu not built yet
+  _adn_prefs.qualityDone = true;
+  const current = items.find((li) => li.classList.contains("vjs-selected"));
+  // "Auto" is left alone. Switching away from it makes ADN rebuild the whole stream -- a black
+  // gap of roughly two seconds on every single load (measured from a screen recording: playing,
+  // then "Player lädt …", then the player sitting at 0:00, then back). Auto climbs to 1080p by
+  // itself on a good line, so that gap would buy a resolution you were going to get anyway.
+  // A fixed quality below 1080p is a different matter and does get corrected.
+  if (current?.dataset.id === ADN_FALLBACK_QUALITY) return;
   const target =
     items.find((li) => li.dataset.id === ADN_PREFERRED_QUALITY) ??
     items.find((li) => li.dataset.id === ADN_FALLBACK_QUALITY);
-  _adn_prefs.qualityDone = true;
-  if (!target || target.classList.contains("vjs-selected")) return;
+  if (!target || target === current) return;
   target.click();
   _adn_prefs.sourceChangedAt = Date.now();
 }
@@ -6098,7 +6105,8 @@ let userOptions = {
       isEnabled: {
         value: true,
         label: "Activate",
-        description: "picks 1080p, or Auto when 1080p is not available",
+        description:
+          "switches up to 1080p, and leaves Auto alone because it gets there on its own",
         toggle: adn_resetPlayerPreferences,
       },
     },

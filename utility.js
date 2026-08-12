@@ -2673,6 +2673,8 @@ const ADN_POSITION_KEY_PREFIX = "cu:adn:pos:";
 const ADN_POSITION_MIN_SECONDS = 15;
 const ADN_POSITION_END_MARGIN_SECONDS = 60;
 const ADN_POSITION_SAVE_EVERY_MS = 2000;
+// how far off ADN's own resume may be before the fix corrects it
+const ADN_RESUME_TOLERANCE_SECONDS = 10;
 // a version switch reloads the source and rebuilds the quality menu; a quality picked into the
 // old menu during that window is discarded, so the quality step waits this long after a switch
 const ADN_SOURCE_SETTLE_MS = 2500;
@@ -2812,8 +2814,10 @@ function adn_resumePosition(video) {
     saved > video.duration - ADN_POSITION_END_MARGIN_SECONDS
   )
     return;
-  // ADN resumes on its own for a signed-in account; only seek when that left us somewhere else
-  if (Math.abs(video.currentTime - saved) < 5) return;
+  // ADN resumes on its own for a signed-in account, so seeking to a spot it already reached just
+  // produces a second visible jump to the same place (confirmed 12.08.2026). Only a clearly
+  // different position is worth correcting.
+  if (Math.abs(video.currentTime - saved) <= ADN_RESUME_TOLERANCE_SECONDS) return;
   video.currentTime = saved;
 }
 

@@ -2676,6 +2676,8 @@ const ADN_POSITION_SAVE_EVERY_MS = 2000;
 // a version switch reloads the source and rebuilds the quality menu; a quality picked into the
 // old menu during that window is discarded, so the quality step waits this long after a switch
 const ADN_SOURCE_SETTLE_MS = 2500;
+// how long after loading a resumed position is guarded against the player falling back to 0
+const ADN_RESUME_WATCH_MS = 15000;
 
 // applied once per episode instead of enforced on every tick, so a manual change in the player
 // isn't fought by the extension. location.pathname is the episode identity (SPA, no reload).
@@ -2688,6 +2690,8 @@ let _adn_prefs = {
   autoplayWaitsForGesture: false,
   sourceChangedAt: 0,
   positionSavedAt: 0,
+  resumeTarget: 0,
+  resumeWatchUntil: 0,
 };
 
 function adn_initPlayerPreferences() {
@@ -2707,6 +2711,8 @@ function adn_resetPlayerPreferences() {
   _adn_prefs.autoplayDone = false;
   _adn_prefs.sourceChangedAt = 0;
   _adn_prefs.positionSavedAt = 0;
+  _adn_prefs.resumeTarget = 0;
+  _adn_prefs.resumeWatchUntil = 0;
 }
 
 function adn_applyPlayerPreferences() {
@@ -2714,40 +2720,67 @@ function adn_applyPlayerPreferences() {
     _adn_prefs.path = location.pathname;
     adn_resetPlayerPreferences();
   }
-  // Version and quality go first, and resuming/starting waits for them. The switch snapshots
-  // currentTime and the paused state at the moment it is triggered and restores both on the
-  // following "canplay" -- so seeking or starting beforehand hands that snapshot a half-finished
-  // seek, and the player comes back at 00:00. If the snapshot also catches the moment between
-  // play() and playback actually running, it comes back paused as well. Both confirmed against
-  // the live player (12.08.2026).
-  if (!_adn_prefs.versionDone) adn_applyPreferredVersion();
-  // quality only after the version is settled -- see the rebuild note in adn_applyPreferredVersion
-  if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
-    adn_applyPreferredQuality();
-  if (!_adn_prefs.versionDone || !_adn_prefs.qualityDone) return;
-  // nothing switched means nothing to wait for -- the usual case once ADN itself opens an
-  // episode in the preferred version and quality, and then playback starts without any delay
-  if (adn_isSourceSwitching()) return;
-
   const video = adn_getPlayerVideo();
+  if (video) adn_attachVideoListeners(video);
+
+  // The switch snapshots currentTime and the paused state at the moment it is triggered and
+  // restores both on the following "canplay". Handing it a seek that is still in flight is what
+  // made the player come back at 00:00, so it waits until the seek has actually landed.
+  if (!video?.seeking) {
+    if (!_adn_prefs.versionDone) adn_applyPreferredVersion();
+    // quality after the version -- see the rebuild note in adn_applyPreferredVersion
+    if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
+      adn_applyPreferredQuality();
+  }
+
   if (!video) return;
-  // seek first, then start -- the other way round plays a moment of the wrong spot out loud
-  if (!_adn_prefs.resumeDone) adn_resumePosition(video);
-  if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
+  // safety net for a "playing" that happened before the listener was attached
+  if (!video.paused && !video.seeking) adn_onPlaying(video);
+  // Starting playback DOES wait for the switch: if its snapshot catches the moment between
+  // play() and playback actually running, the player comes back paused (confirmed 12.08.2026).
+  // With nothing to switch -- the usual case -- there is no wait at all.
+  if (
+    _adn_prefs.versionDone &&
+    _adn_prefs.qualityDone &&
+    !adn_isSourceSwitching() &&
+    !_adn_prefs.autoplayDone
+  )
+    adn_autoPlay(video);
   // saving only starts once resuming is out of the way: until then currentTime is still 0,
   // which counts as "nothing worth keeping" and would wipe the position we came to restore
-  if (_adn_prefs.resumeDone) {
-    adn_attachPositionListeners(video);
-    adn_rememberPosition(video);
+  if (_adn_prefs.resumeDone) adn_rememberPosition(video);
+}
+
+// Resuming hangs off "playing" -- the moment playback actually runs -- rather than off metadata
+// or a timer. By then the player and its UI are genuinely up, so the seek isn't racing the source
+// still being wired together, and there is no waiting around for a settle window either. Every
+// later "playing" is used as well: a source switch drags the player back to the start, and that
+// is exactly when the position has to be put right again.
+/** @param {HTMLVideoElement} video */
+function adn_onPlaying(video) {
+  if (!_adn_prefs.resumeDone) {
+    adn_resumePosition(video);
+    return;
   }
+  // bounded twice over, so this can never fight a deliberate rewind: only while the guard window
+  // is open, and only when the player is back at the very beginning
+  if (!_adn_prefs.resumeTarget) return;
+  if (Date.now() > _adn_prefs.resumeWatchUntil) {
+    _adn_prefs.resumeTarget = 0;
+    return;
+  }
+  if (adn_isSourceSwitching() || video.seeking) return;
+  if (video.currentTime >= ADN_POSITION_MIN_SECONDS) return;
+  video.currentTime = _adn_prefs.resumeTarget;
 }
 
 // The periodic save alone is always a moment behind: jumping somewhere and reloading right after
 // meant the stored position was still the one from before the jump (confirmed 12.08.2026). These
 // catch the exact moments that matter, so the stored value is never stale when it counts.
-function adn_attachPositionListeners(video) {
+function adn_attachVideoListeners(video) {
   if (video.dataset.cuPositionWatched) return;
   video.dataset.cuPositionWatched = "1";
+  video.addEventListener("playing", () => adn_onPlaying(video));
   const save = () => adn_rememberPosition(video, true);
   video.addEventListener("seeked", save);
   video.addEventListener("pause", save);
@@ -2787,6 +2820,10 @@ function adn_resumePosition(video) {
     saved > video.duration - ADN_POSITION_END_MARGIN_SECONDS
   )
     return;
+  // watched even when no seek is needed -- a later source switch can still drag the player back
+  // to the start, and then it has to be put right again
+  _adn_prefs.resumeTarget = saved;
+  _adn_prefs.resumeWatchUntil = Date.now() + ADN_RESUME_WATCH_MS;
   // ADN resumes on its own for a signed-in account; only seek when that left us somewhere else
   if (Math.abs(video.currentTime - saved) < 5) return;
   video.currentTime = saved;

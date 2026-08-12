@@ -696,17 +696,30 @@ function prepareActionBar() {
       width: auto;
       padding: 0;
     }
+    /* the box properties get pinned for the same reason as the color: the site styles <label>
+       too, and a stray width/padding there pushed the text far away from its own switch */
     .cu-action-row label {
       margin: 0;
+      padding: 0;
+      width: auto;
+      min-width: 0;
+      max-width: none;
+      flex: 0 1 auto;
+      text-align: left;
       font-weight: 400;
       cursor: pointer;
       color: ${color.primary};
     }
-    .cu-space-between {
-      justify-content: space-between;
-    }
+    /* rows start at the same left edge, so a value row's text lines up with the switch of the
+       row above it, and its field follows the text directly instead of hugging the right edge */
     .cu-subfeatures .cu-action-row {
       padding-left: 18px;
+    }
+    .cu-action-row.cu-inactive {
+      opacity: 0.45;
+    }
+    .cu-action-row.cu-inactive label {
+      cursor: not-allowed;
     }
 
     /* real switches instead of native checkboxes -- appearance:none turns the box into a plain
@@ -743,8 +756,9 @@ function prepareActionBar() {
     .cu-settings input[type="checkbox"]:checked::after {
       transform: translateX(${CU_SWITCH_WIDTH - CU_SWITCH_HEIGHT}px);
     }
+    /* no opacity here -- .cu-inactive already dims the whole row, and both together made a
+       switched-off subfeature almost invisible */
     .cu-settings input[type="checkbox"]:disabled {
-      opacity: 0.4;
       cursor: not-allowed;
     }
 
@@ -858,14 +872,19 @@ function getNestedValue(obj, accessorArray) {
 }
 
 /**
- * @param {{ hideLabel?: boolean, subRowTarget?: HTMLElement }} options hideLabel drops the row's
- * own label (used for a feature's main switch, where the heading next to it says the same thing);
- * subRowTarget puts the subfeature rows somewhere other than next to this row.
+ * @param {{ hideLabel?: boolean, subRowTarget?: HTMLElement, forceDisabled?: boolean }} options
+ * hideLabel drops the row's own label (used for a feature's main switch, where the heading next
+ * to it says the same thing); subRowTarget puts the subfeature rows somewhere other than next to
+ * this row; forceDisabled greys the row out because its parent switch is off.
  */
 function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   const feature = value;
   if (feature.hideFromUser) return;
-  const { hideLabel = false, subRowTarget = featureRow } = options;
+  const {
+    hideLabel = false,
+    subRowTarget = featureRow,
+    forceDisabled = false,
+  } = options;
   const isNum = isNumber(feature.value);
   const isText = typeof feature.value === "string";
   const typeIndex = [isNum, isText].findIndex((e) => e === true);
@@ -874,7 +893,6 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   const row = document.createElement("div");
   row.classList.add("cu-action-row");
   if (hideLabel) row.classList.add("cu-inline-row");
-  if (!isCheckbox) row.classList.add("cu-space-between");
   const input = document.createElement("input");
   input.setAttribute("type", inputType);
   const id = "cu-" + optKeys.join("-");
@@ -883,9 +901,12 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   if (feature.disabled || !feature.hasOwnProperty("value")) {
     input.setAttribute("disabled", true);
     tooltip = feature.disabledReason ?? "";
-    input.setAttribute("disabled", true);
     if (feature.disabledReason) row.classList.add("cu-disabled");
   }
+  // a subfeature of a switched-off feature has no effect, so it isn't offered as if it had one.
+  // Only the input is disabled, the stored value stays untouched and comes back with the parent.
+  if (forceDisabled) input.setAttribute("disabled", true);
+  if (input.disabled) row.classList.add("cu-inactive");
   row.setAttribute("title", tooltip);
   if (isCheckbox) {
     input.checked = feature.value;
@@ -953,7 +974,9 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
     const subrows = document.createElement("div");
     subrows.classList.add("cu-subfeatures");
     Object.entries(feature.subFeatures).forEach(([kk, vv]) => {
-      renderFeatureRow(subrows, kk, vv, [...optKeys, key]);
+      renderFeatureRow(subrows, kk, vv, [...optKeys, key], {
+        forceDisabled: forceDisabled || !isAllowed(feature),
+      });
     });
     subRowTarget.appendChild(subrows);
   }

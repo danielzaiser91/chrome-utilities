@@ -571,6 +571,10 @@ function prepareActionBar() {
     .cu-actions-container.twitch {
       left: 70%;
     }
+    /* clear of ADN's own navigation bar -- centred it sat right on top of "News" */
+    .cu-actions-container.adn {
+      left: 76%;
+    }
     .cu-actions-container.crunchyroll {
       right: 200px;
       left: unset;

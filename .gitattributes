@@ -1,0 +1,9 @@
+# Zeilenenden: im Repo und im Arbeitsverzeichnis immer LF.
+# Steht hier statt in core.autocrlf, weil diese Datei mitgeklont wird und damit
+# fuer jeden gilt -- eine Rechner-Einstellung hat ein Mitarbeiter oder eine CI nicht.
+* text=auto eol=lf
+
+# Ausnahmen: diese Formate brauchen CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

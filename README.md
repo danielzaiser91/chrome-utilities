@@ -2,7 +2,7 @@
 
 A browser extension that adds quality-of-life improvements to a variety of websites — auto-skipping intros, custom playback speeds, UI fixes, and more.
 
-> Current version: **v1.3.3** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
+> Current version: **v1.5.0** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
 
 ---
 
@@ -33,6 +33,12 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 ### Amazon Prime Video
 - Auto-skip intros, recaps and trailer ads
 - Auto next-episode
+- Custom playback speed (0.2×–5×)
+
+### Animation Digital Network (ADN)
+- Starts every episode in the dubbed version, when there is one
+- Starts every episode in 1080p, or Auto when 1080p isn't available
+- Auto-skip intros
 - Custom playback speed (0.2×–5×)
 
 ### Twitch

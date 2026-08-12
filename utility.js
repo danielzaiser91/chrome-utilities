@@ -380,6 +380,7 @@ class Design {
   }
 }
 const designMap = {
+  adn: ["#0b1c2c", "#1f8bff"],
   amazon: ["#000", "#ff9900"],
   default: ["#000", "#ff9900"],
   netflix: ["#000", "#dd3b41"],
@@ -970,6 +971,7 @@ function websiteSelector() {
     new Matcher("pogchamps.gg", fixPogChamps, false),
     new Matcher("aternos.org", fixAternos, false),
     new Matcher("disneyplus.com", fixDisneyPlus, true),
+    new Matcher("animationdigitalnetwork.com", fixADN, true, "adn"),
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
   const match = websiteMatcher.find((v) => location.href.includes(v.match));
@@ -2433,6 +2435,118 @@ function activateAutoSkipDP() {
 
 function toggleAutoSkipDP() {
   dpAutoSkip?.isPlaying ? dpAutoSkip.pause() : dpAutoSkip.play();
+}
+
+// ---
+// fix https://animationdigitalnetwork.com
+// ---
+function fixADN() {
+  adn_initPlayerPreferences();
+  generic__activateAutoSkip({ getSkipOpeningBtn: adn_getSkipIntroBtn });
+  _init_set_video_rate_repeater__generic();
+}
+
+// intro / ending / next-episode all share ONE dock component that just swaps its label text and
+// its data-testid ("skip-intro-button" / "skip-ending-button" / "next-video-button"). The label is
+// localized (de/fr/pl) and therefore unusable as a selector, the testid is not. When no skip is
+// due the component only calls hide() and leaves the LAST testid in place, so the dock's own
+// vjs-hidden class is the part that actually says whether the button is live right now.
+function adn_getSkipIntroBtn() {
+  return query(
+    '.vjs-time-code-skip-buttons:not(.vjs-hidden) a[data-testid="skip-intro-button"]',
+  );
+}
+
+// Both select menus (version and quality) are plain <ul>s whose click handler sits on the list
+// itself and reads the clicked <li>'s data-id -- so clicking the <li> is enough, the menu never
+// has to be opened first. Entries the account isn't allowed to pick are rendered into a separate
+// .vjs-restricted-qualities list without any data-id, which is why [data-id] doubles as the
+// "actually selectable" filter here (e.g. 1080p on an account that doesn't include it).
+const ADN_VERSION_MENU_ITEMS =
+  ".vjs-select-version ul.vjs-select-menu > li.vjs-select-menu-item[data-id]";
+const ADN_QUALITY_MENU_ITEMS =
+  ".vjs-select-resolution ul.vjs-select-menu > li.vjs-select-menu-item[data-id]";
+// version ids are vf/vde/vpl (dubbed) vs vostf/vostde/vostpl (original audio + subtitles), so
+// "doesn't start with vost" identifies the dub in every site language -- unlike the visible
+// label, which reads Synchro/VF/Dubbing depending on the locale.
+const ADN_SUBTITLED_VERSION_PREFIX = "vost";
+const ADN_PREFERRED_QUALITY = "fhd"; // 1080p
+const ADN_FALLBACK_QUALITY = "auto";
+
+// applied once per episode instead of enforced on every tick, so a manual change in the player
+// isn't fought by the extension. location.pathname is the episode identity (SPA, no reload).
+let _adn_prefs = {
+  path: null,
+  versionDone: false,
+  qualityDone: false,
+  versionClickedAt: 0,
+};
+
+function adn_initPlayerPreferences() {
+  repeatIfCondition(
+    adn_applyPlayerPreferences,
+    () => !!query(".vjs-control-bar"),
+    { interval: 700, pauseInBg: false },
+  );
+}
+
+function adn_resetPlayerPreferences() {
+  _adn_prefs.versionDone = false;
+  _adn_prefs.qualityDone = false;
+  _adn_prefs.versionClickedAt = 0;
+}
+
+function adn_applyPlayerPreferences() {
+  if (_adn_prefs.path !== location.pathname) {
+    _adn_prefs.path = location.pathname;
+    adn_resetPlayerPreferences();
+  }
+  if (!_adn_prefs.versionDone) adn_applyPreferredVersion();
+  // quality only after the version is settled -- see the rebuild note in adn_applyPreferredVersion
+  if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
+    adn_applyPreferredQuality();
+}
+
+function adn_applyPreferredVersion() {
+  if (!isAllowed(getSiteOptions().featurePreferredVersion.isEnabled)) {
+    _adn_prefs.versionDone = true;
+    return;
+  }
+  const items = [...queryAll(ADN_VERSION_MENU_ITEMS)];
+  if (!items.length) return; // menu not built yet
+  const dubbed = items.find(
+    (li) => !li.dataset.id.startsWith(ADN_SUBTITLED_VERSION_PREFIX),
+  );
+  _adn_prefs.versionDone = true;
+  // no dub for this episode (subtitles only) -- nothing to switch to
+  if (!dubbed || dubbed.classList.contains("vjs-selected")) return;
+  dubbed.click();
+  // switching the version reloads the source and rebuilds the quality menu from scratch, so any
+  // quality picked before that point is discarded -- redo it against the new menu
+  _adn_prefs.qualityDone = false;
+  _adn_prefs.versionClickedAt = Date.now();
+}
+
+function adn_applyPreferredQuality() {
+  if (!isAllowed(getSiteOptions().featurePreferredQuality.isEnabled)) {
+    _adn_prefs.qualityDone = true;
+    return;
+  }
+  // right after a version switch the old menu is still in the DOM for a moment; a quality picked
+  // into it would be thrown away by the rebuild, so give the player time to swap the source first
+  if (
+    _adn_prefs.versionClickedAt &&
+    Date.now() - _adn_prefs.versionClickedAt < 2500
+  )
+    return;
+  const items = [...queryAll(ADN_QUALITY_MENU_ITEMS)];
+  if (!items.length) return; // menu not built yet
+  const target =
+    items.find((li) => li.dataset.id === ADN_PREFERRED_QUALITY) ??
+    items.find((li) => li.dataset.id === ADN_FALLBACK_QUALITY);
+  _adn_prefs.qualityDone = true;
+  if (!target || target.classList.contains("vjs-selected")) return;
+  target.click();
 }
 
 /** @type {Interval} */
@@ -5422,7 +5536,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.4.9",
+  version: "1.5.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -5491,6 +5605,67 @@ let userOptions = {
           //   description:
           //     "will click the next episode button on the end card for you",
           // },
+        },
+      },
+    },
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
+          },
+        },
+      },
+    },
+  },
+  adn: {
+    featurePreferredVersion: {
+      featureName: "Preferred Version",
+      featureDescription:
+        "always start an episode in the dubbed version, when there is one",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description:
+          "picks the dubbed version instead of the subtitled one, works in every site language",
+        toggle: adn_resetPlayerPreferences,
+      },
+    },
+    featurePreferredQuality: {
+      featureName: "Preferred Quality",
+      featureDescription:
+        "always start an episode in the best quality your account allows",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "picks 1080p, or Auto when 1080p is not available",
+        toggle: adn_resetPlayerPreferences,
+      },
+    },
+    featureAutoSkip: {
+      featureName: "AutoSkip",
+      featureDescription: "automatically skip the intro",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "turn skipping on or off",
+        toggle: generic__toggleAutoSkip,
+        subFeatures: {
+          skipOpenings: {
+            value: true,
+            label: "Intro",
+            description: "will skip the opening of every episode",
+          },
         },
       },
     },

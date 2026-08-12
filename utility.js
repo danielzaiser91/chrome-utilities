@@ -379,13 +379,24 @@ class Design {
     this.secondary = secondary;
   }
 }
+// [text, accent] -- accent is only used for the feature description lines, everything else is
+// text. ADN's own brand blue is #0098ff (from their stylesheet), darkened here because the
+// settings panel sits on white and the original doesn't carry enough contrast on it.
 const designMap = {
-  adn: ["#0b1c2c", "#1f8bff"],
+  adn: ["#0b1c2c", "#0077cc"],
   amazon: ["#000", "#ff9900"],
   default: ["#000", "#ff9900"],
   netflix: ["#000", "#dd3b41"],
 };
 cachedDesignForSite = {};
+// the userOptions key doubles as the name shown in the settings header, which reads fine for
+// most sites ("netflix", "youtube") but not for acronyms
+const siteDisplayNames = {
+  adn: "ADN",
+};
+function getSiteDisplayName(site) {
+  return siteDisplayNames[site] ?? site;
+}
 function getDesign(site) {
   if (!designMap[site]) return new Design("default", ...designMap["default"]);
   if (cachedDesignForSite[site]) return cachedDesignForSite[site];
@@ -448,7 +459,7 @@ function prepareActionBar() {
       <div class="cu-settings-container">
         <div class="cu-settings-description">
           ${svg[site] ?? ""}
-          Chrome Extension: Utility - Settings for ${site}:
+          Chrome Extension: Utility - Settings for ${getSiteDisplayName(site)}:
         </div>
         <div class="cu-settings-options">
 
@@ -610,6 +621,15 @@ function prepareActionBar() {
       color: ${color.secondary};
       white-space: pre-wrap;
     }
+    /* the overlay is injected into the page, so the site's own rules for these tags apply to it
+       too -- ADN colors every <label> in its brand blue, which turned the whole panel blue.
+       Pin them to the design's text color so the accent stays on the description lines only. */
+    .cu-settings-container h3,
+    .cu-settings-container .cu-action-row,
+    .cu-settings-container .cu-action-row label,
+    .cu-settings-container .cu-action-row input {
+      color: ${color.primary};
+    }
   
   
     .cu-settings-description {
@@ -631,11 +651,15 @@ function prepareActionBar() {
     .cu-feature {
       width: 100%;
     }
+    /* every row is label-left / input-right so all inputs of a feature line up in one column,
+       no matter how long the individual labels are (used to be ragged, since only the rows with
+       a number/text input got space-between and the checkbox rows sat right behind their label) */
     .cu-action-row {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 12px;
       padding: 7px 10px;
-      width: fit-content;
       user-select: none;
       font-size: 19px;
       line-height: 0.9;
@@ -645,12 +669,14 @@ function prepareActionBar() {
       margin: 0;
       font-weight: 400;
     }
+    .cu-action-row input[type="number"] {
+      width: 80px;
+    }
     .cu-disabled label {
       border-bottom: 1px dotted;
     }
     .cu-feature-row {
-      max-width: 80%;
-      width: fit-content;
+      width: 100%;
     }
 
     .cu-disabled {
@@ -660,10 +686,12 @@ function prepareActionBar() {
       justify-content: space-between;
     }
 
+    /* indented on the left only -- the right padding has to match .cu-action-row so a
+       subfeature's input stays in the same column as its parent's */
     .cu-subfeatures .cu-action-row {
       font-size: 18px;
       gap: 15px;
-      padding: 5px 0 5px 30px;
+      padding: 5px 10px 5px 30px;
     }
   `,
     "cu-actions",
@@ -5683,6 +5711,7 @@ let userOptions = {
             min: 0.2,
             max: 5,
             step: 0.1,
+            label: "Speed",
             toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },

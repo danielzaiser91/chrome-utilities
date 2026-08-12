@@ -2672,7 +2672,7 @@ const ADN_POSITION_KEY_PREFIX = "cu:adn:pos:";
 // worse than starting the episode over -- both ends are treated as "no position worth keeping"
 const ADN_POSITION_MIN_SECONDS = 15;
 const ADN_POSITION_END_MARGIN_SECONDS = 60;
-const ADN_POSITION_SAVE_EVERY_MS = 5000;
+const ADN_POSITION_SAVE_EVERY_MS = 2000;
 // a version switch reloads the source and rebuilds the quality menu; a quality picked into the
 // old menu during that window is discarded, so the quality step waits this long after a switch
 const ADN_SOURCE_SETTLE_MS = 2500;
@@ -2713,24 +2713,46 @@ function adn_applyPlayerPreferences() {
     _adn_prefs.path = location.pathname;
     adn_resetPlayerPreferences();
   }
-  // deliberately BEFORE the version/quality switch, and without waiting for it: that switch reads
-  // currentTime and the paused state at the moment it fires and restores both on the following
-  // "canplay", so seeking and starting first survives it. Waiting for it instead cost seconds
-  // before playback started, for nothing.
-  const video = adn_getPlayerVideo();
-  if (video) {
-    // seek first, then start -- the other way round plays a moment of the wrong spot out loud
-    if (!_adn_prefs.resumeDone) adn_resumePosition(video);
-    if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
-    // saving only starts once resuming is out of the way: until then currentTime is still 0,
-    // which counts as "nothing worth keeping" and would wipe the position we came to restore
-    if (_adn_prefs.resumeDone) adn_rememberPosition(video);
-  }
-
+  // Version and quality go first, and resuming/starting waits for them. The switch snapshots
+  // currentTime and the paused state at the moment it is triggered and restores both on the
+  // following "canplay" -- so seeking or starting beforehand hands that snapshot a half-finished
+  // seek, and the player comes back at 00:00. If the snapshot also catches the moment between
+  // play() and playback actually running, it comes back paused as well. Both confirmed against
+  // the live player (12.08.2026).
   if (!_adn_prefs.versionDone) adn_applyPreferredVersion();
   // quality only after the version is settled -- see the rebuild note in adn_applyPreferredVersion
   if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
     adn_applyPreferredQuality();
+  if (!_adn_prefs.versionDone || !_adn_prefs.qualityDone) return;
+  // nothing switched means nothing to wait for -- the usual case once ADN itself opens an
+  // episode in the preferred version and quality, and then playback starts without any delay
+  if (adn_isSourceSwitching()) return;
+
+  const video = adn_getPlayerVideo();
+  if (!video) return;
+  // seek first, then start -- the other way round plays a moment of the wrong spot out loud
+  if (!_adn_prefs.resumeDone) adn_resumePosition(video);
+  if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
+  // saving only starts once resuming is out of the way: until then currentTime is still 0,
+  // which counts as "nothing worth keeping" and would wipe the position we came to restore
+  if (_adn_prefs.resumeDone) {
+    adn_attachPositionListeners(video);
+    adn_rememberPosition(video);
+  }
+}
+
+// The periodic save alone is always a moment behind: jumping somewhere and reloading right after
+// meant the stored position was still the one from before the jump (confirmed 12.08.2026). These
+// catch the exact moments that matter, so the stored value is never stale when it counts.
+function adn_attachPositionListeners(video) {
+  if (video.dataset.cuPositionWatched) return;
+  video.dataset.cuPositionWatched = "1";
+  const save = () => adn_rememberPosition(video, true);
+  video.addEventListener("seeked", save);
+  video.addEventListener("pause", save);
+  // pagehide covers what beforeunload misses on mobile and on back/forward navigation
+  window.addEventListener("beforeunload", save);
+  window.addEventListener("pagehide", save);
 }
 
 // there is exactly one <video> on the page and it belongs to the player
@@ -2769,10 +2791,20 @@ function adn_resumePosition(video) {
   video.currentTime = saved;
 }
 
-/** @param {HTMLVideoElement} video */
-function adn_rememberPosition(video) {
+/**
+ * @param {HTMLVideoElement} video
+ * @param {boolean} [immediately] skip the throttle, for the event-driven saves
+ */
+function adn_rememberPosition(video, immediately) {
   if (!isAllowed(getSiteOptions().featureRememberPosition.isEnabled)) return;
-  if (Date.now() - _adn_prefs.positionSavedAt < ADN_POSITION_SAVE_EVERY_MS)
+  // the event-driven saves fire outside the poll, so they have to repeat its two guards: nothing
+  // is stored before resuming is done, and nothing during a source switch -- the player pauses
+  // and seeks to 0 while swapping, which would otherwise be written down as the real position
+  if (!_adn_prefs.resumeDone || adn_isSourceSwitching()) return;
+  if (
+    !immediately &&
+    Date.now() - _adn_prefs.positionSavedAt < ADN_POSITION_SAVE_EVERY_MS
+  )
     return;
   if (!Number.isFinite(video.duration) || video.duration <= 0) return;
   _adn_prefs.positionSavedAt = Date.now();

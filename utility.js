@@ -675,6 +675,18 @@ function prepareActionBar() {
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cu-badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #ffe3c2;
+      color: #8a4b00;
+      white-space: nowrap;
     }
     .cu-feature-rows:not(:empty) {
       padding: 6px 0 0 ${CU_SWITCH_WIDTH + 10}px;
@@ -816,8 +828,10 @@ function renderOptions() {
         const feature = Object.assign({}, value);
         const featureName = feature.featureName;
         const featureDescription = feature.featureDescription;
+        const featureCategory = feature.featureCategory;
         delete feature.featureName;
         delete feature.featureDescription;
+        delete feature.featureCategory;
         const featureRow = document.createElement("div");
         const featureContainer = document.createElement("div");
         const header = document.createElement("div");
@@ -843,6 +857,14 @@ function renderOptions() {
           const featureTitleEl = document.createElement("h3");
           featureTitleEl.textContent = featureName;
           header.appendChild(featureTitleEl);
+        }
+        // marks features that are not a preference but a patch for something broken on the site
+        // itself, so it's obvious why they exist and why turning them off can be the right call
+        if (featureCategory) {
+          const badge = document.createElement("span");
+          badge.classList.add("cu-badge");
+          badge.textContent = featureCategory;
+          header.appendChild(badge);
         }
         featureContainer.appendChild(header);
         if (featureDescription) {
@@ -4583,6 +4605,72 @@ function fixCrunchyroll() {
   cr_initSubtitleUmlautFix(); // fix "Koönig" -> "König" style subtitle typos
 
   cr_initWeeklyLineupFilter();
+  cr_initDuplicateSeasonFilter();
+}
+
+// Crunchyroll's season switcher lists the same season several times -- confirmed on Attack on
+// Titan Season 2, where six entries all read "S2: Attack on Titan Season 2" and every one of them
+// opens the same episode list. This is Crunchyroll's own bug, not something the extension causes.
+//
+// SELECTOR NOT YET VERIFIED against the real markup: crunchyroll.com can't be opened from here
+// (blocked by policy), so the switcher is matched by its ARIA roles instead of by class names --
+// the two shapes such a control can have. If Crunchyroll uses neither, this finds nothing and
+// does nothing; it never removes anything on its own guess.
+const CR_SEASON_LIST_SELECTOR = '[role="listbox"], [role="menu"]';
+const CR_SEASON_ITEM_SELECTOR =
+  '[role="option"], [role="menuitem"], [role="menuitemradio"]';
+
+function cr_initDuplicateSeasonFilter() {
+  // the dropdown is built fresh every time it opens, so this keeps watching instead of running
+  // once. pauseInBg:false for the same reason as the weekly filter above.
+  repeatIfCondition(cr_filterDuplicateSeasons, () => true, {
+    interval: 500,
+    pauseInBg: false,
+  });
+}
+
+function cr_filterDuplicateSeasons() {
+  const allowed = isAllowed(
+    userOptions.crunchyroll.featureFilterDuplicateSeasons.isEnabled,
+  );
+  // switching the option off has to bring the hidden entries straight back, without a reload
+  if (!allowed) {
+    queryAll(".cu-duplicate-season").forEach((el) => {
+      el.classList.remove("cu-hide", "cu-duplicate-season");
+    });
+    return;
+  }
+  queryAll(CR_SEASON_LIST_SELECTOR).forEach((list) => {
+    const items = [...list.querySelectorAll(CR_SEASON_ITEM_SELECTOR)].filter(
+      (item) => !item.classList.contains("cu-duplicate-season"),
+    );
+    if (items.length < 2) return;
+    /** @type {Map<string, HTMLElement[]>} */
+    const byLabel = new Map();
+    items.forEach((item) => {
+      const label = item.textContent.replace(/\s+/g, " ").trim();
+      if (!label) return;
+      byLabel.set(label, [...(byLabel.get(label) ?? []), item]);
+    });
+    byLabel.forEach((group) => {
+      if (group.length < 2) return;
+      // keep the entry the switcher currently points at, so hiding never moves the selection;
+      // with none marked, the first one stays
+      const keep = group.find(cr_isSelectedSeasonItem) ?? group[0];
+      group.forEach((item) => {
+        if (item === keep) return;
+        item.classList.add("cu-hide", "cu-duplicate-season");
+      });
+    });
+  });
+}
+
+function cr_isSelectedSeasonItem(item) {
+  return (
+    item.getAttribute("aria-selected") === "true" ||
+    item.getAttribute("aria-checked") === "true" ||
+    item.classList.contains("selected")
+  );
 }
 
 // German subtitle cues are sometimes rendered with a duplicated base vowel right before the
@@ -6292,6 +6380,21 @@ let userOptions = {
             toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },
+      },
+    },
+    featureFilterDuplicateSeasons: {
+      featureName: "Duplicate seasons",
+      featureCategory: "Website bug",
+      featureDescription:
+        "Crunchyroll lists the same season several times in the season dropdown, and every copy " +
+        "opens the same episodes. This hides the copies and keeps one.\n" +
+        "Rare downside: if two seasons really do share a name but hold different episodes, one " +
+        "of them gets hidden too. Missing an episode? Switch this off to see the full list.",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "hide seasons that are listed more than once",
+        toggle: cr_filterDuplicateSeasons,
       },
     },
     featureHighlightLanguage: {

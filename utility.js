@@ -2640,7 +2640,10 @@ function toggleAutoSkipDP() {
 // ---
 function fixADN() {
   adn_initPlayerPreferences();
-  generic__activateAutoSkip({ getSkipOpeningBtn: adn_getSkipIntroBtn });
+  generic__activateAutoSkip({
+    getSkipOpeningBtn: adn_getSkipIntroBtn,
+    getSkipNextBtn: adn_getNextEpisodeBtn,
+  });
   _init_set_video_rate_repeater__generic();
 }
 
@@ -2652,6 +2655,16 @@ function fixADN() {
 function adn_getSkipIntroBtn() {
   return query(
     '.vjs-time-code-skip-buttons:not(.vjs-hidden) a[data-testid="skip-intro-button"]',
+  );
+}
+
+// same dock, third mode: it only carries this testid once the episode has actually run out and
+// there is a next one, so finding it IS the condition -- no comparing timestamps needed. The
+// control bar's own "next episode" button is deliberately not used: that one is there the whole
+// time and clicking it would cut an episode short.
+function adn_getNextEpisodeBtn() {
+  return query(
+    '.vjs-time-code-skip-buttons:not(.vjs-hidden) a[data-testid="next-video-button"]',
   );
 }
 
@@ -6116,7 +6129,7 @@ let userOptions = {
     },
     featureAutoSkip: {
       featureName: "AutoSkip",
-      featureDescription: "automatically skip the intro",
+      featureDescription: "automatically skip the intro and go on to the next episode",
       isEnabled: {
         value: true,
         label: "Activate",
@@ -6127,6 +6140,11 @@ let userOptions = {
             value: true,
             label: "Intro",
             description: "will skip the opening of every episode",
+          },
+          skipNext: {
+            value: true,
+            label: "Next episode",
+            description: "will start the next episode when one has finished",
           },
         },
       },

@@ -389,6 +389,11 @@ const designMap = {
   netflix: ["#000", "#dd3b41"],
 };
 cachedDesignForSite = {};
+// size of the on/off switches in the settings overlay; the knob size, its travel and the
+// indentation of everything that lines up behind a switch are derived from these
+const CU_SWITCH_WIDTH = 34;
+const CU_SWITCH_HEIGHT = 20;
+
 // the userOptions key doubles as the name shown in the settings header, which reads fine for
 // most sites ("netflix", "youtube") but not for acronyms
 const siteDisplayNames = {
@@ -597,93 +602,168 @@ function prepareActionBar() {
     .cu-settings-container {
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-      font-size: 20px;
-      gap: 50px;
-      font-family: system-ui;
+      align-items: stretch;
+      gap: 14px;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
       color: ${color.primary};
-      width: fit-content;
-      height: fit-content;
-      padding: 50px;
+      width: min(460px, 92vw);
+      max-height: 86vh;
+      padding: 22px 24px;
       background: #fff;
-      max-height: 100%;
+      border-radius: 14px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
     }
-    .cu-settings-container h3, .cu-settings-container p {
-      font-size: 30px;
+    /* the overlay is injected into the page, so the site's own rules for these tags apply to it
+       too -- ADN colors every <label> in its brand blue, which turned the whole panel blue, and
+       uppercases every h3. Pin both so the panel looks the same on every site. */
+    .cu-settings-container h3 {
+      font-size: 15px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: normal;
       margin: 0;
-      padding: 5px 0;
-      line-height: 1;
+      padding: 0;
+      line-height: 1.3;
+      color: ${color.primary};
     }
     .cu-settings-container p {
-      font-size: 24px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      margin: 0;
+      /* lines up with the heading, i.e. past the switch in front of it */
+      padding: 3px 0 0 ${CU_SWITCH_WIDTH + 10}px;
       color: ${color.secondary};
       white-space: pre-wrap;
     }
-    /* the overlay is injected into the page, so the site's own rules for these tags apply to it
-       too -- ADN colors every <label> in its brand blue, which turned the whole panel blue.
-       Pin them to the design's text color so the accent stays on the description lines only. */
-    .cu-settings-container h3,
-    .cu-settings-container .cu-action-row,
-    .cu-settings-container .cu-action-row label,
-    .cu-settings-container .cu-action-row input {
-      color: ${color.primary};
-    }
-  
-  
+
     .cu-settings-description {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 15px;
+      gap: 10px;
+      font-size: 13px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e6e9ee;
+    }
+    .cu-settings-description svg {
+      max-height: 22px;
+      width: auto;
     }
 
     .cu-settings-options {
       display: flex;
       flex-direction: column;
-      gap: 15px;
-      max-height: 100%;
+      gap: 2px;
       overflow: auto;
-      width: fit-content;
-      align-items: center;
+      width: 100%;
+      align-items: stretch;
     }
     .cu-feature {
       width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      transition: background-color 0.15s ease;
     }
-    /* every row is label-left / input-right so all inputs of a feature line up in one column,
-       no matter how long the individual labels are (used to be ragged, since only the rows with
-       a number/text input got space-between and the checkbox rows sat right behind their label) */
+    .cu-feature:hover {
+      background: #f4f6f9;
+    }
+    /* switch first, then the heading it belongs to -- the heading names the feature, so the
+       switch needs no label of its own */
+    .cu-feature-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cu-feature-rows:not(:empty) {
+      padding: 6px 0 0 ${CU_SWITCH_WIDTH + 10}px;
+    }
+
     .cu-action-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      padding: 7px 10px;
-      user-select: none;
-      font-size: 19px;
-      line-height: 0.9;
+      gap: 10px;
+      padding: 5px 0;
       width: 100%;
+      user-select: none;
+      font-size: 13.5px;
+      line-height: 1.2;
+      color: ${color.primary};
+    }
+    /* the feature's own switch sits in the header and is only as wide as the switch itself */
+    .cu-action-row.cu-inline-row {
+      width: auto;
+      padding: 0;
     }
     .cu-action-row label {
       margin: 0;
       font-weight: 400;
+      cursor: pointer;
+      color: ${color.primary};
     }
+    .cu-space-between {
+      justify-content: space-between;
+    }
+    .cu-subfeatures .cu-action-row {
+      padding-left: 18px;
+    }
+
+    /* real switches instead of native checkboxes -- appearance:none turns the box into a plain
+       element we can draw on, the knob is its ::after */
+    .cu-settings input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: none;
+      position: relative;
+      margin: 0;
+      width: ${CU_SWITCH_WIDTH}px;
+      height: ${CU_SWITCH_HEIGHT}px;
+      border: none;
+      border-radius: 999px;
+      background: #ccd2da;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .cu-settings input[type="checkbox"]::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: ${CU_SWITCH_HEIGHT - 4}px;
+      height: ${CU_SWITCH_HEIGHT - 4}px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease;
+    }
+    .cu-settings input[type="checkbox"]:checked {
+      background: ${color.secondary};
+    }
+    .cu-settings input[type="checkbox"]:checked::after {
+      transform: translateX(${CU_SWITCH_WIDTH - CU_SWITCH_HEIGHT}px);
+    }
+    .cu-settings input[type="checkbox"]:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     /* Tailwind's preflight (ADN uses it) sets border-style:solid + border-width:0 on every
        element, so an input keeps its border color but draws nothing -- the field only looked
        outlined while focused, from the browser's focus ring. Width, background and the stepper
        arrows have to be stated for the same reason: the page's reset wins otherwise. */
     .cu-action-row input[type="number"],
     .cu-action-row input[type="text"] {
-      border: 1px solid ${color.primary};
-      border-radius: 4px;
+      border: 1px solid #c2c9d2;
+      border-radius: 6px;
       background: #fff;
-      padding: 2px 6px;
-      font-size: 17px;
+      color: ${color.primary};
+      padding: 3px 6px;
+      font-size: 13.5px;
       font-family: inherit;
     }
     .cu-action-row input[type="number"] {
-      width: 80px;
+      width: 74px;
     }
     .cu-action-row input[type="number"]::-webkit-inner-spin-button,
     .cu-action-row input[type="number"]::-webkit-outer-spin-button {
@@ -691,26 +771,16 @@ function prepareActionBar() {
       appearance: auto;
       opacity: 1;
     }
-    .cu-disabled label {
-      border-bottom: 1px dotted;
-    }
-    .cu-feature-row {
-      width: 100%;
-    }
 
     .cu-disabled {
       color: #b97777;
     }
-    .cu-space-between {
-      justify-content: space-between;
+    .cu-disabled label {
+      border-bottom: 1px dotted;
+      cursor: not-allowed;
     }
-
-    /* indented on the left only -- the right padding has to match .cu-action-row so a
-       subfeature's input stays in the same column as its parent's */
-    .cu-subfeatures .cu-action-row {
-      font-size: 18px;
-      gap: 15px;
-      padding: 5px 10px 5px 30px;
+    .cu-feature-row {
+      width: 100%;
     }
   `,
     "cu-actions",
@@ -736,26 +806,46 @@ function renderOptions() {
         delete feature.featureDescription;
         const featureRow = document.createElement("div");
         const featureContainer = document.createElement("div");
+        const header = document.createElement("div");
         const rows = document.createElement("div");
         featureContainer.classList.add("cu-feature");
+        header.classList.add("cu-feature-header");
         rows.classList.add("cu-feature-rows");
         featureRow.classList.add("cu-feature-row");
+
+        // a feature's first property is its own on/off switch. It goes into the header, in front
+        // of the heading and without a label of its own -- the heading already says what it turns
+        // on, so the label ("Activate", "Enable Feature") only repeated it. Its subfeatures still
+        // belong under the description, hence the separate target for those.
+        const [[mainKey, mainValue] = [], ...restEntries] =
+          Object.entries(feature);
+        if (mainKey) {
+          renderFeatureRow(header, mainKey, mainValue, [site, featureSelector], {
+            hideLabel: true,
+            subRowTarget: featureRow,
+          });
+        }
         if (featureName) {
           const featureTitleEl = document.createElement("h3");
           featureTitleEl.textContent = featureName;
-          featureContainer.appendChild(featureTitleEl);
+          header.appendChild(featureTitleEl);
         }
+        featureContainer.appendChild(header);
         if (featureDescription) {
           const featureDescEl = document.createElement("p");
           featureDescEl.innerHTML = featureDescription;
           featureContainer.appendChild(featureDescEl);
         }
 
-        Object.entries(feature).forEach(([k, v]) => {
+        restEntries.forEach(([k, v]) => {
           renderFeatureRow(featureRow, k, v, [site, featureSelector]);
         });
-        rows.appendChild(featureRow);
-        featureContainer.appendChild(rows);
+        // most features are just a heading with a switch -- an empty rows container would still
+        // add its own top padding under the description
+        if (featureRow.childElementCount) {
+          rows.appendChild(featureRow);
+          featureContainer.appendChild(rows);
+        }
         settingsEl.appendChild(featureContainer);
       });
   }
@@ -767,9 +857,15 @@ function getNestedValue(obj, accessorArray) {
   return typeof val === "object" ? getNestedValue(val, accessorArray) : val;
 }
 
-function renderFeatureRow(featureRow, key, value, optKeys) {
+/**
+ * @param {{ hideLabel?: boolean, subRowTarget?: HTMLElement }} options hideLabel drops the row's
+ * own label (used for a feature's main switch, where the heading next to it says the same thing);
+ * subRowTarget puts the subfeature rows somewhere other than next to this row.
+ */
+function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   const feature = value;
   if (feature.hideFromUser) return;
+  const { hideLabel = false, subRowTarget = featureRow } = options;
   const isNum = isNumber(feature.value);
   const isText = typeof feature.value === "string";
   const typeIndex = [isNum, isText].findIndex((e) => e === true);
@@ -777,6 +873,7 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
   const inputType = isCheckbox ? "checkbox" : ["number", "text"][typeIndex];
   const row = document.createElement("div");
   row.classList.add("cu-action-row");
+  if (hideLabel) row.classList.add("cu-inline-row");
   if (!isCheckbox) row.classList.add("cu-space-between");
   const input = document.createElement("input");
   input.setAttribute("type", inputType);
@@ -840,12 +937,17 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
   // whether an extension-injected input has focus, since we're not in an isolated iframe -- stop
   // the keydown from bubbling out of our settings overlay so typing here can't get eaten
   input.addEventListener("keydown", (e) => e.stopPropagation());
-  const label = document.createElement("label");
-  label.textContent = feature.label;
-  label.setAttribute("for", id);
-
-  row.appendChild(label);
-  row.appendChild(input);
+  if (hideLabel) {
+    row.appendChild(input);
+  } else {
+    const label = document.createElement("label");
+    label.textContent = feature.label;
+    label.setAttribute("for", id);
+    // a switch reads as "switch, then what it does"; a value field reads the other way round,
+    // with the field pushed to the right edge of the row
+    if (isCheckbox) row.append(input, label);
+    else row.append(label, input);
+  }
   featureRow.appendChild(row);
   if (feature.subFeatures) {
     const subrows = document.createElement("div");
@@ -853,7 +955,7 @@ function renderFeatureRow(featureRow, key, value, optKeys) {
     Object.entries(feature.subFeatures).forEach(([kk, vv]) => {
       renderFeatureRow(subrows, kk, vv, [...optKeys, key]);
     });
-    featureRow.appendChild(subrows);
+    subRowTarget.appendChild(subrows);
   }
 }
 
@@ -2526,8 +2628,8 @@ const ADN_POSITION_KEY_PREFIX = "cu:adn:pos:";
 const ADN_POSITION_MIN_SECONDS = 15;
 const ADN_POSITION_END_MARGIN_SECONDS = 60;
 const ADN_POSITION_SAVE_EVERY_MS = 5000;
-// switching version or quality reloads the source; the player restores its own currentTime and
-// paused state on the following "canplay", so resuming/starting into that window gets undone
+// a version switch reloads the source and rebuilds the quality menu; a quality picked into the
+// old menu during that window is discarded, so the quality step waits this long after a switch
 const ADN_SOURCE_SETTLE_MS = 2500;
 
 // applied once per episode instead of enforced on every tick, so a manual change in the player
@@ -2543,10 +2645,12 @@ let _adn_prefs = {
 };
 
 function adn_initPlayerPreferences() {
+  // 250ms rather than the usual second: this poll is what starts playback, and every tick of
+  // granularity is a tick of dead air before the episode begins. Two querySelectors per tick.
   repeatIfCondition(
     adn_applyPlayerPreferences,
-    () => !!query(".vjs-control-bar"),
-    { interval: 700, pauseInBg: false },
+    () => !!adn_getPlayerVideo() || !!query(".vjs-control-bar"),
+    { interval: 250, pauseInBg: false },
   );
 }
 
@@ -2564,20 +2668,24 @@ function adn_applyPlayerPreferences() {
     _adn_prefs.path = location.pathname;
     adn_resetPlayerPreferences();
   }
+  // deliberately BEFORE the version/quality switch, and without waiting for it: that switch reads
+  // currentTime and the paused state at the moment it fires and restores both on the following
+  // "canplay", so seeking and starting first survives it. Waiting for it instead cost seconds
+  // before playback started, for nothing.
+  const video = adn_getPlayerVideo();
+  if (video) {
+    // seek first, then start -- the other way round plays a moment of the wrong spot out loud
+    if (!_adn_prefs.resumeDone) adn_resumePosition(video);
+    if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
+    // saving only starts once resuming is out of the way: until then currentTime is still 0,
+    // which counts as "nothing worth keeping" and would wipe the position we came to restore
+    if (_adn_prefs.resumeDone) adn_rememberPosition(video);
+  }
+
   if (!_adn_prefs.versionDone) adn_applyPreferredVersion();
   // quality only after the version is settled -- see the rebuild note in adn_applyPreferredVersion
   if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
     adn_applyPreferredQuality();
-  if (!_adn_prefs.versionDone || !_adn_prefs.qualityDone) return;
-
-  const video = adn_getPlayerVideo();
-  if (!video || adn_isSourceSwitching()) return;
-  // seek first, then start -- the other way round plays a moment of the wrong spot out loud
-  if (!_adn_prefs.resumeDone) adn_resumePosition(video);
-  if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
-  // saving only starts once resuming is out of the way: at that point currentTime is still 0,
-  // which counts as "nothing worth keeping" and would wipe the very position we came to restore
-  if (_adn_prefs.resumeDone) adn_rememberPosition(video);
 }
 
 // there is exactly one <video> on the page and it belongs to the player
@@ -2644,7 +2752,9 @@ function adn_autoPlay(video) {
     _adn_prefs.autoplayDone = true;
     return;
   }
-  if (video.readyState < 2) return; // nothing buffered to play yet
+  // HAVE_METADATA is enough: play() from here on buffers and starts by itself, and it's the same
+  // moment adn_resumePosition can act, so the seek still lands before the first frame plays
+  if (video.readyState < 1) return;
   // opening an episode in a background tab shouldn't start sound in a tab nobody is looking at
   // -- wait instead of giving up, so it starts when the tab is actually brought to the front
   if (document.hidden) return;

@@ -669,8 +669,27 @@ function prepareActionBar() {
       margin: 0;
       font-weight: 400;
     }
+    /* Tailwind's preflight (ADN uses it) sets border-style:solid + border-width:0 on every
+       element, so an input keeps its border color but draws nothing -- the field only looked
+       outlined while focused, from the browser's focus ring. Width, background and the stepper
+       arrows have to be stated for the same reason: the page's reset wins otherwise. */
+    .cu-action-row input[type="number"],
+    .cu-action-row input[type="text"] {
+      border: 1px solid ${color.primary};
+      border-radius: 4px;
+      background: #fff;
+      padding: 2px 6px;
+      font-size: 17px;
+      font-family: inherit;
+    }
     .cu-action-row input[type="number"] {
       width: 80px;
+    }
+    .cu-action-row input[type="number"]::-webkit-inner-spin-button,
+    .cu-action-row input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: inner-spin-button;
+      appearance: auto;
+      opacity: 1;
     }
     .cu-disabled label {
       border-bottom: 1px dotted;
@@ -2501,13 +2520,26 @@ const ADN_SUBTITLED_VERSION_PREFIX = "vost";
 const ADN_PREFERRED_QUALITY = "fhd"; // 1080p
 const ADN_FALLBACK_QUALITY = "auto";
 
+const ADN_POSITION_KEY_PREFIX = "cu:adn:pos:";
+// resuming from the first few seconds gains nothing, and resuming into the closing credits is
+// worse than starting the episode over -- both ends are treated as "no position worth keeping"
+const ADN_POSITION_MIN_SECONDS = 15;
+const ADN_POSITION_END_MARGIN_SECONDS = 60;
+const ADN_POSITION_SAVE_EVERY_MS = 5000;
+// switching version or quality reloads the source; the player restores its own currentTime and
+// paused state on the following "canplay", so resuming/starting into that window gets undone
+const ADN_SOURCE_SETTLE_MS = 2500;
+
 // applied once per episode instead of enforced on every tick, so a manual change in the player
 // isn't fought by the extension. location.pathname is the episode identity (SPA, no reload).
 let _adn_prefs = {
   path: null,
   versionDone: false,
   qualityDone: false,
-  versionClickedAt: 0,
+  resumeDone: false,
+  autoplayDone: false,
+  sourceChangedAt: 0,
+  positionSavedAt: 0,
 };
 
 function adn_initPlayerPreferences() {
@@ -2521,7 +2553,10 @@ function adn_initPlayerPreferences() {
 function adn_resetPlayerPreferences() {
   _adn_prefs.versionDone = false;
   _adn_prefs.qualityDone = false;
-  _adn_prefs.versionClickedAt = 0;
+  _adn_prefs.resumeDone = false;
+  _adn_prefs.autoplayDone = false;
+  _adn_prefs.sourceChangedAt = 0;
+  _adn_prefs.positionSavedAt = 0;
 }
 
 function adn_applyPlayerPreferences() {
@@ -2533,6 +2568,92 @@ function adn_applyPlayerPreferences() {
   // quality only after the version is settled -- see the rebuild note in adn_applyPreferredVersion
   if (_adn_prefs.versionDone && !_adn_prefs.qualityDone)
     adn_applyPreferredQuality();
+  if (!_adn_prefs.versionDone || !_adn_prefs.qualityDone) return;
+
+  const video = adn_getPlayerVideo();
+  if (!video || adn_isSourceSwitching()) return;
+  // seek first, then start -- the other way round plays a moment of the wrong spot out loud
+  if (!_adn_prefs.resumeDone) adn_resumePosition(video);
+  if (_adn_prefs.resumeDone && !_adn_prefs.autoplayDone) adn_autoPlay(video);
+  // saving only starts once resuming is out of the way: at that point currentTime is still 0,
+  // which counts as "nothing worth keeping" and would wipe the very position we came to restore
+  if (_adn_prefs.resumeDone) adn_rememberPosition(video);
+}
+
+// there is exactly one <video> on the page and it belongs to the player
+function adn_getPlayerVideo() {
+  return query("video.vjs-tech");
+}
+
+function adn_isSourceSwitching() {
+  return (
+    !!_adn_prefs.sourceChangedAt &&
+    Date.now() - _adn_prefs.sourceChangedAt < ADN_SOURCE_SETTLE_MS
+  );
+}
+
+function adn_getPositionKey() {
+  return ADN_POSITION_KEY_PREFIX + location.pathname;
+}
+
+/** @param {HTMLVideoElement} video */
+function adn_resumePosition(video) {
+  if (!isAllowed(getSiteOptions().featureRememberPosition.isEnabled)) {
+    _adn_prefs.resumeDone = true;
+    return;
+  }
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return; // no metadata yet
+  _adn_prefs.resumeDone = true;
+  const saved = +localStorage.getItem(adn_getPositionKey());
+  if (
+    !saved ||
+    saved < ADN_POSITION_MIN_SECONDS ||
+    saved > video.duration - ADN_POSITION_END_MARGIN_SECONDS
+  )
+    return;
+  // ADN resumes on its own for a signed-in account; only seek when that left us somewhere else
+  if (Math.abs(video.currentTime - saved) < 5) return;
+  video.currentTime = saved;
+}
+
+/** @param {HTMLVideoElement} video */
+function adn_rememberPosition(video) {
+  if (!isAllowed(getSiteOptions().featureRememberPosition.isEnabled)) return;
+  if (Date.now() - _adn_prefs.positionSavedAt < ADN_POSITION_SAVE_EVERY_MS)
+    return;
+  if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+  _adn_prefs.positionSavedAt = Date.now();
+  const isAtStart = video.currentTime < ADN_POSITION_MIN_SECONDS;
+  const isAtEnd =
+    video.currentTime > video.duration - ADN_POSITION_END_MARGIN_SECONDS;
+  // an episode watched to the end has no position worth keeping -- drop it so the next visit
+  // starts over instead of dropping straight into the credits
+  if (isAtStart || isAtEnd) {
+    localStorage.removeItem(adn_getPositionKey());
+    return;
+  }
+  localStorage.setItem(
+    adn_getPositionKey(),
+    String(Math.floor(video.currentTime)),
+  );
+}
+
+/** @param {HTMLVideoElement} video */
+function adn_autoPlay(video) {
+  if (!isAllowed(getSiteOptions().featureAutoPlay.isEnabled)) {
+    _adn_prefs.autoplayDone = true;
+    return;
+  }
+  if (video.readyState < 2) return; // nothing buffered to play yet
+  // opening an episode in a background tab shouldn't start sound in a tab nobody is looking at
+  // -- wait instead of giving up, so it starts when the tab is actually brought to the front
+  if (document.hidden) return;
+  _adn_prefs.autoplayDone = true;
+  if (!video.paused) return;
+  // browsers only allow autoplay with sound once the site has enough media engagement, and
+  // starting muted would be worse than not starting at all for a video someone came to watch --
+  // so this tries once and then leaves the site's own play button alone if it was refused
+  video.play?.().catch(() => {});
 }
 
 function adn_applyPreferredVersion() {
@@ -2552,7 +2673,7 @@ function adn_applyPreferredVersion() {
   // switching the version reloads the source and rebuilds the quality menu from scratch, so any
   // quality picked before that point is discarded -- redo it against the new menu
   _adn_prefs.qualityDone = false;
-  _adn_prefs.versionClickedAt = Date.now();
+  _adn_prefs.sourceChangedAt = Date.now();
 }
 
 function adn_applyPreferredQuality() {
@@ -2562,11 +2683,7 @@ function adn_applyPreferredQuality() {
   }
   // right after a version switch the old menu is still in the DOM for a moment; a quality picked
   // into it would be thrown away by the rebuild, so give the player time to swap the source first
-  if (
-    _adn_prefs.versionClickedAt &&
-    Date.now() - _adn_prefs.versionClickedAt < 2500
-  )
-    return;
+  if (adn_isSourceSwitching()) return;
   const items = [...queryAll(ADN_QUALITY_MENU_ITEMS)];
   if (!items.length) return; // menu not built yet
   const target =
@@ -2575,6 +2692,7 @@ function adn_applyPreferredQuality() {
   _adn_prefs.qualityDone = true;
   if (!target || target.classList.contains("vjs-selected")) return;
   target.click();
+  _adn_prefs.sourceChangedAt = Date.now();
 }
 
 /** @type {Interval} */
@@ -5695,6 +5813,27 @@ let userOptions = {
             description: "will skip the opening of every episode",
           },
         },
+      },
+    },
+    featureRememberPosition: {
+      featureName: "Remember Video Position",
+      featureDescription: "... and resume where you left off",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description:
+          "an episode you finished starts over, everything else continues",
+        toggle: adn_resetPlayerPreferences,
+      },
+    },
+    featureAutoPlay: {
+      featureName: "AutoPlay",
+      featureDescription: "start playing as soon as the page is loaded",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "no more clicking play after every reload",
+        toggle: adn_resetPlayerPreferences,
       },
     },
     featurePlayBackSpeed: {

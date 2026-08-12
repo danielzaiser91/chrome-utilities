@@ -39,6 +39,8 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 - Starts every episode in the dubbed version, when there is one
 - Starts every episode in 1080p, or Auto when 1080p isn't available
 - Auto-skip intros
+- Remembers where you left off and resumes there
+- Starts playing on its own after a page load or reload
 - Custom playback speed (0.2×–5×)
 
 ### Twitch

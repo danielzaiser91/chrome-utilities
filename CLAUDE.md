@@ -8,11 +8,16 @@ Chrome Extension (MV3), kein Build-System, einzelne `utility.js` + `manifest.jso
 - Release-Notes kommen aus dem GitHub Release-Body — nicht aus Commit-Messages
 - Discord Webhook Secret: `DISCORD_WEBHOOK` (als GitHub Actions Secret gesetzt)
 
-#### Format der Release-Notes (= die Discord-Nachricht)
+#### Format der Release-Notes — zwei Dokumente in einem Body
 
-Der Release-Body landet **unverändert** in der Discord-Einbettung. Er ist keine Dokumentation,
-sondern eine Ankündigung: Wer sie überfliegt, soll in fünf Sekunden wissen, ob ihn dieses
-Update betrifft.
+Der Release-Body trägt beides: **oberhalb** der Marke `<!-- discord-cut -->` die kurze
+Ankündigung, die nach Discord geht, **unterhalb** die ausführlichen Notizen, die auf der
+Release-Seite bleiben. Der Workflow schneidet an der Marke und hängt automatisch einen Link
+auf die Release-Seite an. Fehlt die Marke, wird der ganze Body angekündigt — kurze Releases
+brauchen also keine.
+
+So wird an einer Stelle geschrieben, und trotzdem bekommt Discord eine Nachricht, die man
+liest, während jedes Detail nachlesbar bleibt.
 
 ```
 **🆕 <Seite> — neu unterstützt**
@@ -22,7 +27,14 @@ Update betrifft.
 **<Seite>**
 • Ein Punkt, eine Zeile
 
-Alle Änderungen: <https://github.com/danielzaiser91/chrome-utilities/compare/vALT...vNEU>
+<!-- discord-cut -->
+
+## Ausführlich
+
+### <Überschrift>
+Fließtext, Ursachen, Messwerte, Einschränkungen — alles, was oben nichts zu suchen hat.
+
+**Alle Commits:** https://github.com/danielzaiser91/chrome-utilities/compare/vALT...vNEU
 ```
 
 Verbindlich:
@@ -35,10 +47,9 @@ Verbindlich:
   Commit-Titel. Interne Umbauten ohne sichtbare Wirkung tauchen nicht auf.
 - **Keine Installationsanleitung.** Die steht im README und ist bei jedem Release dieselbe —
   im Release-Text ist sie der längste und wertloseste Absatz.
-- **Details gehören nicht hinein, sondern hinter den Link.** Abschluss immer mit
-  `Alle Änderungen: <compare-Link vom vorigen auf den neuen Tag>`. Die spitzen Klammern
-  unterdrücken Discords Link-Vorschau.
-- **Ein Patch-Release ist kurz.** Zwei, drei Zeilen plus Link. Wer mehr wissen will, klickt.
+- **Details stehen unter der Marke, nicht darüber.** Den Link auf die Release-Seite hängt der
+  Workflow selbst an — er gehört nicht in den oberen Teil geschrieben, sonst steht er zweimal.
+- **Ein Patch-Release ist kurz.** Zwei, drei Zeilen. Wer mehr wissen will, klickt.
 
 Anlass (13.08.2026): Die Notes zu v1.5.0 hatten Überschriften, Fließtext-Absätze und eine
 vollständige Installationsanleitung — in Discord eine Textwand, die niemand liest.

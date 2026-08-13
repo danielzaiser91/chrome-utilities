@@ -23,8 +23,20 @@ jobs:
           # fetch notes/url via API instead of interpolating github.event.release.body into the
           # script text -- avoids shell injection from quotes/special chars in release notes, and
           # lets this same step handle both the automatic publish event and a manual re-run
-          NOTES=$(gh release view "$TAG" -R "$REPO" --json body -q .body)
+          BODY=$(gh release view "$TAG" -R "$REPO" --json body -q .body)
           RELEASE_URL=$(gh release view "$TAG" -R "$REPO" --json url -q .url)
+
+          # The release body carries TWO documents in one: above the marker the short
+          # announcement that goes to Discord, below it the detailed notes that stay on the
+          # release page. Discord gets a message people actually read, the release page keeps
+          # every detail, and both are written in one place at one time.
+          # No marker -> the whole body is announced, so older releases and quick one-liners
+          # keep working unchanged.
+          NOTES=$(printf '%s\n' "$BODY" | awk '/<!-- discord-cut -->/ { exit } { print }')
+          # $( ) drops trailing newlines by itself, so no blank tail below the last bullet
+          if [ "$NOTES" != "$BODY" ]; then
+            NOTES="$NOTES"$'\n\n'"[Alle Details zu $TAG]($RELEASE_URL)"
+          fi
 
           PAYLOAD=$(jq -n \
             --arg version "$TAG" \

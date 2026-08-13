@@ -656,11 +656,20 @@ function prepareActionBar() {
       width: auto;
     }
 
+    /* our own elements, not the page's: a row with width:100% AND padding overflows its parent
+       whenever box-sizing is content-box, and that stray pixel is what produced a horizontal
+       scrollbar under the options. Sites differ in whether they set this globally, so it is
+       stated here rather than hoped for. */
+    .cu-settings * {
+      box-sizing: border-box;
+    }
     .cu-settings-options {
       display: flex;
       flex-direction: column;
       gap: 2px;
-      overflow: auto;
+      /* only ever scrolls downwards -- nothing in here is meant to be wider than the panel */
+      overflow-y: auto;
+      overflow-x: hidden;
       width: 100%;
       align-items: stretch;
     }
@@ -860,7 +869,10 @@ function renderOptions() {
         if (featureName) {
           const featureTitleEl = document.createElement("h3");
           featureTitleEl.textContent = featureName;
-          header.appendChild(featureTitleEl);
+          // right behind the switch, and thus BEFORE a value field that renderFeatureRow may
+          // have put into the header as well -- appending would leave the field in front of the
+          // heading it belongs to
+          header.insertBefore(featureTitleEl, header.children[1] ?? null);
         }
         // marks features that are not a preference but a patch for something broken on the site
         // itself, so it's obvious why they exist and why turning them off can be the right call
@@ -997,9 +1009,25 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   }
   featureRow.appendChild(row);
   if (feature.subFeatures) {
+    const subEntries = Object.entries(feature.subFeatures);
+    // A feature whose only sub-option is a single unnamed value -- the playback speed on every
+    // site -- gets its field put right behind the heading instead of onto a row of its own. That
+    // row had nothing but the field on it, since the heading above already named the thing.
+    const [loneKey, loneValue] = subEntries.length === 1 ? subEntries[0] : [];
+    const isLoneValueField =
+      loneKey &&
+      !loneValue.label &&
+      (isNumber(loneValue.value) || typeof loneValue.value === "string");
+    if (isLoneValueField) {
+      renderFeatureRow(featureRow, loneKey, loneValue, [...optKeys, key], {
+        forceDisabled: forceDisabled || !isAllowed(feature),
+        hideLabel: true,
+      });
+      return;
+    }
     const subrows = document.createElement("div");
     subrows.classList.add("cu-subfeatures");
-    Object.entries(feature.subFeatures).forEach(([kk, vv]) => {
+    subEntries.forEach(([kk, vv]) => {
       renderFeatureRow(subrows, kk, vv, [...optKeys, key], {
         forceDisabled: forceDisabled || !isAllowed(feature),
       });
@@ -6010,7 +6038,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.5.0",
+  version: "1.5.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -6184,7 +6212,6 @@ let userOptions = {
             min: 0.2,
             max: 5,
             step: 0.1,
-            label: "Speed",
             toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },

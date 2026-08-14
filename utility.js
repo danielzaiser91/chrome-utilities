@@ -2691,9 +2691,21 @@ function adn_getSkipIntroBtn() {
 // control bar's own "next episode" button is deliberately not used: that one is there the whole
 // time and clicking it would cut an episode short.
 function adn_getNextEpisodeBtn() {
-  return query(
+  const btn = query(
     '.vjs-time-code-skip-buttons:not(.vjs-hidden) a[data-testid="next-video-button"]',
   );
+  if (!btn) return null;
+  // The dock only updates itself from onTimeUpdate, and that bails out until the NEW episode's
+  // timecodes have arrived. In between it still shows what it last showed -- the "next episode"
+  // button of the episode just left. Clicking that skipped a whole episode: 6 jumped to 7 and,
+  // two seconds later, straight on to 8, without 7 ever being watched (reported 14.08.2026).
+  // So the button alone isn't the condition; the player has to be near the end of something.
+  const video = adn_getPlayerVideo();
+  if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return null;
+  // generous window, because the button legitimately appears at the END OF THE STORY, which can
+  // sit a good while before the file ends -- but nowhere near the start of a fresh episode
+  if (video.duration - video.currentTime > ADN_NEXT_MAX_REMAINING_SECONDS) return null;
+  return btn;
 }
 
 // Both select menus (version and quality) are plain <ul>s whose click handler sits on the list
@@ -2709,6 +2721,8 @@ const ADN_QUALITY_MENU_ITEMS =
 // "doesn't start with vost" identifies the dub in every site language -- unlike the visible
 // label, which reads Synchro/VF/Dubbing depending on the locale.
 const ADN_SUBTITLED_VERSION_PREFIX = "vost";
+// how much of an episode may still be left for the "next episode" button to be believable
+const ADN_NEXT_MAX_REMAINING_SECONDS = 180;
 const ADN_PREFERRED_QUALITY = "fhd"; // 1080p
 const ADN_FALLBACK_QUALITY = "auto";
 
@@ -2994,23 +3008,40 @@ let generic__AutoSkip;
 // resume position after a reload. All call sites poll on the default 300ms interval, so the
 // delay here is 700ms to land on an effective ~1s from first sighting to click, not 1.3s.
 const generic__pendingSkipTimers = {};
-function generic__CheckAndClickDelayed(key, getBtn, { delayMs = 700, onClick } = {}) {
+// A click is only blocked WHILE it is pending. That is not enough for a button which survives
+// its own click: the next poll finds it again and clicks a second time. cooldownMs additionally
+// blocks re-clicking for a while AFTER a click actually fired, whether or not the button is
+// still there -- the same guard Disney+ needed for its next-episode tray.
+const generic__lastSkipClickAt = {};
+function generic__CheckAndClickDelayed(
+  key,
+  getBtn,
+  { delayMs = 700, cooldownMs = 0, onClick } = {},
+) {
+  if (cooldownMs && Date.now() - (generic__lastSkipClickAt[key] ?? 0) < cooldownMs)
+    return;
   if (!getBtn?.() || generic__pendingSkipTimers[key]) return;
   generic__pendingSkipTimers[key] = setTimeout(() => {
     const btn = getBtn?.();
     if (btn) {
       btn.click();
+      generic__lastSkipClickAt[key] = Date.now();
       onClick?.();
     }
     delete generic__pendingSkipTimers[key];
   }, delayMs);
 }
+// Two next-episode clicks within half a minute are never both real -- an episode is minutes
+// long, so the second one is always a leftover button from the episode just left behind.
+const GENERIC_NEXT_COOLDOWN_MS = 30000;
 function generic__activateAutoSkip(options = { getSkipNextBtn: () => {}, getSkipOpeningBtn: () => {}, getSkipRecapBtn: () => {}, getSkipCreditsBtn: () => {} }) {
   generic__AutoSkip = repeatIfCondition(
     () => {
       const { skipNext, skipRecaps, skipOpenings, skipCredits } = getSiteOptions().featureAutoSkip.isEnabled.subFeatures;
       if (isAllowed(skipNext)) {
-        generic__CheckAndClickDelayed("next", options?.getSkipNextBtn);
+        generic__CheckAndClickDelayed("next", options?.getSkipNextBtn, {
+          cooldownMs: GENERIC_NEXT_COOLDOWN_MS,
+        });
       }
       if (isAllowed(skipOpenings)) {
         generic__CheckAndClickDelayed("opening", options?.getSkipOpeningBtn);
@@ -6038,7 +6069,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.5.1",
+  version: "1.5.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

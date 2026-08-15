@@ -813,8 +813,11 @@ function prepareActionBar() {
 
     /* collapsed list of remembered episodes -- indented like the feature's own rows so it reads
        as part of the feature, not as a section of its own */
+    /* three steps, so the nesting is visible at a glance: the list sits left of the description
+       text it belongs to, each series one step right of the list, the episodes right of that.
+       At the same indent the list and a series looked like siblings. */
     .cu-history {
-      margin: 6px 0 0 ${CU_SWITCH_WIDTH + 10}px;
+      margin: 6px 0 0 22px;
       font-size: 12.5px;
     }
     .cu-history summary {
@@ -829,7 +832,7 @@ function prepareActionBar() {
     }
     /* one collapsible block per series, so a long list stays navigable */
     .cu-history-group {
-      margin-top: 8px;
+      margin: 8px 0 0 18px;
     }
     .cu-history-group > summary {
       font-weight: 600;
@@ -3274,15 +3277,18 @@ function adn_rememberPosition(video, immediately) {
     return;
   if (!Number.isFinite(video.duration) || video.duration <= 0) return;
   _adn_prefs.positionSavedAt = Date.now();
-  const isAtStart = video.currentTime < ADN_POSITION_MIN_SECONDS;
-  const isAtEnd =
-    video.currentTime > video.duration - ADN_POSITION_END_MARGIN_SECONDS;
-  // an episode watched to the end has no position worth keeping -- drop it so the next visit
-  // starts over instead of dropping straight into the credits
-  if (isAtStart || isAtEnd) {
+  // Watched to the end: the position has served its purpose, drop it so the next visit starts
+  // over instead of dropping straight into the credits.
+  if (video.currentTime > video.duration - ADN_POSITION_END_MARGIN_SECONDS) {
     cu_deletePosition(ADN_SITE, adn_getEpisodeId());
     return;
   }
+  // Near the start nothing is written -- but nothing is DELETED either. Deleting here threw away
+  // a perfectly good position every time an episode was opened: playback begins at 0, the poll
+  // runs while the resume seek is still in flight, sees "at the start" and wipes the entry.
+  // Reported 14.08.2026 after opening an episode from the list. An episode genuinely restarted
+  // from the beginning overwrites its entry by itself as soon as it passes this mark.
+  if (video.currentTime < ADN_POSITION_MIN_SECONDS) return;
   cu_savePosition(ADN_SITE, adn_getEpisodeId(), {
     seconds: video.currentTime,
     duration: video.duration,
@@ -6450,7 +6456,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.1",
+  version: "1.6.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -56,24 +56,41 @@ vollständige Installationsanleitung — in Discord eine Textwand, die niemand l
 
 ### Versioning
 
-**Die Versionsnummer wird ausschließlich beim Veröffentlichen erhöht — nie beim Committen.**
-Sie beschreibt, was draußen ist, nicht wie viel seither passiert ist. Zwischen zwei Releases
-steht im Repo weiterhin die Nummer des letzten Releases; wer wissen will, was seitdem dazukam,
-liest die Commits.
+**Drei Stellen sind veröffentlicht, eine vierte ist intern.** `1.5.2.0` ist ein Arbeitsstand auf
+dem Weg zu `1.5.2`; die vierte Stelle zählt hoch, solange nichts veröffentlicht ist. Beim
+Release fällt sie weg, und die Nummer lautet `1.5.2`.
+
+Damit ist an der Nummer selbst ablesbar, woran man ist: **vier Stellen = nur im Repo, drei
+Stellen = draußen bei den Nutzern.**
 
 **Prüffrage vor jedem Anfassen der Nummer:** *Lege ich in dieser Antwort ein GitHub-Release an?*
-Lautet die Antwort nein, bleibt die Nummer, wie sie ist — egal wie umfangreich die Änderung war.
 
-Ablauf eines Releases, in dieser Reihenfolge:
+- **Nein** → die vierte Stelle zählt hoch (`1.6.0.0` → `1.6.0.1`).
+- **Ja** → vierte Stelle streichen, den Rest als Release-Nummer verwenden.
 
-1. Nummer auf den zu veröffentlichenden Stand setzen, **gleichzeitig** in `manifest.json`
-   (`version` **und** `version_name`) und in `userOptions.version` in `utility.js`
-2. Commit → Push
-3. GitHub Release anlegen → der Workflow postet nach Discord
+Welche der drei veröffentlichten Stellen sich bewegt, entscheidet der **größte** Posten seit dem
+letzten Release, nicht deren Anzahl:
+
+- **Zweite Stelle** (`1.5.x` → `1.6.0`): etwas Großes ist dabei — eine neu unterstützte Seite,
+  eine neue Funktion, ein sichtbarer Umbau der Oberfläche. Auch dann, wenn sonst nur Kleinkram
+  dabei war.
+- **Dritte Stelle** (`1.5.1` → `1.5.2`): ausschließlich Fehlerbehebungen und Feinschliff, egal
+  wie viele.
+
+Beim Anheben der zweiten oder dritten Stelle wird die vierte auf `0` zurückgesetzt.
+
+Angefasst wird die Nummer immer **gleichzeitig** in `manifest.json` (`version` **und**
+`version_name`) und in `userOptions.version` in `utility.js`. Vier Stellen sind in einem
+MV3-Manifest zulässig.
+
+Ablauf eines Releases: Nummer setzen → Commit → Push → GitHub Release anlegen → der Workflow
+postet nach Discord.
 
 Anlass (14.08.2026): Zwischen v1.5.1 und dem nächsten Release wurde viermal hochgezählt, ohne
-etwas zu veröffentlichen — 1.5.2, 1.6.0 und 1.6.1 hat nie jemand bekommen. Die Zahl im Manifest
-war danach weder der veröffentlichte Stand noch eine Angabe, auf die sich jemand beziehen kann.
+etwas zu veröffentlichen — 1.5.2, 1.6.0 und 1.6.1 hat nie jemand bekommen. Die Nummer im
+Manifest war danach weder der veröffentlichte Stand noch eine Angabe, auf die sich jemand
+beziehen kann. Die vierte Stelle löst genau das: Arbeitsstände sind zählbar, ohne dass eine
+Release-Nummer verbraucht wird.
 
 ### User-facing Texte in den Settings (`disabledReason`, `description`, `label` etc.)
 - Immer sehr einfach, kurz, unternehmerisch/technikfrei formulieren — die Nutzer wollen nichts von

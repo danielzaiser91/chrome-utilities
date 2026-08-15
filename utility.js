@@ -834,8 +834,50 @@ function prepareActionBar() {
     .cu-history-group {
       margin: 8px 0 0 18px;
     }
+    /* own marker instead of the native one: the summary has to be a flex row to push the
+       delete-all button to the right edge, and that would drop the disclosure triangle */
     .cu-history-group > summary {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-weight: 600;
+      list-style: none;
+    }
+    .cu-history-group > summary::-webkit-details-marker {
+      display: none;
+    }
+    .cu-history-group > summary::before {
+      content: "▸";
+      font-size: 10px;
+      opacity: 0.6;
+      transition: transform 0.15s ease;
+    }
+    .cu-history-group[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .cu-history-group-name {
+      margin-right: auto;
+    }
+    /* only visible on hover over the series, so it can't be hit by accident while reading */
+    .cu-history-delete-all {
+      opacity: 0;
+    }
+    .cu-history-group > summary:hover .cu-history-delete-all,
+    .cu-history-delete-all:focus-visible,
+    .cu-history-delete-all.cu-armed {
+      opacity: 0.5;
+    }
+    .cu-history-delete-all:hover,
+    .cu-history-delete-all.cu-armed {
+      opacity: 1;
+    }
+    .cu-history-delete-all.cu-armed {
+      color: #c0392b;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: #fdecea;
     }
     /* a table without table tags: one grid, so every column lines up across all rows --
        episode grows, position and the delete button stay exactly as wide as they need */
@@ -1043,7 +1085,21 @@ function renderFeatureHistory(getEntries, onDelete) {
     group.classList.add("cu-history-group");
     group.setAttribute("open", "");
     const groupSummary = document.createElement("summary");
-    groupSummary.textContent = `${series} (${episodes.length})`;
+    const groupName = document.createElement("span");
+    groupName.classList.add("cu-history-group-name");
+    groupName.textContent = `${series} (${episodes.length})`;
+    // forgets the whole series at once. Sits in the summary, so it has to keep its click to
+    // itself -- otherwise every press would also fold the block it belongs to.
+    const removeAll = cu_confirmingDeleteButton(
+      `Forget all of ${series}`,
+      () => {
+        episodes.forEach((entry) => onDelete?.(entry));
+        remaining -= group.querySelectorAll(".cu-history-row").length;
+        summary.textContent = countLabel(remaining);
+        group.remove();
+      },
+    );
+    groupSummary.append(groupName, removeAll);
     group.appendChild(groupSummary);
 
     const table = document.createElement("div");
@@ -1062,7 +1118,7 @@ function renderFeatureHistory(getEntries, onDelete) {
         summary.textContent = countLabel(remaining);
         // an emptied series has no reason to keep its heading around
         if (left <= 0) group.remove();
-        else groupSummary.textContent = `${series} (${left})`;
+        else groupName.textContent = `${series} (${left})`;
       } });
       table.appendChild(row);
     });
@@ -1070,6 +1126,42 @@ function renderFeatureHistory(getEntries, onDelete) {
     details.appendChild(group);
   });
   return details;
+}
+
+/**
+ * A delete button that asks first. Wiping a whole series on one stray click would be a real
+ * loss, and a browser confirm() dialog on top of a page is heavier than the action deserves --
+ * so the button turns into "Sure?" and only the second press within a few seconds acts.
+ * @param {string} title tooltip
+ * @param {() => void} onConfirm
+ */
+function cu_confirmingDeleteButton(title, onConfirm) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.classList.add("cu-history-delete", "cu-history-delete-all");
+  button.title = title;
+  button.innerHTML = CU_TRASH_ICON;
+  let armed = null;
+  const disarm = () => {
+    clearTimeout(armed);
+    armed = null;
+    button.classList.remove("cu-armed");
+    button.innerHTML = CU_TRASH_ICON;
+  };
+  button.addEventListener("click", (event) => {
+    // the button lives inside a <summary>; without this every press would fold the block too
+    event.preventDefault();
+    event.stopPropagation();
+    if (armed) {
+      disarm();
+      onConfirm();
+      return;
+    }
+    button.classList.add("cu-armed");
+    button.textContent = "Sure?";
+    armed = setTimeout(disarm, 4000);
+  });
+  return button;
 }
 
 /** one line of the history table -- header cells or a real entry */
@@ -6456,7 +6548,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.5.1",
+  version: "1.6.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

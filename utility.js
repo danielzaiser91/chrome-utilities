@@ -3101,6 +3101,7 @@ function fixADN() {
   generic__activateAutoSkip({
     getSkipOpeningBtn: adn_getSkipIntroBtn,
     getSkipNextBtn: adn_getNextEpisodeBtn,
+    onSkipNext: adn_forgetCurrentEpisodePosition,
   });
   _init_set_video_rate_repeater__generic();
 }
@@ -3263,6 +3264,17 @@ function adn_attachVideoListeners(video) {
   // pagehide covers what beforeunload misses on mobile and on back/forward navigation
   window.addEventListener("beforeunload", save);
   window.addEventListener("pagehide", save);
+}
+
+// Auto-next only fires once an episode has actually run out, so its position has served its
+// purpose -- it would otherwise sit in the history forever. The end-of-episode rule in
+// adn_rememberPosition does not catch this: the "next episode" button already appears at the end
+// of the STORY, which on a 23-minute episode is a good minute and a half before the file ends,
+// and therefore outside that rule's margin.
+// Runs on the click, while the page is still the old episode -- that is what makes
+// adn_getEpisodeId() the right one to forget.
+function adn_forgetCurrentEpisodePosition() {
+  cu_deletePosition(ADN_SITE, adn_getEpisodeId());
 }
 
 // there is exactly one <video> on the page and it belongs to the player
@@ -3520,6 +3532,8 @@ function generic__activateAutoSkip(options = { getSkipNextBtn: () => {}, getSkip
       if (isAllowed(skipNext)) {
         generic__CheckAndClickDelayed("next", options?.getSkipNextBtn, {
           cooldownMs: GENERIC_NEXT_COOLDOWN_MS,
+          // runs while the click is still on the OLD episode -- the site navigates afterwards
+          onClick: options?.onSkipNext,
         });
       }
       if (isAllowed(skipOpenings)) {
@@ -6548,7 +6562,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0.0",
+  version: "1.6.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

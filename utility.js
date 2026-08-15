@@ -811,6 +811,51 @@ function prepareActionBar() {
       opacity: 1;
     }
 
+    /* collapsed list of remembered episodes -- indented like the feature's own rows so it reads
+       as part of the feature, not as a section of its own */
+    .cu-history {
+      margin: 6px 0 0 ${CU_SWITCH_WIDTH + 10}px;
+      font-size: 12.5px;
+    }
+    .cu-history > summary {
+      cursor: pointer;
+      color: ${color.primary};
+      opacity: 0.75;
+      list-style-position: outside;
+    }
+    .cu-history > summary:hover {
+      opacity: 1;
+    }
+    .cu-history ul {
+      list-style: none;
+      margin: 6px 0 0;
+      padding: 0;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .cu-history li {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 3px 0;
+    }
+    .cu-history a {
+      color: ${color.secondary};
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cu-history a:hover {
+      text-decoration: underline;
+    }
+    .cu-history-time {
+      flex: none;
+      opacity: 0.6;
+      font-variant-numeric: tabular-nums;
+    }
+
     .cu-disabled {
       color: #b97777;
     }
@@ -842,9 +887,11 @@ function renderOptions() {
         const featureName = feature.featureName;
         const featureDescription = feature.featureDescription;
         const featureCategory = feature.featureCategory;
+        const featureHistory = feature.featureHistory;
         delete feature.featureName;
         delete feature.featureDescription;
         delete feature.featureCategory;
+        delete feature.featureHistory;
         const featureRow = document.createElement("div");
         const featureContainer = document.createElement("div");
         const header = document.createElement("div");
@@ -888,6 +935,9 @@ function renderOptions() {
           featureDescEl.innerHTML = featureDescription;
           featureContainer.appendChild(featureDescEl);
         }
+        if (featureHistory) {
+          featureContainer.appendChild(renderFeatureHistory(featureHistory));
+        }
 
         restEntries.forEach(([k, v]) => {
           renderFeatureRow(featureRow, k, v, [site, featureSelector]);
@@ -901,6 +951,51 @@ function renderOptions() {
         settingsEl.appendChild(featureContainer);
       });
   }
+}
+
+/**
+ * Collapsed list under a feature, for features that accumulate entries over time -- currently
+ * the remembered watch positions. Closed by default: it is a lookup, not something to read.
+ * @param {() => {id:string,title:string,url:string,seconds:number,duration:number}[]} getEntries
+ */
+function renderFeatureHistory(getEntries) {
+  let entries = [];
+  try {
+    entries = getEntries() ?? [];
+  } catch {
+    // a broken history must never take the whole settings panel down with it
+  }
+  const details = document.createElement("details");
+  details.classList.add("cu-history");
+  const summary = document.createElement("summary");
+  summary.textContent = entries.length
+    ? `Saved episodes (${entries.length})`
+    : "Saved episodes — none yet";
+  details.appendChild(summary);
+  if (!entries.length) return details;
+
+  const list = document.createElement("ul");
+  entries.forEach((entry) => {
+    const row = document.createElement("li");
+    // entries written before the url was stored have nothing to link to -- they still show up,
+    // just as plain text, rather than silently disappearing from the list
+    const label = document.createElement(entry.url ? "a" : "span");
+    label.textContent = entry.title || entry.id;
+    if (entry.url) {
+      label.setAttribute("href", entry.url);
+      label.setAttribute("target", "_blank");
+      label.setAttribute("rel", "noreferrer");
+    }
+    const time = document.createElement("span");
+    time.classList.add("cu-history-time");
+    time.textContent = entry.duration
+      ? `${cu_formatTime(entry.seconds)} / ${cu_formatTime(entry.duration)}`
+      : cu_formatTime(entry.seconds);
+    row.append(label, time);
+    list.appendChild(row);
+  });
+  details.appendChild(list);
+  return details;
 }
 
 // gets first non-object value of accessorArray, manipulates given accessorArray
@@ -2663,6 +2758,80 @@ function toggleAutoSkipDP() {
   dpAutoSkip?.isPlaying ? dpAutoSkip.pause() : dpAutoSkip.play();
 }
 
+// ══ Gemerkte Wiedergabepositionen ═══════════════════════════════════════════════════════════
+// Shared by every site that remembers where you stopped. One entry per episode under
+// "cu:<site>:pos:<id>", stored as an object so the settings can list what is remembered and
+// link straight back to it. A bare number is still accepted when reading -- that is what
+// earlier versions wrote, and those entries stay usable, just without link and title.
+const cu_positionPrefix = (site) => `cu:${site}:pos:`;
+const cu_positionKey = (site, id) => cu_positionPrefix(site) + id;
+
+/**
+ * @returns {{seconds:number,duration:number,url:string,title:string,savedAt:number}|null}
+ */
+function cu_readPosition(site, id) {
+  const raw = localStorage.getItem(cu_positionKey(site, id));
+  if (!raw) return null;
+  if (!raw.startsWith("{")) {
+    const seconds = +raw;
+    return seconds
+      ? { seconds, duration: 0, url: "", title: "", savedAt: 0 }
+      : null;
+  }
+  try {
+    const entry = JSON.parse(raw);
+    return entry?.seconds ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+function cu_savePosition(site, id, { seconds, duration, url, title }) {
+  localStorage.setItem(
+    cu_positionKey(site, id),
+    JSON.stringify({
+      seconds: Math.floor(seconds),
+      duration: Math.floor(duration || 0),
+      url: url || "",
+      title: title || "",
+      savedAt: Date.now(),
+    }),
+  );
+}
+
+function cu_deletePosition(site, id) {
+  localStorage.removeItem(cu_positionKey(site, id));
+}
+
+/** every remembered episode of a site, most recently watched first */
+function cu_listPositions(site) {
+  const prefix = cu_positionPrefix(site);
+  const entries = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(prefix)) continue;
+    const entry = cu_readPosition(site, key.slice(prefix.length));
+    if (entry) entries.push({ id: key.slice(prefix.length), ...entry });
+  }
+  // legacy entries have no savedAt and land at the end, where they belong: nothing is known
+  // about when they were watched
+  return entries.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
+}
+
+/** 754 -> "12:34", 3754 -> "1:02:34" */
+function cu_formatTime(seconds) {
+  const total = Math.max(0, Math.floor(seconds));
+  const parts = [
+    Math.floor(total / 3600),
+    Math.floor((total % 3600) / 60),
+    total % 60,
+  ];
+  if (!parts[0]) parts.shift();
+  return parts
+    .map((part, i) => (i === 0 ? String(part) : String(part).padStart(2, "0")))
+    .join(":");
+}
+
 // ---
 // fix https://animationdigitalnetwork.com
 // ---
@@ -2726,7 +2895,8 @@ const ADN_NEXT_MAX_REMAINING_SECONDS = 180;
 const ADN_PREFERRED_QUALITY = "fhd"; // 1080p
 const ADN_FALLBACK_QUALITY = "auto";
 
-const ADN_POSITION_KEY_PREFIX = "cu:adn:pos:";
+// key under which this site's watch positions live -- see the shared store above
+const ADN_SITE = "adn";
 // resuming from the first few seconds gains nothing, and resuming into the closing credits is
 // worse than starting the episode over -- both ends are treated as "no position worth keeping"
 const ADN_POSITION_MIN_SECONDS = 15;
@@ -2853,9 +3023,24 @@ function adn_isSourceSwitching() {
 // fallback. location.href deliberately isn't used: its query string and hash would make the same
 // episode look like a different one depending on which link you arrived through.
 const ADN_EPISODE_ID_IN_PATH = /\/video\/[^/]+\/(\d+)/;
-function adn_getPositionKey() {
-  const episodeId = location.pathname.match(ADN_EPISODE_ID_IN_PATH)?.[1];
-  return ADN_POSITION_KEY_PREFIX + (episodeId ?? location.pathname);
+function adn_getEpisodeId() {
+  return (
+    location.pathname.match(ADN_EPISODE_ID_IN_PATH)?.[1] ?? location.pathname
+  );
+}
+
+// Series and episode name, straight from the player's own meta block. Stored alongside the
+// position so the settings can show what is remembered instead of a bare number.
+function adn_getEpisodeTitle() {
+  const series = query(".vjs-meta-title")?.textContent?.trim();
+  const episode = query(".vjs-meta-subtitle")?.textContent?.trim();
+  return [series, episode].filter(Boolean).join(" · ");
+}
+
+// without query and hash, the same reason the key ignores them: they differ per link, the
+// episode does not
+function adn_getEpisodeUrl() {
+  return location.origin + location.pathname;
 }
 
 /** @param {HTMLVideoElement} video */
@@ -2866,7 +3051,7 @@ function adn_resumePosition(video) {
   }
   if (!Number.isFinite(video.duration) || video.duration <= 0) return; // no metadata yet
   _adn_prefs.resumeDone = true;
-  const saved = +localStorage.getItem(adn_getPositionKey());
+  const saved = cu_readPosition(ADN_SITE, adn_getEpisodeId())?.seconds ?? 0;
   if (
     !saved ||
     saved < ADN_POSITION_MIN_SECONDS ||
@@ -2903,13 +3088,15 @@ function adn_rememberPosition(video, immediately) {
   // an episode watched to the end has no position worth keeping -- drop it so the next visit
   // starts over instead of dropping straight into the credits
   if (isAtStart || isAtEnd) {
-    localStorage.removeItem(adn_getPositionKey());
+    cu_deletePosition(ADN_SITE, adn_getEpisodeId());
     return;
   }
-  localStorage.setItem(
-    adn_getPositionKey(),
-    String(Math.floor(video.currentTime)),
-  );
+  cu_savePosition(ADN_SITE, adn_getEpisodeId(), {
+    seconds: video.currentTime,
+    duration: video.duration,
+    url: adn_getEpisodeUrl(),
+    title: adn_getEpisodeTitle(),
+  });
 }
 
 /** @param {HTMLVideoElement} video */
@@ -6069,7 +6256,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.5.2",
+  version: "1.6.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -6210,12 +6397,15 @@ let userOptions = {
     },
     featureRememberPosition: {
       featureName: "Remember Video Position",
-      featureDescription: "... and resume where you left off",
+      featureDescription:
+        "Picks every episode up where you stopped, so you never search for the spot again. " +
+        "An episode you watched to the end starts over instead. Everything stays in this " +
+        "browser — nothing is uploaded, and turning this off forgets it all.",
+      featureHistory: () => cu_listPositions(ADN_SITE),
       isEnabled: {
         value: true,
         label: "Activate",
-        description:
-          "an episode you finished starts over, everything else continues",
+        description: "remember where you stopped, per episode",
         toggle: adn_resetPlayerPreferences,
       },
     },

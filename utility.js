@@ -3043,19 +3043,6 @@ function cu_deletePosition(site, id) {
   localStorage.removeItem(cu_positionKey(site, id));
 }
 
-/**
- * Repairs an episode number that is really the internal id -- entries written while the site's
- * URL carried no episode slug got the id stored as the number, and the list then read
- * "Episode 25634". The title still holds the real one ("Series · Folge 9 : ..."), so it is
- * recovered from there instead of making the user delete the entry by hand.
- */
-function cu_normalizeEpisode(entry) {
-  if (entry.episode !== null && String(entry.episode) !== String(entry.id))
-    return entry;
-  const fromTitle = entry.title?.split("·").pop()?.match(/\d+/)?.[0];
-  return { ...entry, episode: fromTitle ? +fromTitle : null };
-}
-
 /** every remembered episode of a site */
 function cu_listPositions(site) {
   const prefix = cu_positionPrefix(site);
@@ -3064,8 +3051,7 @@ function cu_listPositions(site) {
     const key = localStorage.key(i);
     if (!key?.startsWith(prefix)) continue;
     const entry = cu_readPosition(site, key.slice(prefix.length));
-    if (entry)
-      entries.push(cu_normalizeEpisode({ id: key.slice(prefix.length), ...entry }));
+    if (entry) entries.push({ id: key.slice(prefix.length), ...entry });
   }
   return entries;
 }
@@ -6580,7 +6566,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0.2",
+  version: "1.6.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

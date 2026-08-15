@@ -84,6 +84,16 @@ nicht; eine Fehlerbehebung, die etwas endlich benutzbar macht, sehr wohl.
 Beim Anheben der zweiten oder dritten Stelle wird die vierte auf `0` zurückgesetzt. Die vierte
 zählt die Arbeitsstände der Erweiterung selbst — reine Doku-Änderungen bewegen sie nicht.
 
+**Was nur in einem Arbeitsstand existierte, braucht keine Rückwärtskompatibilität.** Ändert sich
+ein Speicherformat, eine Datenstruktur oder ein Schlüssel, während die vierte Stelle läuft, wird
+die alte Fassung **nicht** weiter unterstützt und auch nicht umgeschrieben: Es gibt sie nur auf
+diesem einen Rechner, und dort ist sie mit zwei Klicks weg. Migrationscode kommt erst infrage,
+wenn das alte Format tatsächlich veröffentlicht war.
+
+Anlass (14.08.2026): Für zwei falsch gespeicherte Einträge einer unveröffentlichten Fassung
+entstand eine Reparaturfunktion. Daniel: „das wäre unnötige backwards compatibility, macht code
+nur schmutzig, wird nie effektiv, vor allem da es noch unveröffentlicht ist."
+
 Anlass (14.08.2026): Die erste Fassung dieser Regel zählte Arten von Arbeit auf („neue Seite,
 neue Funktion, Umbau der Oberfläche"). Danach wurde nach Kategorie entschieden — „ist ein
 Feature, also zweite Stelle" — statt nach dem, was beim Nutzer ankommt.

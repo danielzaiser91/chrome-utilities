@@ -3351,6 +3351,12 @@ function adn_resumePosition(video) {
  */
 function adn_rememberPosition(video, immediately) {
   if (!isAllowed(getSiteOptions().featureRememberPosition.isEnabled)) return;
+  // The state belongs to ONE episode -- if the address has already moved on, currentTime is
+  // still the old episode's and would be filed under the new one's key. That is what put
+  // episode 9's 21:41 onto episode 10 (reported 14.08.2026): the site swaps the URL first, the
+  // player then pauses while tearing down, and the pause listener fired in between. The poll
+  // notices the new address a moment later and starts the new episode's state properly.
+  if (_adn_prefs.path !== location.pathname) return;
   // the event-driven saves fire outside the poll, so they have to repeat its two guards: nothing
   // is stored before resuming is done, and nothing during a source switch -- the player pauses
   // and seeks to 0 while swapping, which would otherwise be written down as the real position
@@ -6543,7 +6549,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0.4",
+  version: "1.6.0.5",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

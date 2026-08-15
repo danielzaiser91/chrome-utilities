@@ -611,7 +611,7 @@ function prepareActionBar() {
       font-family: system-ui, sans-serif;
       font-size: 14px;
       color: ${color.primary};
-      width: min(460px, 92vw);
+      width: min(640px, 94vw);
       max-height: 86vh;
       padding: 22px 24px;
       background: #fff;
@@ -817,28 +817,52 @@ function prepareActionBar() {
       margin: 6px 0 0 ${CU_SWITCH_WIDTH + 10}px;
       font-size: 12.5px;
     }
-    .cu-history > summary {
+    .cu-history summary {
       cursor: pointer;
       color: ${color.primary};
+    }
+    .cu-history > summary {
       opacity: 0.75;
-      list-style-position: outside;
     }
     .cu-history > summary:hover {
       opacity: 1;
     }
-    .cu-history ul {
-      list-style: none;
-      margin: 6px 0 0;
-      padding: 0;
-      max-height: 160px;
+    /* one collapsible block per series, so a long list stays navigable */
+    .cu-history-group {
+      margin-top: 8px;
+    }
+    .cu-history-group > summary {
+      font-weight: 600;
+    }
+    /* a table without table tags: one grid, so every column lines up across all rows --
+       episode grows, position and the delete button stay exactly as wide as they need */
+    .cu-history-table {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      column-gap: 14px;
+      margin: 4px 0 0 16px;
+      max-height: 220px;
       overflow-y: auto;
     }
-    .cu-history li {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 3px 0;
+    .cu-history-head, .cu-history-row {
+      display: contents;
+    }
+    .cu-history-head > span {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.5;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e6e9ee;
+      position: sticky;
+      top: 0;
+      background: #fff;
+    }
+    .cu-history-row > * {
+      padding: 4px 0;
+      border-bottom: 1px solid #f1f3f6;
     }
     .cu-history a {
       color: ${color.secondary};
@@ -850,10 +874,38 @@ function prepareActionBar() {
     .cu-history a:hover {
       text-decoration: underline;
     }
+    .cu-history-current {
+      color: ${color.primary};
+      opacity: 0.85;
+    }
+    .cu-history-badge {
+      margin-left: 8px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: #e3f0ff;
+      color: #10508f;
+      font-size: 10.5px;
+      white-space: nowrap;
+    }
     .cu-history-time {
-      flex: none;
       opacity: 0.6;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .cu-history-delete {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      padding: 2px;
+      color: ${color.primary};
+      opacity: 0.35;
+      cursor: pointer;
+    }
+    .cu-history-delete:hover {
+      opacity: 1;
+      color: #c0392b;
     }
 
     .cu-disabled {
@@ -936,7 +988,9 @@ function renderOptions() {
           featureContainer.appendChild(featureDescEl);
         }
         if (featureHistory) {
-          featureContainer.appendChild(renderFeatureHistory(featureHistory));
+          featureContainer.appendChild(
+            renderFeatureHistory(featureHistory.list, featureHistory.remove),
+          );
         }
 
         restEntries.forEach(([k, v]) => {
@@ -953,12 +1007,18 @@ function renderOptions() {
   }
 }
 
+const CU_TRASH_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+  aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>`;
+
 /**
  * Collapsed list under a feature, for features that accumulate entries over time -- currently
  * the remembered watch positions. Closed by default: it is a lookup, not something to read.
- * @param {() => {id:string,title:string,url:string,seconds:number,duration:number}[]} getEntries
+ * One collapsible group per series, inside it a table of episodes with a delete column.
+ * @param {() => object[]} getEntries
+ * @param {(entry: object) => void} onDelete
  */
-function renderFeatureHistory(getEntries) {
+function renderFeatureHistory(getEntries, onDelete) {
   let entries = [];
   try {
     entries = getEntries() ?? [];
@@ -968,34 +1028,98 @@ function renderFeatureHistory(getEntries) {
   const details = document.createElement("details");
   details.classList.add("cu-history");
   const summary = document.createElement("summary");
-  summary.textContent = entries.length
-    ? `Saved episodes (${entries.length})`
-    : "Saved episodes — none yet";
+  const countLabel = (n) =>
+    n ? `Saved episodes (${n})` : "Saved episodes — none yet";
+  summary.textContent = countLabel(entries.length);
   details.appendChild(summary);
   if (!entries.length) return details;
 
-  const list = document.createElement("ul");
-  entries.forEach((entry) => {
-    const row = document.createElement("li");
-    // entries written before the url was stored have nothing to link to -- they still show up,
-    // just as plain text, rather than silently disappearing from the list
-    const label = document.createElement(entry.url ? "a" : "span");
-    label.textContent = entry.title || entry.id;
-    if (entry.url) {
-      label.setAttribute("href", entry.url);
-      label.setAttribute("target", "_blank");
-      label.setAttribute("rel", "noreferrer");
-    }
-    const time = document.createElement("span");
-    time.classList.add("cu-history-time");
-    time.textContent = entry.duration
-      ? `${cu_formatTime(entry.seconds)} / ${cu_formatTime(entry.duration)}`
-      : cu_formatTime(entry.seconds);
-    row.append(label, time);
-    list.appendChild(row);
+  let remaining = entries.length;
+  cu_groupPositionsBySeries(entries).forEach(({ series, entries: episodes }) => {
+    const group = document.createElement("details");
+    group.classList.add("cu-history-group");
+    group.setAttribute("open", "");
+    const groupSummary = document.createElement("summary");
+    groupSummary.textContent = `${series} (${episodes.length})`;
+    group.appendChild(groupSummary);
+
+    const table = document.createElement("div");
+    table.classList.add("cu-history-table");
+    table.appendChild(
+      cu_historyRow(["Episode", "Position", ""], { header: true }),
+    );
+
+    episodes.forEach((entry) => {
+      const row = cu_historyRow(entry, { onDelete: () => {
+        onDelete?.(entry);
+        row.remove();
+        // counted AFTER removing, so this is what is actually left
+        const left = table.querySelectorAll(".cu-history-row").length;
+        remaining -= 1;
+        summary.textContent = countLabel(remaining);
+        // an emptied series has no reason to keep its heading around
+        if (left <= 0) group.remove();
+        else groupSummary.textContent = `${series} (${left})`;
+      } });
+      table.appendChild(row);
+    });
+    group.appendChild(table);
+    details.appendChild(group);
   });
-  details.appendChild(list);
   return details;
+}
+
+/** one line of the history table -- header cells or a real entry */
+function cu_historyRow(entryOrLabels, { header = false, onDelete } = {}) {
+  const row = document.createElement("div");
+  row.classList.add(header ? "cu-history-head" : "cu-history-row");
+  if (header) {
+    entryOrLabels.forEach((text) => {
+      const cell = document.createElement("span");
+      cell.textContent = text;
+      row.appendChild(cell);
+    });
+    return row;
+  }
+
+  const entry = entryOrLabels;
+  // the episode you are looking at right now must not offer to navigate to itself -- it is not
+  // a link, is not styled like one, and says so instead
+  const isCurrent =
+    !!entry.url && entry.url === location.origin + location.pathname;
+  const label = document.createElement(entry.url && !isCurrent ? "a" : "span");
+  label.textContent =
+    entry.episode !== null && entry.episode !== undefined
+      ? `Episode ${entry.episode}`
+      : entry.title || entry.id;
+  if (entry.url && !isCurrent) {
+    label.setAttribute("href", entry.url);
+    label.setAttribute("target", "_blank");
+    label.setAttribute("rel", "noreferrer");
+  }
+  if (isCurrent) {
+    label.classList.add("cu-history-current");
+    const here = document.createElement("span");
+    here.classList.add("cu-history-badge");
+    here.textContent = "watching now";
+    label.appendChild(here);
+  }
+
+  const time = document.createElement("span");
+  time.classList.add("cu-history-time");
+  time.textContent = entry.duration
+    ? `${cu_formatTime(entry.seconds)} / ${cu_formatTime(entry.duration)}`
+    : cu_formatTime(entry.seconds);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.classList.add("cu-history-delete");
+  remove.title = "Forget this episode";
+  remove.innerHTML = CU_TRASH_ICON;
+  remove.addEventListener("click", onDelete);
+
+  row.append(label, time, remove);
+  return row;
 }
 
 // gets first non-object value of accessorArray, manipulates given accessorArray
@@ -2760,24 +2884,18 @@ function toggleAutoSkipDP() {
 
 // ══ Gemerkte Wiedergabepositionen ═══════════════════════════════════════════════════════════
 // Shared by every site that remembers where you stopped. One entry per episode under
-// "cu:<site>:pos:<id>", stored as an object so the settings can list what is remembered and
-// link straight back to it. A bare number is still accepted when reading -- that is what
-// earlier versions wrote, and those entries stay usable, just without link and title.
+// "cu:<site>:pos:<id>", stored as an object carrying everything the settings need to show and
+// group it: url, title, series and episode number.
 const cu_positionPrefix = (site) => `cu:${site}:pos:`;
 const cu_positionKey = (site, id) => cu_positionPrefix(site) + id;
 
 /**
- * @returns {{seconds:number,duration:number,url:string,title:string,savedAt:number}|null}
+ * @returns {{seconds:number,duration:number,url:string,title:string,series:string,
+ *   episode:number|null,savedAt:number}|null}
  */
 function cu_readPosition(site, id) {
   const raw = localStorage.getItem(cu_positionKey(site, id));
-  if (!raw) return null;
-  if (!raw.startsWith("{")) {
-    const seconds = +raw;
-    return seconds
-      ? { seconds, duration: 0, url: "", title: "", savedAt: 0 }
-      : null;
-  }
+  if (!raw || !raw.startsWith("{")) return null;
   try {
     const entry = JSON.parse(raw);
     return entry?.seconds ? entry : null;
@@ -2786,7 +2904,11 @@ function cu_readPosition(site, id) {
   }
 }
 
-function cu_savePosition(site, id, { seconds, duration, url, title }) {
+function cu_savePosition(
+  site,
+  id,
+  { seconds, duration, url, title, series, episode },
+) {
   localStorage.setItem(
     cu_positionKey(site, id),
     JSON.stringify({
@@ -2794,16 +2916,39 @@ function cu_savePosition(site, id, { seconds, duration, url, title }) {
       duration: Math.floor(duration || 0),
       url: url || "",
       title: title || "",
+      series: series || "",
+      episode: Number.isFinite(episode) ? episode : null,
       savedAt: Date.now(),
     }),
   );
+}
+
+// Entries from before v1.6.0 held nothing but the seconds -- no link, no title, no episode
+// number. In the list they were unreadable rows of bare ids, and nothing can be reconstructed
+// from them. They are dropped once, at startup; the episodes come back the moment they are
+// watched again. Also catches the very first key layout, which used the whole pathname as id.
+function cu_prunePositionsWithoutUrl(site) {
+  const prefix = cu_positionPrefix(site);
+  const doomed = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(prefix)) continue;
+    const raw = localStorage.getItem(key);
+    let url = "";
+    try {
+      url = raw?.startsWith("{") ? (JSON.parse(raw).url ?? "") : "";
+    } catch {}
+    if (!url) doomed.push(key);
+  }
+  doomed.forEach((key) => localStorage.removeItem(key));
+  return doomed.length;
 }
 
 function cu_deletePosition(site, id) {
   localStorage.removeItem(cu_positionKey(site, id));
 }
 
-/** every remembered episode of a site, most recently watched first */
+/** every remembered episode of a site */
 function cu_listPositions(site) {
   const prefix = cu_positionPrefix(site);
   const entries = [];
@@ -2813,9 +2958,29 @@ function cu_listPositions(site) {
     const entry = cu_readPosition(site, key.slice(prefix.length));
     if (entry) entries.push({ id: key.slice(prefix.length), ...entry });
   }
-  // legacy entries have no savedAt and land at the end, where they belong: nothing is known
-  // about when they were watched
-  return entries.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
+  return entries;
+}
+
+/**
+ * By series, series alphabetically, episodes numerically ascending within one. An entry without
+ * an episode number sorts to the end of its series rather than jumping to the front as 0 would.
+ * @returns {{series:string, entries:object[]}[]}
+ */
+function cu_groupPositionsBySeries(entries) {
+  const groups = new Map();
+  entries.forEach((entry) => {
+    const series = entry.series || entry.title || entry.id;
+    if (!groups.has(series)) groups.set(series, []);
+    groups.get(series).push(entry);
+  });
+  return [...groups.entries()]
+    .map(([series, list]) => ({
+      series,
+      entries: list.sort(
+        (a, b) => (a.episode ?? Infinity) - (b.episode ?? Infinity),
+      ),
+    }))
+    .sort((a, b) => a.series.localeCompare(b.series));
 }
 
 /** 754 -> "12:34", 3754 -> "1:02:34" */
@@ -2836,6 +3001,7 @@ function cu_formatTime(seconds) {
 // fix https://animationdigitalnetwork.com
 // ---
 function fixADN() {
+  cu_prunePositionsWithoutUrl(ADN_SITE);
   adn_initPlayerPreferences();
   generic__activateAutoSkip({
     getSkipOpeningBtn: adn_getSkipIntroBtn,
@@ -3037,6 +3203,32 @@ function adn_getEpisodeTitle() {
   return [series, episode].filter(Boolean).join(" · ");
 }
 
+// The series the settings group this episode under. Preferred is the player's own heading; the
+// path is the fallback, because it carries the same name in slug form
+// ("/de/video/1197-aesthetica-of-a-rogue-hero/25624-folge-1" -> "Aesthetica Of A Rogue Hero").
+const ADN_SERIES_SLUG_IN_PATH = /\/video\/\d+-([^/]+)/;
+function adn_getSeriesTitle() {
+  const fromPlayer = query(".vjs-meta-title")?.textContent?.trim();
+  if (fromPlayer) return fromPlayer;
+  const slug = location.pathname.match(ADN_SERIES_SLUG_IN_PATH)?.[1];
+  if (!slug) return "";
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+// Episode number out of the last path segment ("25624-folge-1" -> 1). Taken from the path
+// rather than the heading because the heading is localized ("Folge" / "Épisode" / "Odcinek")
+// while the trailing number is not. Returns null when there is none to find.
+function adn_getEpisodeNumber() {
+  const lastSegment = location.pathname.split("/").filter(Boolean).pop() ?? "";
+  // drop the leading episode id, then take the last number of what is left
+  const withoutId = lastSegment.replace(/^\d+-/, "");
+  const number = withoutId.match(/(\d+)(?!.*\d)/)?.[1];
+  return number ? +number : null;
+}
+
 // without query and hash, the same reason the key ignores them: they differ per link, the
 // episode does not
 function adn_getEpisodeUrl() {
@@ -3096,6 +3288,8 @@ function adn_rememberPosition(video, immediately) {
     duration: video.duration,
     url: adn_getEpisodeUrl(),
     title: adn_getEpisodeTitle(),
+    series: adn_getSeriesTitle(),
+    episode: adn_getEpisodeNumber(),
   });
 }
 
@@ -6256,7 +6450,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0",
+  version: "1.6.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -6400,8 +6594,11 @@ let userOptions = {
       featureDescription:
         "Picks every episode up where you stopped, so you never search for the spot again. " +
         "An episode you watched to the end starts over instead. Everything stays in this " +
-        "browser — nothing is uploaded, and turning this off forgets it all.",
-      featureHistory: () => cu_listPositions(ADN_SITE),
+        "browser and is never uploaded.",
+      featureHistory: {
+        list: () => cu_listPositions(ADN_SITE),
+        remove: (entry) => cu_deletePosition(ADN_SITE, entry.id),
+      },
       isEnabled: {
         value: true,
         label: "Activate",

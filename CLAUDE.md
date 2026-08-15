@@ -68,16 +68,25 @@ Stellen = draußen bei den Nutzern.**
 - **Nein** → die vierte Stelle zählt hoch (`1.6.0.0` → `1.6.0.1`).
 - **Ja** → vierte Stelle streichen, den Rest als Release-Nummer verwenden.
 
-Welche der drei veröffentlichten Stellen sich bewegt, entscheidet der **größte** Posten seit dem
-letzten Release, nicht deren Anzahl:
+Welche der drei veröffentlichten Stellen sich bewegt, entscheidet die **Wirkung auf den Nutzer**
+— nicht, was für eine Art Arbeit dahintersteckt und nicht, wie viele Posten es waren.
 
-- **Zweite Stelle** (`1.5.x` → `1.6.0`): etwas Großes ist dabei — eine neu unterstützte Seite,
-  eine neue Funktion, ein sichtbarer Umbau der Oberfläche. Auch dann, wenn sonst nur Kleinkram
-  dabei war.
-- **Dritte Stelle** (`1.5.1` → `1.5.2`): ausschließlich Fehlerbehebungen und Feinschliff, egal
-  wie viele.
+**Prüffrage:** *Merkt ein Nutzer den Unterschied sofort — und lohnt es, ihm davon zu erzählen?*
 
-Beim Anheben der zweiten oder dritten Stelle wird die vierte auf `0` zurückgesetzt.
+- **Ja** → zweite Stelle (`1.5.x` → `1.6.0`). Der Wow-Effekt zählt, nicht die Bauweise. Eine
+  winzige Änderung mit großer Wirkung hebt sie genauso wie ein Umbau über hundert Zeilen.
+- **Nein** → dritte Stelle (`1.5.1` → `1.5.2`). Auch dann, wenn viel Arbeit drinsteckt: Was
+  niemand bemerkt, ist kein neuer Anstrich.
+
+Eine neue Funktion ist **kein** eigener Grund. Eine, die keiner merkt, bewegt die zweite Stelle
+nicht; eine Fehlerbehebung, die etwas endlich benutzbar macht, sehr wohl.
+
+Beim Anheben der zweiten oder dritten Stelle wird die vierte auf `0` zurückgesetzt. Die vierte
+zählt die Arbeitsstände der Erweiterung selbst — reine Doku-Änderungen bewegen sie nicht.
+
+Anlass (14.08.2026): Die erste Fassung dieser Regel zählte Arten von Arbeit auf („neue Seite,
+neue Funktion, Umbau der Oberfläche"). Danach wurde nach Kategorie entschieden — „ist ein
+Feature, also zweite Stelle" — statt nach dem, was beim Nutzer ankommt.
 
 Angefasst wird die Nummer immer **gleichzeitig** in `manifest.json` (`version` **und**
 `version_name`) und in `userOptions.version` in `utility.js`. Vier Stellen sind in einem

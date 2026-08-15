@@ -1180,14 +1180,12 @@ function cu_historyRow(entryOrLabels, { header = false, onDelete } = {}) {
   const entry = entryOrLabels;
   // the episode you are looking at right now must not offer to navigate to itself -- it is not
   // a link, is not styled like one, and says so instead
-  const isCurrent =
-    !!entry.url && entry.url === location.origin + location.pathname;
-  const label = document.createElement(entry.url && !isCurrent ? "a" : "span");
+  const isCurrent = entry.url === location.origin + location.pathname;
+  const label = document.createElement(isCurrent ? "span" : "a");
+  // no episode number when neither the player nor the path gave one away
   label.textContent =
-    entry.episode !== null && entry.episode !== undefined
-      ? `Episode ${entry.episode}`
-      : entry.title || entry.id;
-  if (entry.url && !isCurrent) {
+    entry.episode === null ? entry.title || entry.id : `Episode ${entry.episode}`;
+  if (!isCurrent) {
     label.setAttribute("href", entry.url);
     label.setAttribute("target", "_blank");
     label.setAttribute("rel", "noreferrer");
@@ -3018,26 +3016,6 @@ function cu_savePosition(
   );
 }
 
-// Entries from before v1.6.0 held nothing but the seconds -- no link, no title, no episode
-// number. In the list they were unreadable rows of bare ids, and nothing can be reconstructed
-// from them. They are dropped once, at startup; the episodes come back the moment they are
-// watched again. Also catches the very first key layout, which used the whole pathname as id.
-function cu_prunePositionsWithoutUrl(site) {
-  const prefix = cu_positionPrefix(site);
-  const doomed = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key?.startsWith(prefix)) continue;
-    const raw = localStorage.getItem(key);
-    let url = "";
-    try {
-      url = raw?.startsWith("{") ? (JSON.parse(raw).url ?? "") : "";
-    } catch {}
-    if (!url) doomed.push(key);
-  }
-  doomed.forEach((key) => localStorage.removeItem(key));
-  return doomed.length;
-}
 
 function cu_deletePosition(site, id) {
   localStorage.removeItem(cu_positionKey(site, id));
@@ -3096,7 +3074,6 @@ function cu_formatTime(seconds) {
 // fix https://animationdigitalnetwork.com
 // ---
 function fixADN() {
-  cu_prunePositionsWithoutUrl(ADN_SITE);
   adn_initPlayerPreferences();
   generic__activateAutoSkip({
     getSkipOpeningBtn: adn_getSkipIntroBtn,
@@ -6566,7 +6543,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0.3",
+  version: "1.6.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

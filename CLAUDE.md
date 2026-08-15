@@ -55,9 +55,25 @@ Anlass (13.08.2026): Die Notes zu v1.5.0 hatten Überschriften, Fließtext-Absä
 vollständige Installationsanleitung — in Discord eine Textwand, die niemand liest.
 
 ### Versioning
-- Version steht in `manifest.json` (Felder `version` + `version_name`) und in `userOptions.version` in `utility.js`
-- Beide bei Version-Bump gleichzeitig anpassen
-- Commit → Push → GitHub Release erstellen → Discord postet automatisch
+
+**Die Versionsnummer wird ausschließlich beim Veröffentlichen erhöht — nie beim Committen.**
+Sie beschreibt, was draußen ist, nicht wie viel seither passiert ist. Zwischen zwei Releases
+steht im Repo weiterhin die Nummer des letzten Releases; wer wissen will, was seitdem dazukam,
+liest die Commits.
+
+**Prüffrage vor jedem Anfassen der Nummer:** *Lege ich in dieser Antwort ein GitHub-Release an?*
+Lautet die Antwort nein, bleibt die Nummer, wie sie ist — egal wie umfangreich die Änderung war.
+
+Ablauf eines Releases, in dieser Reihenfolge:
+
+1. Nummer auf den zu veröffentlichenden Stand setzen, **gleichzeitig** in `manifest.json`
+   (`version` **und** `version_name`) und in `userOptions.version` in `utility.js`
+2. Commit → Push
+3. GitHub Release anlegen → der Workflow postet nach Discord
+
+Anlass (14.08.2026): Zwischen v1.5.1 und dem nächsten Release wurde viermal hochgezählt, ohne
+etwas zu veröffentlichen — 1.5.2, 1.6.0 und 1.6.1 hat nie jemand bekommen. Die Zahl im Manifest
+war danach weder der veröffentlichte Stand noch eine Angabe, auf die sich jemand beziehen kann.
 
 ### User-facing Texte in den Settings (`disabledReason`, `description`, `label` etc.)
 - Immer sehr einfach, kurz, unternehmerisch/technikfrei formulieren — die Nutzer wollen nichts von

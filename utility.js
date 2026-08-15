@@ -3043,6 +3043,19 @@ function cu_deletePosition(site, id) {
   localStorage.removeItem(cu_positionKey(site, id));
 }
 
+/**
+ * Repairs an episode number that is really the internal id -- entries written while the site's
+ * URL carried no episode slug got the id stored as the number, and the list then read
+ * "Episode 25634". The title still holds the real one ("Series · Folge 9 : ..."), so it is
+ * recovered from there instead of making the user delete the entry by hand.
+ */
+function cu_normalizeEpisode(entry) {
+  if (entry.episode !== null && String(entry.episode) !== String(entry.id))
+    return entry;
+  const fromTitle = entry.title?.split("·").pop()?.match(/\d+/)?.[0];
+  return { ...entry, episode: fromTitle ? +fromTitle : null };
+}
+
 /** every remembered episode of a site */
 function cu_listPositions(site) {
   const prefix = cu_positionPrefix(site);
@@ -3051,7 +3064,8 @@ function cu_listPositions(site) {
     const key = localStorage.key(i);
     if (!key?.startsWith(prefix)) continue;
     const entry = cu_readPosition(site, key.slice(prefix.length));
-    if (entry) entries.push({ id: key.slice(prefix.length), ...entry });
+    if (entry)
+      entries.push(cu_normalizeEpisode({ id: key.slice(prefix.length), ...entry }));
   }
   return entries;
 }
@@ -3325,14 +3339,18 @@ function adn_getSeriesTitle() {
     .join(" ");
 }
 
-// Episode number out of the last path segment ("25624-folge-1" -> 1). Taken from the path
-// rather than the heading because the heading is localized ("Folge" / "Épisode" / "Odcinek")
-// while the trailing number is not. Returns null when there is none to find.
+// The player's own subtitle first ("Folge 9 : Das Ranking-Turnier"): the word in front is
+// localized, the number is not, so the first number in it is the episode. It is also the only
+// source that is reliably right -- after navigating with the next-episode button the path can
+// be just ".../25634", with no episode slug at all, and reading "the last number in the path"
+// then yields the internal id. That is where "Episode 25634" came from (reported 14.08.2026).
 function adn_getEpisodeNumber() {
+  const fromPlayer = query(".vjs-meta-subtitle")?.textContent?.match(/\d+/)?.[0];
+  if (fromPlayer) return +fromPlayer;
   const lastSegment = location.pathname.split("/").filter(Boolean).pop() ?? "";
-  // drop the leading episode id, then take the last number of what is left
-  const withoutId = lastSegment.replace(/^\d+-/, "");
-  const number = withoutId.match(/(\d+)(?!.*\d)/)?.[1];
+  // a segment of nothing but digits IS the id, and an id is not an episode number
+  if (/^\d+$/.test(lastSegment)) return null;
+  const number = lastSegment.replace(/^\d+-/, "").match(/(\d+)(?!.*\d)/)?.[1];
   return number ? +number : null;
 }
 
@@ -6562,7 +6580,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0.1",
+  version: "1.6.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -1,16 +1,14 @@
 # TODO
 
-- 📅 **14.08.2026 — Media Engagement von ADN nachsehen (Feedback von Daniel).** Chrome schreibt
-  die Werte erst beim Beenden einer Sitzung fest, nicht laufend — bestätigt am 12.08.2026: zwei
-  geschlossene Tabs hoben `animationdigitalnetwork.com` von 10 Sitzungen / 1 Wiedergabe / Score
-  0.05 auf 12 / 3 / 0.15. Schwelle für „Is High" sind `Min Sessions: 20` und ein Score über der
-  oberen Schwelle 0.3. Daniel beobachtet, ob der Wert über mehrere Tage weiter steigt, wenn er
-  ADN-Tabs schließt statt sie offen liegen zu lassen. Nur Beobachtung, kein Codeänderungsbedarf:
-  sein Chrome läuft mit `Autoplay Policy: no-user-gesture-required`, der Wert wird für die
-  Autoplay-Entscheidung also gar nicht herangezogen. Offene Nebenfrage: „Last Playback" sprang
-  dabei rückwärts (13:21 → 13:06), Grund unbekannt.
-
-- Crunchyroll two-speaker subtitle cues ("- Oh. - Hm.") are currently left inline as-is (confirmed acceptable). Possible future idea: line-break + drop dashes instead. Not wanted right now — see [docs/findings-crunchyroll-two-speaker-dash-format.md](docs/findings-crunchyroll-two-speaker-dash-format.md) if this changes.
+<!-- Done: Media-Engagement-Beobachtung, 18.08.2026 -- Frage beantwortet, kein Codebedarf.
+     Chrome schreibt die Werte erst beim Beenden einer Sitzung fest, nicht laufend. Daniels
+     Zahlen fuer animationdigitalnetwork.com: 12.08. -> 12 Sitzungen / 3 mit Wiedergabe /
+     Score 0.15 / Is High: No; 18.08. -> 26 / 13 / 0.50 / Is High: YES. Damit sind beide
+     Schwellen genommen (Min Sessions 20, Upper Threshold 0.3). Auf Daniels Rechner bleibt es
+     folgenlos, weil sein Chrome mit Autoplay Policy "no-user-gesture-required" laeuft und
+     den Wert gar nicht abfragt -- auf einem Standard-Chrome wuerde ADN jetzt aber von selbst
+     mit Ton starten. Die Geste-Loesung in fixADN bleibt als Absicherung fuer solche
+     Installationen drin. -->
 
 <!-- Done: Amazon "up next" carousel ("Jetzt folgt") Show-button fix, 2026-08-08, confirmed working
      by user -- Amazon's own bug (reproduces with the extension disabled): the carousel has a working

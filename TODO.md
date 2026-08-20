@@ -1,5 +1,18 @@
 # TODO
 
+- **GeoGuessr: flackernder Rollbalken, offen.** Die Seite lässt durch eine eigene Animation in
+  Intervallen einen Rollbalken an `html` erscheinen und wieder verschwinden. Der naheliegende
+  Griff `html { overflow: hidden }` ist **falsch** und wurde am 20.08.2026 nach einem Tag wieder
+  zurückgenommen (Release v1.6.1 zurückgezogen): GeoGuessr hängt den Rollbalken an `html`, sobald
+  ein inneres Element über seinen Container hinausläuft — damit nimmt `overflow: hidden` auch die
+  echten Rollbalken weg, etwa in `.daily-challenges_container__3ucab`.
+
+  Für einen zweiten Anlauf: Der Container liegt in `<main class="version4_main__Zjun_">` und hat
+  `position: relative; container-type: inline-size`. **Die Klassennamen tragen einen Build-Hash**
+  (`__3ucab`, `__Zjun_`) und überleben das nächste GeoGuessr-Deploy nicht — ein Fix darf sich
+  nicht darauf stützen. Gesucht ist das Element, das wirklich überläuft, statt das Symptom an
+  `html` zu unterdrücken.
+
 <!-- Done: Media-Engagement-Beobachtung, 18.08.2026 -- Frage beantwortet, kein Codebedarf.
      Chrome schreibt die Werte erst beim Beenden einer Sitzung fest, nicht laufend. Daniels
      Zahlen fuer animationdigitalnetwork.com: 12.08. -> 12 Sitzungen / 3 mit Wiedergabe /

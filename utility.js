@@ -1477,7 +1477,6 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
-    new Matcher('www.geoguessr.com', fixGeoguessr),
     new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("instagram.com", fixInstagram, true),
@@ -5223,17 +5222,6 @@ function addCustomCrunchyCss() {
   );
 }
 
-// www.geoguessr.com
-function fixGeoguessr() {
-  fixGeoguessrCSS();
-}
-
-function fixGeoguessrCSS() {
-  insertCSS(`
-    html { overflow: hidden; }
-  `,'geoguessr-global-css-fix');
-}
-
 // lookmovie2.to
 function fixLookMovie2() {
   lm2adCSS();
@@ -6561,7 +6549,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.1",
+  version: "1.6.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

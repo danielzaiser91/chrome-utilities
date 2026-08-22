@@ -8,6 +8,27 @@ Chrome Extension (MV3), kein Build-System, einzelne `utility.js` + `manifest.jso
 - Release-Notes kommen aus dem GitHub Release-Body — nicht aus Commit-Messages
 - Discord Webhook Secret: `DISCORD_WEBHOOK` (als GitHub Actions Secret gesetzt)
 
+#### Eine bereits gepostete Discord-Nachricht wird korrigiert, nicht ersetzt
+
+Der Workflow postet mit `?wait=true` und schreibt die Nachrichten-ID in die
+Zusammenfassung des Laufs — genau dafür. Ein Tippfehler oder ein falscher Fachbegriff in
+einer schon veröffentlichten Ankündigung wird deshalb **per PATCH editiert**:
+
+1. ID aus dem Lauf holen: `gh run view <id> --log` → Zeile `Discord message id for <tag>: …`
+2. `GET  <webhook>/messages/<id>` — die vorhandenen `embeds` holen
+3. Text darin ersetzen, dann `PATCH <webhook>/messages/<id>` mit `{"embeds": …}`
+
+Wichtig dabei:
+
+- **Die kompletten `embeds` zurückschicken.** Ein PATCH ersetzt das Feld als Ganzes; wer nur
+  die `description` sendet, verliert Titel, Farbe, Link und Fußzeile.
+- **User-Agent mitschicken.** Discord beantwortet Anfragen ohne einen mit `403 Forbidden`.
+  `curl` setzt selbst einen, `urllib` nicht.
+- **Löschen und neu posten ist die schlechtere Wahl** und bleibt Notfällen vorbehalten, etwa
+  einem zurückgezogenen Release. Es erwähnt die Rolle ein zweites Mal, und die alte
+  Nachrichten-ID wird ungültig — spätere Korrekturen laufen dann in ein 404 (real passiert
+  am 22.08.2026 bei v1.5.1).
+
 #### Format der Release-Notes — zwei Dokumente in einem Body
 
 Der Release-Body trägt beides: **oberhalb** der Marke `<!-- discord-cut -->` die kurze

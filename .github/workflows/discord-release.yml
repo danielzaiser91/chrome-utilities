@@ -9,10 +9,19 @@ on:
         description: "Release tag to (re-)announce, e.g. v1.3.6"
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      # main, not the tag: the step below commits the message id back, and a detached HEAD
+      # (which a release event checks out) cannot be pushed
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Post to Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -55,22 +64,63 @@ jobs:
                 timestamp: (now | todate)
               }]
             }')
-          # ?wait=true makes Discord return the created message object (incl. its id) instead of
-          # a bare 204 No Content -- without this the message id is unrecoverable afterwards, and
-          # a duplicate post (e.g. from deleting+recreating a GitHub release for the same version)
-          # can never be individually cleaned up again
-          RESPONSE=$(curl -s -X POST "${DISCORD_WEBHOOK}?wait=true" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
 
-          if [ -n "$MESSAGE_ID" ]; then
+          IDS_FILE=".github/discord-message-ids.json"
+          [ -f "$IDS_FILE" ] || echo '{}' > "$IDS_FILE"
+          KNOWN_ID=$(jq -r --arg t "$TAG" '.[$t] // empty' "$IDS_FILE")
+          MESSAGE_ID=""
+
+          # A tag that was already announced gets its existing message EDITED instead of a second
+          # one posted. That keeps re-runs idempotent (no duplicate announcement, no second role
+          # ping -- editing does not re-notify) and, more importantly, means the stored id stays
+          # the one and only id for this tag.
+          if [ -n "$KNOWN_ID" ]; then
+            CODE=$(curl -s -o /tmp/patch.json -w "%{http_code}" \
+              -X PATCH "${DISCORD_WEBHOOK}/messages/${KNOWN_ID}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD")
+            if [ "$CODE" = "200" ]; then
+              MESSAGE_ID="$KNOWN_ID"
+              echo "Discord message for $TAG edited in place: $MESSAGE_ID"
+            else
+              # 404 means the message is gone (deleted by hand, or the release was pulled and
+              # re-published). The stored id is dead -- drop it and post a fresh one, so a dead
+              # id can never survive a run.
+              echo "Stored id $KNOWN_ID no longer exists (HTTP $CODE), posting a new message"
+            fi
+          fi
+
+          # ?wait=true makes Discord return the created message object (incl. its id) instead of
+          # a bare 204 No Content -- without this the message id is unrecoverable afterwards
+          if [ -z "$MESSAGE_ID" ]; then
+            RESPONSE=$(curl -s -X POST "${DISCORD_WEBHOOK}?wait=true" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD")
+            MESSAGE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+            if [ -z "$MESSAGE_ID" ]; then
+              echo "Warning: could not extract Discord message id from response: $RESPONSE"
+              exit 0
+            fi
             echo "Discord message id for $TAG: $MESSAGE_ID"
-            {
-              echo "### Discord message posted for $TAG"
-              echo "- Message ID: \`$MESSAGE_ID\`"
-              echo "- To delete: \`curl -X DELETE \"\$DISCORD_WEBHOOK/messages/$MESSAGE_ID\"\`"
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Warning: could not extract Discord message id from response: $RESPONSE"
+          fi
+
+          # The id belongs in the repository, not only in this run's log: Action logs expire
+          # (90 days by default), and after that an announcement could no longer be corrected.
+          jq --arg t "$TAG" --arg id "$MESSAGE_ID" '.[$t] = $id' "$IDS_FILE" > "$IDS_FILE.tmp"
+          mv "$IDS_FILE.tmp" "$IDS_FILE"
+
+          {
+            echo "### Discord message for $TAG"
+            echo "- Message ID: \`$MESSAGE_ID\` (auch in \`$IDS_FILE\`)"
+            echo "- Korrigieren: PATCH auf \`\$DISCORD_WEBHOOK/messages/$MESSAGE_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$IDS_FILE"
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: Discord-Nachrichten-ID für $TAG [skip ci]"
+            # main may have moved while this ran -- rebase instead of failing the whole job
+            git pull --rebase --autostash origin main
+            git push
           fi

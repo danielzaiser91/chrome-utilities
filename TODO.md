@@ -1,17 +1,18 @@
 # TODO
 
-- **GeoGuessr: flackernder Rollbalken, offen.** Die Seite lässt durch eine eigene Animation in
-  Intervallen einen Rollbalken an `html` erscheinen und wieder verschwinden. Der naheliegende
-  Griff `html { overflow: hidden }` ist **falsch** und wurde am 20.08.2026 nach einem Tag wieder
-  zurückgenommen (Release v1.6.1 zurückgezogen): GeoGuessr hängt den Rollbalken an `html`, sobald
-  ein inneres Element über seinen Container hinausläuft — damit nimmt `overflow: hidden` auch die
-  echten Rollbalken weg, etwa in `.daily-challenges_container__3ucab`.
-
-  Für einen zweiten Anlauf: Der Container liegt in `<main class="version4_main__Zjun_">` und hat
-  `position: relative; container-type: inline-size`. **Die Klassennamen tragen einen Build-Hash**
-  (`__3ucab`, `__Zjun_`) und überleben das nächste GeoGuessr-Deploy nicht — ein Fix darf sich
-  nicht darauf stützen. Gesucht ist das Element, das wirklich überläuft, statt das Symptom an
-  `html` zu unterdrücken.
+<!-- Done: GeoGuessr-Rollbalken, 20.08.2026 -- zweiter Anlauf, diesmal getroffen.
+     Ursache: die Intro-Animation "dc-intro-rays" bewegt ein Sternenfeld per transform. Das
+     Element star-background_topStars reichte bis 2647px rechts und 1233px unten bei einem
+     Viewport von 1659x823 -- und ein transform zaehlt zum scrollbaren Bereich des Dokuments.
+     Daher der Rollbalken im Takt der Animation.
+     Gefunden ueber document.getAnimations(): alle pausieren, einzeln wieder starten. Der
+     Breakpoint half nicht, weil transform-Animationen auf dem Compositor-Thread laufen und von
+     einem JS-Breakpoint gar nicht beruehrt werden -- was zugleich bewies, dass kein JS im Spiel
+     ist.
+     Fix: overflow:clip auf dem Intro-Container. Nicht auf html (das war v1.6.1, zurueckgezogen)
+     und nicht overflow:hidden, weil clip keinen Scroll-Container erzeugt. Selektor ueber den
+     Modul-Praefix [class*="new-daily-challenge_root__"], weil der Klassenname einen Build-Hash
+     traegt. -->
 
 <!-- Done: Media-Engagement-Beobachtung, 18.08.2026 -- Frage beantwortet, kein Codebedarf.
      Chrome schreibt die Werte erst beim Beenden einer Sitzung fest, nicht laufend. Daniels

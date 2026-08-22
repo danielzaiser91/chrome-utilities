@@ -1477,6 +1477,7 @@ let matcher;
 // TODO: Make WebsiteMatcher a Listener or something for websites where location is changed programmatically (react, angular, etc.)
 function websiteSelector() {
   const websiteMatcher = [
+    new Matcher("www.geoguessr.com", fixGeoguessr),
     new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
     new Matcher("instagram.com", fixInstagram, true),
@@ -5222,6 +5223,34 @@ function addCustomCrunchyCss() {
   );
 }
 
+// www.geoguessr.com
+function fixGeoguessr() {
+  fixGeoguessrScrollbar();
+}
+
+// The daily-challenge intro animates a star field via transform. The stars swing far outside the
+// layout box -- measured 2647px to the right in a 1659px viewport -- and a transform counts
+// towards the document's scrollable area, so a scrollbar appears and disappears in time with the
+// animation. There is nothing to scroll to; it is a bug of the site.
+//
+// Two things this fix is deliberately NOT:
+// - not on html. That was tried, released as v1.6.1 and pulled again a day later (20.08.2026):
+//   GeoGuessr puts the scrollbar on html whenever anything inside overflows, so hiding it there
+//   also takes away the page's real scrolling, e.g. in the daily-challenges list.
+// - not overflow:hidden. "clip" does the same clipping without turning the element into a scroll
+//   container, so nested scrolling and anchor jumps inside keep working.
+//
+// The class name carries a per-build hash (new-daily-challenge_root__Oz9aV), so the selector
+// matches the stable module prefix instead. Should GeoGuessr rename the module itself, the rule
+// simply stops matching -- the harmless direction to fail in, since the scrollbar is cosmetic.
+const GEOGUESSR_INTRO_CONTAINER = '[class*="new-daily-challenge_root__"]';
+function fixGeoguessrScrollbar() {
+  insertCSS(
+    `${GEOGUESSR_INTRO_CONTAINER} { overflow: clip; }`,
+    "geoguessr-scrollbar-fix",
+  );
+}
+
 // lookmovie2.to
 function fixLookMovie2() {
   lm2adCSS();
@@ -6549,7 +6578,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.6.0",
+  version: "1.6.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

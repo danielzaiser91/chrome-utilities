@@ -1,10 +1,10 @@
 # TODO
 
-<!-- Done: GeoGuessr-Rollbalken, 20.08.2026 -- zweiter Anlauf, diesmal getroffen.
+<!-- Done: GeoGuessr-Scrollbalken, 20.08.2026 -- zweiter Anlauf, diesmal getroffen.
      Ursache: die Intro-Animation "dc-intro-rays" bewegt ein Sternenfeld per transform. Das
      Element star-background_topStars reichte bis 2647px rechts und 1233px unten bei einem
      Viewport von 1659x823 -- und ein transform zaehlt zum scrollbaren Bereich des Dokuments.
-     Daher der Rollbalken im Takt der Animation.
+     Daher der Scrollbalken im Takt der Animation.
      Gefunden ueber document.getAnimations(): alle pausieren, einzeln wieder starten. Der
      Breakpoint half nicht, weil transform-Animationen auf dem Compositor-Thread laufen und von
      einem JS-Breakpoint gar nicht beruehrt werden -- was zugleich bewies, dass kein JS im Spiel

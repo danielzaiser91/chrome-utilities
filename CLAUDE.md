@@ -2,6 +2,33 @@
 
 Chrome Extension (MV3), kein Build-System, einzelne `utility.js` + `manifest.json`.
 
+### Eine neue Seite braucht ZWEI Einträge
+
+Seit dem Umstieg von `<all_urls>` auf eine Liste gilt: Ein `new Matcher(...)` in
+`utility.js` allein reicht nicht mehr. Ohne passendes Muster in `manifest.json` wird
+`utility.js` auf der Seite gar nicht erst geladen — der Fix ist dann still tot, ohne Fehler
+in der Konsole.
+
+**Beim Hinzufügen einer Seite also immer beides:**
+
+1. `new Matcher("beispiel.de", fixBeispiel)` in `websiteSelector()`
+2. `"*://*.beispiel.de/*"` in `content_scripts[0].matches`
+
+Faustregeln für das Muster:
+
+- `*://*.domain.tld/*` deckt die Domain samt aller Unterdomains ab (`*.` schließt die nackte
+  Domain mit ein).
+- Zielt der Fix nur auf einen Bereich, den Pfad mitnehmen: `*://www.google.com/maps/*` statt
+  der ganzen Domain. Der Google-Fix betrifft ausschließlich Maps — ohne den Pfad läge die
+  Erweiterung auch in Gmail und Drive.
+- Wildcards im Host gehen **nur** als `*` oder führendes `*.`. Ein Matcher wie `.amazon.`,
+  der auf jede Länderdomain zielt, muss deshalb aufgezählt werden (`amazon.de`, `amazon.com`, …).
+- Ein Muster mit Host `*` (etwa `*://*/pfad*`) macht die Einschränkung zunichte: Chrome warnt
+  dann weiterhin vor Zugriff auf alle Websites.
+
+Gegenprüfen lässt sich das Ganze, indem man je eine Beispiel-URL pro Matcher gegen die Muster
+hält — genau so wurde die Umstellung am 22.08.2026 abgenommen.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

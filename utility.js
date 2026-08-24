@@ -1488,7 +1488,6 @@ function websiteSelector() {
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
     new Matcher("www.wowtv.", fixWowTV, true),
-    new Matcher("/twweb/twwebclient", fixTisoware),
     new Matcher("chess.com", fixChessDotCom),
     new Matcher("wiki.fextralife.com", fixFextralife, true),
     new Matcher("twitch.tv", fixTwitch, true),
@@ -2635,19 +2634,6 @@ function addCalcFruitOfMacGuffin() {
     inputFirstHarvestEl,
   ].forEach((el) => el.addEventListener("input", calc));
   calc();
-}
-
-// ----
-// Fix Tisoware
-// ---
-function fixTisoware() {
-  repeatUntilCondition(
-    () => {
-      query('[type="password"]').setAttribute("maxlength", 16);
-    },
-    () => query('[type="password"]'),
-    false,
-  );
 }
 
 // ----
@@ -6578,7 +6564,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.0",
+  version: "1.7.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

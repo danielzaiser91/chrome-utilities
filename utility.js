@@ -5304,7 +5304,16 @@ function cr_initPlaybackSpeedUi() {
     }
     /* !important aus demselben Grund wie oben: Crunchyrolls Hover-Regeln nehmen dem Feld
        sonst Rahmen und Innenabstand, sobald der Zeiger darin steht (26.08.2026). */
+    /* Der verbliebene Eintrag ist keine Auswahl mehr, sondern nur noch Traeger des Feldes:
+       kein Zeigefinger, keine Klicks. pointer-events wirkt vererbt, deshalb bekommt das Feld
+       sie ausdruecklich zurueck. */
+    ${CR_SPEED_MENU} ${CR_SPEED_CHECKED} {
+      cursor: default !important;
+      pointer-events: none !important;
+    }
     .cu-cr-speed-input {
+      pointer-events: auto !important;
+      cursor: text !important;
       width: 4.5em !important;
       padding: 2px 6px !important;
       border: 1px solid currentColor !important;
@@ -5457,6 +5466,17 @@ function cr_replaceCheckedSpeedItem(speed) {
   if (!inner || inner.querySelector(".cu-cr-speed-input")) return;
   inner.innerHTML = "";
   inner.appendChild(cr_createSpeedInput(speed));
+  // Guertel und Hosentraeger: pointer-events oben faengt die Maus ab, das hier alles, was
+  // trotzdem einen Klick ausloest -- Tastatur, Skript, kuenftige Crunchyroll-Aenderungen.
+  const eintrag = inner.closest('[role="menuitemradio"]');
+  if (eintrag && !eintrag.dataset.cuClickBlocked) {
+    eintrag.dataset.cuClickBlocked = "1";
+    eintrag.addEventListener("click", (event) => {
+      if (event.target.closest(".cu-cr-speed-input")) return;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
+  }
 }
 
 function cr_createSpeedInput(speed) {
@@ -6782,7 +6802,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.6",
+  version: "1.7.0.7",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

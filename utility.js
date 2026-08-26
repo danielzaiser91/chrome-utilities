@@ -5282,7 +5282,15 @@ const CR_SPEED_CHECKED = '[role="menu"] [role="menuitemradio"][aria-checked="tru
 function cr_initPlaybackSpeedUi() {
   insertCSS(
     `
-    ${CR_SPEED_MENU} { width: fit-content; }
+    /* max-content, nicht fit-content: fit-content ist min(max-content, max(min-content,
+       verfuegbar)) und folgt damit dem verfuegbaren Platz. Der aendert sich beim Hover ueber
+       die Zeile, wodurch der Kasten schmaler wurde und die Ueberschrift abschnitt (Video vom
+       26.08.2026, Bild fuer Bild nachvollzogen). max-content kennt diesen Anteil nicht. */
+    ${CR_SPEED_MENU} {
+      width: max-content;
+      min-width: max-content;
+      white-space: nowrap;
+    }
     /* scoped to the speed menu on purpose -- the same roles carry the subtitle and quality
        menus, and those must keep all of their entries */
     ${CR_SPEED_MENU} [role="menu"] [role="menuitemradio"][aria-checked="false"] {
@@ -6667,7 +6675,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.2",
+  version: "1.7.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

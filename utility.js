@@ -5268,7 +5268,6 @@ function fixCrunchyroll() {
   cr_initWeeklyLineupFilter();
   cr_initDuplicateSeasonFilter();
   cr_initPlaybackSpeedUi();
-  cr_initSpeedWidthDiagnose();
 }
 
 // Crunchyroll's own speed menu offers 0.5x / 0.75x / 1x / … and shows the chosen one on its
@@ -5333,105 +5332,6 @@ function cr_initPlaybackSpeedUi() {
     interval: 400,
     pauseInBg: false,
   });
-}
-
-// ══ TEMP: Diagnose der Menuebreite ══════════════════════════════════════════════════════════
-// Zwei Anlaeufe haben das Problem nicht getroffen, deshalb wird jetzt gemessen statt geraten.
-// Ausschliesslich aktiv, wenn localStorage.cu_cr_speed_debug === "1" -- sonst kostet der Block
-// einen einzigen Vergleich beim Start. RAUS, sobald die Breitenfrage geklaert ist (wie beim
-// Amazon-Debug-Harness am 09.08.2026).
-const CR_DIAG_DAUER_MS = 12000;
-const CR_DIAG_TAKT_MS = 100;
-
-function cr_initSpeedWidthDiagnose() {
-  if (localStorage.getItem("cu_cr_speed_debug") !== "1") return;
-  console.info(
-    "%cCU-Diagnose aktiv: Menue oeffnen und den Mauszeiger mehrfach ueber die Zeile fahren. " +
-      "Nach " + CR_DIAG_DAUER_MS / 1000 + " Sekunden ab dem ersten Erscheinen laedt eine Datei herunter.",
-    "color:#0a0;font-weight:bold",
-  );
-
-  const proben = [];
-  let beginn = 0;
-  let fertig = false;
-
-  const stil = (el, felder) => {
-    const c = getComputedStyle(el);
-    return Object.fromEntries(felder.map((f) => [f, c[f]]));
-  };
-  const breite = (el) => Math.round(el.getBoundingClientRect().width);
-
-  const messen = () => {
-    const menu = query(CR_SPEED_MENU);
-    if (!menu) return;
-    if (!beginn) beginn = Date.now();
-
-    const r = menu.getBoundingClientRect();
-    proben.push({
-      ms: Date.now() - beginn,
-      zeigerImMenue: menu.matches(":hover"),
-      menue: {
-        breite: Math.round(r.width),
-        links: Math.round(r.left),
-        rechts: Math.round(r.right),
-        klassen: String(menu.className),
-        ...stil(menu, ["width", "minWidth", "maxWidth", "display", "boxSizing", "whiteSpace", "overflow", "padding"]),
-      },
-      // die Kette nach oben: hier entscheidet sich, ob der verfuegbare Platz schwankt
-      vorfahren: (() => {
-        const liste = [];
-        for (let el = menu.parentElement, i = 0; el && i < 5; el = el.parentElement, i++) {
-          liste.push({
-            tag: el.tagName,
-            klassen: String(el.className || "").slice(0, 80),
-            breite: breite(el),
-            zeigerDrin: el.matches(":hover"),
-            ...stil(el, ["width", "minWidth", "maxWidth", "display", "overflow", "position", "transform"]),
-          });
-        }
-        return liste;
-      })(),
-      kinder: [...menu.querySelectorAll("*")].slice(0, 12).map((el) => ({
-        tag: el.tagName,
-        rolle: el.getAttribute("role"),
-        ariaChecked: el.getAttribute("aria-checked"),
-        text: (el.textContent || "").trim().slice(0, 40),
-        breite: breite(el),
-        zeigerDrin: el.matches(":hover"),
-        ...stil(el, ["width", "display", "whiteSpace", "overflow", "textOverflow", "flex"]),
-      })),
-    });
-
-    if (Date.now() - beginn >= CR_DIAG_DAUER_MS && !fertig) cr_diagnoseAbschliessen(proben);
-  };
-
-  const takt = setInterval(() => {
-    if (fertig) return clearInterval(takt);
-    messen();
-  }, CR_DIAG_TAKT_MS);
-
-  window.cr_diagnoseAbschliessen = (daten) => {
-    fertig = true;
-    const breiten = [...new Set(daten.map((d) => d.menue.breite))].sort((a, b) => a - b);
-    const bericht = {
-      erzeugt: new Date().toISOString(),
-      seite: location.href,
-      unsereRegelVorhanden: !!byId("cu-cr-speed-ui"),
-      gemesseneBreiten: breiten,
-      breiteSchwankt: breiten.length > 1,
-      // die eigentliche Frage: haengt die Breite am Zeiger?
-      breiteMitZeiger: [...new Set(daten.filter((d) => d.zeigerImMenue).map((d) => d.menue.breite))],
-      breiteOhneZeiger: [...new Set(daten.filter((d) => !d.zeigerImMenue).map((d) => d.menue.breite))],
-      anzahlProben: daten.length,
-      proben: daten,
-    };
-    const blob = new Blob([JSON.stringify(bericht, null, 2)], { type: "application/json" });
-    const a = create("a", { href: URL.createObjectURL(blob), download: "cu-cr-speed-diagnose.json" });
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    console.info("%cCU-Diagnose fertig, Datei laedt herunter.", "color:#0a0;font-weight:bold", bericht);
-  };
 }
 
 function cr_getUserSpeed() {
@@ -6802,7 +6702,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.7",
+  version: "1.7.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

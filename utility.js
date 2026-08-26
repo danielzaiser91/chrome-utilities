@@ -5283,14 +5283,19 @@ const CR_SPEED_CHECKED = '[role="menu"] [role="menuitemradio"][aria-checked="tru
 function cr_initPlaybackSpeedUi() {
   insertCSS(
     `
-    /* max-content, nicht fit-content: fit-content ist min(max-content, max(min-content,
-       verfuegbar)) und folgt damit dem verfuegbaren Platz. Der aendert sich beim Hover ueber
-       die Zeile, wodurch der Kasten schmaler wurde und die Ueberschrift abschnitt (Video vom
-       26.08.2026, Bild fuer Bild nachvollzogen). max-content kennt diesen Anteil nicht. */
+    /* !important ist hier noetig, nicht bequem: Crunchyroll gibt dem Menue die Klasse
+       kat:w-200 und hat dazu eine Hover-Regel. Ein :hover im Selektor wiegt schwerer als
+       unser Attributselektor, also verlor unsere Breite genau dann, wenn der Zeiger im Menue
+       stand -- gemessen am 26.08.2026 ueber 110 Proben: Zeiger drin 200px und
+       min-width:auto, Zeiger raus 239px und min-width:max-content, sieben Wechsel ohne eine
+       einzige Ausnahme. Unsere display:none-Regel darunter greift in beiden Zustaenden, es
+       war also nie eine Frage des Matchings, sondern der Spezifitaet.
+       max-content statt fit-content: fit-content ist min(max-content, max(min-content,
+       verfuegbar)) und wuerde dem verfuegbaren Platz folgen. */
     ${CR_SPEED_MENU} {
-      width: max-content;
-      min-width: max-content;
-      white-space: nowrap;
+      width: max-content !important;
+      min-width: max-content !important;
+      white-space: nowrap !important;
     }
     /* scoped to the speed menu on purpose -- the same roles carry the subtitle and quality
        menus, and those must keep all of their entries */
@@ -6775,7 +6780,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.4",
+  version: "1.7.0.5",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

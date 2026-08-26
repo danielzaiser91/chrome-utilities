@@ -5302,15 +5302,17 @@ function cr_initPlaybackSpeedUi() {
     ${CR_SPEED_MENU} [role="menu"] [role="menuitemradio"][aria-checked="false"] {
       display: none;
     }
+    /* !important aus demselben Grund wie oben: Crunchyrolls Hover-Regeln nehmen dem Feld
+       sonst Rahmen und Innenabstand, sobald der Zeiger darin steht (26.08.2026). */
     .cu-cr-speed-input {
-      width: 4.5em;
-      padding: 2px 6px;
-      border: 1px solid currentColor;
-      border-radius: 6px;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      text-align: center;
+      width: 4.5em !important;
+      padding: 2px 6px !important;
+      border: 1px solid currentColor !important;
+      border-radius: 6px !important;
+      background: transparent !important;
+      color: inherit !important;
+      font: inherit !important;
+      text-align: center !important;
     }
     .cu-cr-speed-input::-webkit-inner-spin-button { opacity: 1; }
   `,
@@ -6780,7 +6782,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.5",
+  version: "1.7.0.6",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

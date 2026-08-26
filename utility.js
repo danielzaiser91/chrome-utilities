@@ -5267,7 +5267,110 @@ function fixCrunchyroll() {
 
   cr_initWeeklyLineupFilter();
   cr_initDuplicateSeasonFilter();
+  cr_initPlaybackSpeedUi();
 }
+
+// Crunchyroll's own speed menu offers 0.5x / 0.75x / 1x / … and shows the chosen one on its
+// button. Our speed is set on the <video> directly, so their UI never learns about it -- the
+// button kept saying "1x" while the video ran at 1.3x (reported 24.08.2026). Rather than fight
+// that, their menu becomes the front end for our setting: the fixed choices are hidden and the
+// one entry left over carries an input bound to the same option as the settings panel.
+const CR_SPEED_BUTTON = '[data-testid="playback-speed-button"]';
+const CR_SPEED_MENU = '[data-testid="playback-speed-menu"]';
+const CR_SPEED_CHECKED = '[role="menu"] [role="menuitemradio"][aria-checked="true"]';
+
+function cr_initPlaybackSpeedUi() {
+  insertCSS(
+    `
+    ${CR_SPEED_MENU} { width: fit-content; }
+    /* scoped to the speed menu on purpose -- the same roles carry the subtitle and quality
+       menus, and those must keep all of their entries */
+    ${CR_SPEED_MENU} [role="menu"] [role="menuitemradio"][aria-checked="false"] {
+      display: none;
+    }
+    .cu-cr-speed-input {
+      width: 4.5em;
+      padding: 2px 6px;
+      border: 1px solid currentColor;
+      border-radius: 6px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: center;
+    }
+    .cu-cr-speed-input::-webkit-inner-spin-button { opacity: 1; }
+  `,
+    "cu-cr-speed-ui",
+  );
+  // the menu is rebuilt every time it opens, and Crunchyroll re-renders the button label from
+  // its own state, so this keeps looking instead of running once
+  repeatIfCondition(cr_syncPlaybackSpeedUi, () => true, {
+    interval: 400,
+    pauseInBg: false,
+  });
+}
+
+function cr_getUserSpeed() {
+  return getSiteOptions()?.featurePlayBackSpeed?.isEnabled?.subFeatures
+    ?.playBackSpeed?.value;
+}
+
+function cr_syncPlaybackSpeedUi() {
+  const speed = cr_getUserSpeed();
+  if (!isNumber(speed)) return;
+  cr_labelPlaybackSpeedButton(speed);
+  cr_replaceCheckedSpeedItem(speed);
+}
+
+// Written to the innermost element that actually spells out a speed -- setting it on the button
+// itself would throw away whatever else it holds. Our own label matches the same shape, so the
+// target stays the same element on every pass.
+function cr_labelPlaybackSpeedButton(speed) {
+  const button = query(CR_SPEED_BUTTON);
+  if (!button) return;
+  const label = `${speed}x`;
+  const target =
+    [...button.querySelectorAll("*")].findLast((el) =>
+      /^\d+([.,]\d+)?x$/.test(el.textContent.trim()),
+    ) ?? button;
+  if (target.textContent.trim() !== label) target.textContent = label;
+}
+
+function cr_replaceCheckedSpeedItem(speed) {
+  const inner = query(`${CR_SPEED_MENU} ${CR_SPEED_CHECKED} > div`);
+  // already ours -- rebuilding it on every pass would fight the cursor while typing
+  if (!inner || inner.querySelector(".cu-cr-speed-input")) return;
+  inner.innerHTML = "";
+  inner.appendChild(cr_createSpeedInput(speed));
+}
+
+function cr_createSpeedInput(speed) {
+  const input = create("input", {
+    type: "number",
+    min: "0.2",
+    max: "5",
+    step: "0.1",
+    value: speed,
+    className: "cu-cr-speed-input",
+  });
+  const apply = (event) => {
+    _adjustVal__generic(event, input);
+    // the settings panel saves on every change too; without this a value typed here would only
+    // survive because something else happens to save later
+    saveUserSettings();
+  };
+  input.addEventListener("input", apply);
+  input.addEventListener("change", apply);
+  // the player binds single-letter hotkeys on document without checking what has focus -- a
+  // typed digit would otherwise seek or toggle instead of landing in the field
+  ["keydown", "keyup", "keypress"].forEach((typ) =>
+    input.addEventListener(typ, (event) => event.stopPropagation()),
+  );
+  // a click inside must not count as picking the radio entry or close the menu
+  input.addEventListener("click", (event) => event.stopPropagation());
+  return input;
+}
+
 
 // Crunchyroll's season switcher lists the same season several times -- confirmed on Attack on
 // Titan Season 2, where six entries all read "S2: Attack on Titan Season 2" and every one of them
@@ -6564,7 +6667,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0.1",
+  version: "1.7.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

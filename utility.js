@@ -4161,8 +4161,40 @@ function fixAmazon() {
   // feature: work around Amazon's own bug where the "up next" carousel ("Jetzt folgt")
   // never gets a Show button once hidden — only a Hide button while shown
   fixAmazonCarouselShowButton();
+
+  // feature: work around Amazon's own bug where hovering a card grows it past the right
+  // edge and makes a horizontal scrollbar flicker in and out
+  fixAmazonHoverScrollbar();
 }
 
+
+// Amazon-Bug (Prime Video, 27.08.2026): Zeigt die Maus auf eine Kachel, vergroessert Amazon sie.
+// Am rechten Rand ragt sie damit ueber das Dokument hinaus, ein waagerechter Scrollbalken
+// erscheint -- und verschwindet wieder, sobald die Maus die Kachel verlaesst. Die Seite
+// zappelt dadurch bei jeder Mausbewegung.
+// clip statt hidden, damit kein Scroll-Container entsteht: overflow:hidden auf html hat bei
+// GeoGuessr (v1.6.1, zurueckgezogen) das Scrollen der ganzen Seite erschlagen.
+// !important, weil ein Element-Selektor gegen Amazons eigene Regeln sonst verliert -- dieselbe
+// Falle wie beim Crunchyroll-Geschwindigkeitsmenue (v1.7.0).
+// Erst ab 1016px Fensterbreite: darunter braucht Prime Video das seitliche Scrollen wirklich
+// (von Daniel getestet, 27.08.2026).
+function fixAmazonHoverScrollbar() {
+  const id = "amazon-hover-scrollbar-fix";
+  if (!isAllowed(userOptions.amazon.featureHoverScrollbar.isEnabled)) {
+    byId(id)?.remove();
+    return;
+  }
+  insertCSS(
+    `
+    @media (min-width: 1016px) {
+      /* beides noetig: auf html allein wandert der Wert ans Fenster und html selbst wird
+         wieder visible -- body scrollt dann weiter seitlich. Gemessen 27.08.2026, siehe Kommentar. */
+      html, body { overflow-x: clip !important; }
+    }
+  `,
+    id,
+  );
+}
 // Amazon-Bug (bestätigt reproduzierbar auch mit deaktivierter Extension, 08.08.2026): das
 // "Jetzt folgt"-Karussell zeigt einen "Hide"-Button, solange es sichtbar ist; einmal
 // versteckt, rendert Amazon dort GAR KEINEN Button mehr (nicht nur unsichtbar — das Element
@@ -6702,7 +6734,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.0",
+  version: "1.7.1.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7070,6 +7102,22 @@ let userOptions = {
               "will click the next episode button immidiatly for you",
           },
         },
+      },
+    },
+    featureHoverScrollbar: {
+      featureName: "Hover scrollbar",
+      featureCategory: "Website bug",
+      featureDescription:
+        "Pointing at a title grows the card past the right edge of the page, so a horizontal " +
+        "scrollbar appears and vanishes again while you move the mouse. This clips the overflow " +
+        "instead.\n" +
+        "Only from 1016px window width upwards — below that Prime Video really does need to " +
+        "scroll sideways.",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "stop the horizontal scrollbar from flickering on hover",
+        toggle: fixAmazonHoverScrollbar,
       },
     },
   },

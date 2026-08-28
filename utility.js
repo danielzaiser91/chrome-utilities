@@ -4178,9 +4178,9 @@ function fixAmazon() {
 // laedt sofort. Also genau das: einmal auf die nackte Adresse wechseln.
 // location.replace statt href, damit der Zurueck-Knopf nicht auf die kaputte Seite zeigt.
 const AMZ_DETAIL_PFAD = "/gp/video/detail/";
-// Wie lange nach dem Laden auf den Fehler gewartet wird -- die Seite rendert clientseitig,
-// der Fehler steht also nicht sofort im DOM.
-const AMZ_FEHLER_FRIST_MS = 8000;
+// Kleinster Abstand zwischen zwei Pruefungen. Amazon aendert bei jedem Karussell-Schritt den
+// Baum; ohne Bremse liefe die Pruefung hunderte Male je Sekunde.
+const AMZ_PRUEF_TAKT_MS = 300;
 // Sperre gegen eine Schleife, falls Amazon die nackte Adresse wieder mit Parametern
 // beantwortet. Kurz gehalten, damit ein spaeterer Aufruf desselben Titels wieder repariert
 // wird statt fuer die ganze Sitzung gesperrt zu bleiben.
@@ -4213,8 +4213,16 @@ function amz_fehlerseitenGrund() {
   return null;
 }
 
-function fixAmazonErrorRetry() {
-  if (!isAllowed(userOptions.amazon.featureRetryErrorPage.isEnabled)) return;
+let _amzFehlerBeobachter = null;
+let _amzLetztePruefung = 0;
+let _amzPruefungGeplant = null;
+
+/**
+ * Prueft den aktuellen Stand und wechselt auf die nackte Adresse, wenn alles zutrifft.
+ * Alle Bedingungen werden hier ausgewertet und nicht einmalig beim Start: bei einer
+ * SPA-Navigation aendert sich die Adresse, ohne dass das Skript neu laeuft.
+ */
+function amz_pruefeFehlerseite() {
   if (!location.pathname.startsWith(AMZ_DETAIL_PFAD)) return;
   if (!location.search) return; // ohne Parameter gibt es nichts abzuschneiden
 
@@ -4222,24 +4230,51 @@ function fixAmazonErrorRetry() {
   const letzterVersuch = Number(sessionStorage.getItem(schluessel)) || 0;
   if (Date.now() - letzterVersuch < AMZ_RETRY_SPERRE_MS) return;
 
-  const start = Date.now();
-  const pruefung = repeatIfCondition(
-    () => {
-      const grund = amz_fehlerseitenGrund();
-      if (!grund) {
-        if (Date.now() - start > AMZ_FEHLER_FRIST_MS) pruefung.delete();
-        return;
-      }
-      pruefung.delete();
-      sessionStorage.setItem(schluessel, String(Date.now()));
-      console.info(
-        yellow(`Prime-Fehlerseite erkannt (${grund}) -- lade ohne Parameter neu`),
-      );
-      location.replace(location.origin + location.pathname);
-    },
-    () => true,
-    { interval: 300, pauseInBg: false },
+  const grund = amz_fehlerseitenGrund();
+  if (!grund) return;
+
+  sessionStorage.setItem(schluessel, String(Date.now()));
+  console.info(
+    yellow(`Prime-Fehlerseite erkannt (${grund}) -- lade ohne Parameter neu`),
   );
+  location.replace(location.origin + location.pathname);
+}
+
+/**
+ * Beobachter statt Intervall: Klickt Daniel in der Trefferliste auf einen Titel, tauscht Prime
+ * Video nur den Inhalt aus und schiebt die neue Adresse per pushState nach -- das Dokument
+ * bleibt dasselbe, fixAmazon() laeuft also kein zweites Mal (gemessen 28.08.2026 am
+ * DOM-Auszug: Adresse /gp/video/detail/..., Dokument aber weiterhin die Suchseite,
+ * data-cu-injected stand bereits). Eine Pruefung nur beim Laden verpasst diesen Fall
+ * vollstaendig. pushState laesst sich aus einem Content-Skript nicht abfangen -- es lebt in
+ * einer eigenen JS-Welt --, der ausgetauschte Baum dagegen schon.
+ */
+function amz_beobachteFehlerseite() {
+  if (_amzFehlerBeobachter) return;
+  _amzFehlerBeobachter = new MutationObserver(() => {
+    if (_amzPruefungGeplant) return;
+    const wartezeit = Math.max(
+      0,
+      AMZ_PRUEF_TAKT_MS - (Date.now() - _amzLetztePruefung),
+    );
+    // nachlaufend statt verwerfend: die Aenderung, die die Fehlerseite bringt, ist oft die
+    // letzte einer Serie -- ein verworfener Aufruf waere genau der entscheidende
+    _amzPruefungGeplant = setTimeout(() => {
+      _amzPruefungGeplant = null;
+      _amzLetztePruefung = Date.now();
+      amz_pruefeFehlerseite();
+    }, wartezeit);
+  });
+  _amzFehlerBeobachter.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function fixAmazonErrorRetry() {
+  if (!isAllowed(userOptions.amazon.featureRetryErrorPage.isEnabled)) return;
+  amz_pruefeFehlerseite();
+  amz_beobachteFehlerseite();
 }
 // Amazon-Bug (Prime Video, 27.08.2026): Zeigt die Maus auf eine Kachel, vergroessert Amazon sie.
 // Am rechten Rand ragt sie damit ueber das Dokument hinaus, ein waagerechter Scrollbalken
@@ -6807,7 +6842,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.3",
+  version: "1.7.4.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -29,6 +29,24 @@ Faustregeln für das Muster:
 Gegenprüfen lässt sich das Ganze, indem man je eine Beispiel-URL pro Matcher gegen die Muster
 hält — genau so wurde die Umstellung am 22.08.2026 abgenommen.
 
+### Eine Prüfung beim Laden verpasst jede SPA-Navigation
+
+Netflix, Crunchyroll, ADN und Prime Video tauschen bei einem Klick nur den Inhalt aus und
+schieben die neue Adresse per `pushState` nach. Das Dokument bleibt dasselbe, `fixX()` läuft
+also **kein zweites Mal** — eine Prüfung, die nur beim Laden stattfindet, sieht die neue Seite
+nie. Belegt am 28.08.2026: Prime Videos Fehlerseite ("Da ist etwas schief gelaufen") erschien
+unter `/gp/video/detail/…`, das Dokument war laut DOM-Auszug aber weiterhin die Suchseite
+(`DVWebNode.pageType='ATVSearch'`, `data-cu-injected` stand schon).
+
+`pushState` lässt sich aus einem Content-Skript **nicht** abfangen: Die Seite ruft es in ihrer
+eigenen JS-Welt auf, unser `history` ist nur eine andere Hülle. Was bleibt, ist der
+ausgetauschte Baum — ein `MutationObserver` auf `document.body`, gebremst auf ein paar hundert
+Millisekunden. **Nachlaufend bremsen, nicht verwerfen:** die Änderung, die den gesuchten
+Zustand bringt, ist oft die letzte einer Serie.
+
+Und: Jede Bedingung wird **in** der Prüfung ausgewertet, nicht einmal beim Start. Pfad und
+Parameter ändern sich unter dem laufenden Skript.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

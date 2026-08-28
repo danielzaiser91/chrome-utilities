@@ -4185,22 +4185,16 @@ const AMZ_FEHLER_FRIST_MS = 8000;
 // beantwortet. Kurz gehalten, damit ein spaeterer Aufruf desselben Titels wieder repariert
 // wird statt fuer die ganze Sitzung gesperrt zu bleiben.
 const AMZ_RETRY_SPERRE_MS = 30000;
-// Semantische Marker zuerst: die sagen unabhaengig von der Sprache, dass hier eine
-// Fehlerseite steht.
+// Amazon benennt den Fehlerabschnitt selbst -- gemessen am DOM der Fehlerseite (28.08.2026):
+// <section data-automation-id="wspa-error" data-testid="wspa-error">. Das ist unabhaengig von
+// der Spracheinstellung und braucht keinen Textvergleich. Die allgemeineren Muster dahinter
+// fangen benachbarte Fehlerseiten mit anderem Namen mit ab.
 const AMZ_FEHLER_MARKER = [
+  '[data-automation-id="wspa-error"]',
+  '[data-testid="wspa-error"]',
   '[data-automation-id*="error" i]',
   '[data-testid*="error" i]',
-  '[class*="error-page" i]',
-  '[class*="errorpage" i]',
-  '[id*="error-page" i]',
 ].join(", ");
-// Rueckfallebene, bis die Fehlerseite einmal als DOM-Auszug vorlag: ihre Ueberschrift. Text
-// ist die schlechtere Bedingung, deshalb steht sie hinten -- und sie kostet wenig, weil ein
-// Fehlgriff hier nur bedeutet, dass eine Seite einmal ohne ihre Parameter neu laedt.
-const AMZ_FEHLER_TEXTE = [
-  "da ist etwas schief gelaufen",
-  "something went wrong",
-];
 
 /** @returns {string | null} Grund, warum das hier als Fehlerseite gilt -- null, wenn nicht. */
 function amz_fehlerseitenGrund() {
@@ -4210,14 +4204,11 @@ function amz_fehlerseitenGrund() {
   const marker = Array.from(queryAll(AMZ_FEHLER_MARKER)).find(
     (el) => el.offsetParent !== null,
   );
-  if (marker) return `Marker ${marker.tagName.toLowerCase()}.${marker.className}`;
-
-  const ueberschrift = Array.from(queryAll("h1, h2")).find(
-    (el) =>
-      el.offsetParent !== null &&
-      AMZ_FEHLER_TEXTE.some((t) => el.textContent.toLowerCase().includes(t)),
-  );
-  if (ueberschrift) return `Ueberschrift "${ueberschrift.textContent.trim()}"`;
+  if (marker) {
+    const name =
+      marker.dataset.automationId || marker.dataset.testid || marker.className;
+    return `Marker ${name}`;
+  }
 
   return null;
 }
@@ -6816,7 +6807,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.2",
+  version: "1.7.2.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -4165,9 +4165,91 @@ function fixAmazon() {
   // feature: work around Amazon's own bug where hovering a card grows it past the right
   // edge and makes a horizontal scrollbar flicker in and out
   fixAmazonHoverScrollbar();
+
+  // feature: reload a broken detail page once without its URL parameters
+  fixAmazonErrorRetry();
 }
 
 
+
+// Amazon-Bug (Prime Video, 28.08.2026): Eine Detailseite, die mit Suchparametern aufgerufen
+// wird (qid, pageTypeId, ref_, sr -- so verlinkt Amazon aus seinen eigenen Trefferlisten),
+// zeigt zeitweise nur noch "Da ist etwas schief gelaufen." Dieselbe Adresse ohne Parameter
+// laedt sofort. Also genau das: einmal auf die nackte Adresse wechseln.
+// location.replace statt href, damit der Zurueck-Knopf nicht auf die kaputte Seite zeigt.
+const AMZ_DETAIL_PFAD = "/gp/video/detail/";
+// Wie lange nach dem Laden auf den Fehler gewartet wird -- die Seite rendert clientseitig,
+// der Fehler steht also nicht sofort im DOM.
+const AMZ_FEHLER_FRIST_MS = 8000;
+// Sperre gegen eine Schleife, falls Amazon die nackte Adresse wieder mit Parametern
+// beantwortet. Kurz gehalten, damit ein spaeterer Aufruf desselben Titels wieder repariert
+// wird statt fuer die ganze Sitzung gesperrt zu bleiben.
+const AMZ_RETRY_SPERRE_MS = 30000;
+// Semantische Marker zuerst: die sagen unabhaengig von der Sprache, dass hier eine
+// Fehlerseite steht.
+const AMZ_FEHLER_MARKER = [
+  '[data-automation-id*="error" i]',
+  '[data-testid*="error" i]',
+  '[class*="error-page" i]',
+  '[class*="errorpage" i]',
+  '[id*="error-page" i]',
+].join(", ");
+// Rueckfallebene, bis die Fehlerseite einmal als DOM-Auszug vorlag: ihre Ueberschrift. Text
+// ist die schlechtere Bedingung, deshalb steht sie hinten -- und sie kostet wenig, weil ein
+// Fehlgriff hier nur bedeutet, dass eine Seite einmal ohne ihre Parameter neu laedt.
+const AMZ_FEHLER_TEXTE = [
+  "da ist etwas schief gelaufen",
+  "something went wrong",
+];
+
+/** @returns {string | null} Grund, warum das hier als Fehlerseite gilt -- null, wenn nicht. */
+function amz_fehlerseitenGrund() {
+  const navigation = performance.getEntriesByType?.("navigation")?.[0];
+  if (navigation?.responseStatus >= 400) return `HTTP ${navigation.responseStatus}`;
+
+  const marker = Array.from(queryAll(AMZ_FEHLER_MARKER)).find(
+    (el) => el.offsetParent !== null,
+  );
+  if (marker) return `Marker ${marker.tagName.toLowerCase()}.${marker.className}`;
+
+  const ueberschrift = Array.from(queryAll("h1, h2")).find(
+    (el) =>
+      el.offsetParent !== null &&
+      AMZ_FEHLER_TEXTE.some((t) => el.textContent.toLowerCase().includes(t)),
+  );
+  if (ueberschrift) return `Ueberschrift "${ueberschrift.textContent.trim()}"`;
+
+  return null;
+}
+
+function fixAmazonErrorRetry() {
+  if (!isAllowed(userOptions.amazon.featureRetryErrorPage.isEnabled)) return;
+  if (!location.pathname.startsWith(AMZ_DETAIL_PFAD)) return;
+  if (!location.search) return; // ohne Parameter gibt es nichts abzuschneiden
+
+  const schluessel = "cu_amz_retry_" + location.pathname;
+  const letzterVersuch = Number(sessionStorage.getItem(schluessel)) || 0;
+  if (Date.now() - letzterVersuch < AMZ_RETRY_SPERRE_MS) return;
+
+  const start = Date.now();
+  const pruefung = repeatIfCondition(
+    () => {
+      const grund = amz_fehlerseitenGrund();
+      if (!grund) {
+        if (Date.now() - start > AMZ_FEHLER_FRIST_MS) pruefung.delete();
+        return;
+      }
+      pruefung.delete();
+      sessionStorage.setItem(schluessel, String(Date.now()));
+      console.info(
+        yellow(`Prime-Fehlerseite erkannt (${grund}) -- lade ohne Parameter neu`),
+      );
+      location.replace(location.origin + location.pathname);
+    },
+    () => true,
+    { interval: 300, pauseInBg: false },
+  );
+}
 // Amazon-Bug (Prime Video, 27.08.2026): Zeigt die Maus auf eine Kachel, vergroessert Amazon sie.
 // Am rechten Rand ragt sie damit ueber das Dokument hinaus, ein waagerechter Scrollbalken
 // erscheint -- und verschwindet wieder, sobald die Maus die Kachel verlaesst. Die Seite
@@ -6734,7 +6816,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.1",
+  version: "1.7.2.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7102,6 +7184,19 @@ let userOptions = {
               "will click the next episode button immidiatly for you",
           },
         },
+      },
+    },
+    featureRetryErrorPage: {
+      featureName: "Broken detail page",
+      featureCategory: "Website bug",
+      featureDescription:
+        "Opening a title from a search result sometimes shows only \"Something went wrong\". The " +
+        "same address without its parameters loads fine, so the page is reloaded once without " +
+        "them.",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "reload a broken detail page once without URL parameters",
       },
     },
     featureHoverScrollbar: {

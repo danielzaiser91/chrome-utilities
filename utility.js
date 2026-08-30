@@ -4181,10 +4181,13 @@ const AMZ_DETAIL_PFAD = "/gp/video/detail/";
 // Kleinster Abstand zwischen zwei Pruefungen. Amazon aendert bei jedem Karussell-Schritt den
 // Baum; ohne Bremse liefe die Pruefung hunderte Male je Sekunde.
 const AMZ_PRUEF_TAKT_MS = 300;
-// Sperre gegen eine Schleife, falls Amazon die nackte Adresse wieder mit Parametern
-// beantwortet. Kurz gehalten, damit ein spaeterer Aufruf desselben Titels wieder repariert
-// wird statt fuer die ganze Sitzung gesperrt zu bleiben.
-const AMZ_RETRY_SPERRE_MS = 30000;
+// Bremse gegen eine Schleife, falls Amazon die nackte Adresse wieder mit Parametern
+// beantwortet: hoechstens zwei Versuche je Adresse. Gezaehlt wird je Pfad UND Parametern --
+// ein neuer Klick auf denselben Titel bringt neue Parameter (qid, ref_) und wird deshalb
+// sofort wieder repariert. Eine Wartezeit gibt es bewusst nicht mehr: die frueheren 30
+// Sekunden je Pfad haben Daniel am 29.08.2026 einen zweiten Aufruf desselben Titels genau so
+// lange auf der kaputten Seite sitzen lassen.
+const AMZ_RETRY_MAX = 2;
 // Amazon benennt den Fehlerabschnitt selbst -- gemessen am DOM der Fehlerseite (28.08.2026):
 // <section data-automation-id="wspa-error" data-testid="wspa-error">. Das ist unabhaengig von
 // der Spracheinstellung und braucht keinen Textvergleich. Die allgemeineren Muster dahinter
@@ -4226,14 +4229,14 @@ function amz_pruefeFehlerseite() {
   if (!location.pathname.startsWith(AMZ_DETAIL_PFAD)) return;
   if (!location.search) return; // ohne Parameter gibt es nichts abzuschneiden
 
-  const schluessel = "cu_amz_retry_" + location.pathname;
-  const letzterVersuch = Number(sessionStorage.getItem(schluessel)) || 0;
-  if (Date.now() - letzterVersuch < AMZ_RETRY_SPERRE_MS) return;
+  const schluessel = "cu_amz_retry_" + location.pathname + location.search;
+  const versuche = Number(sessionStorage.getItem(schluessel)) || 0;
+  if (versuche >= AMZ_RETRY_MAX) return;
 
   const grund = amz_fehlerseitenGrund();
   if (!grund) return;
 
-  sessionStorage.setItem(schluessel, String(Date.now()));
+  sessionStorage.setItem(schluessel, String(versuche + 1));
   console.info(
     yellow(`Prime-Fehlerseite erkannt (${grund}) -- lade ohne Parameter neu`),
   );
@@ -6842,7 +6845,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.4.0",
+  version: "1.7.4.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -398,6 +398,7 @@ const CU_SWITCH_HEIGHT = 20;
 // most sites ("netflix", "youtube") but not for acronyms
 const siteDisplayNames = {
   adn: "ADN",
+  voe: "VOE",
 };
 function getSiteDisplayName(site) {
   return siteDisplayNames[site] ?? site;
@@ -439,6 +440,8 @@ const svg = {
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#2b6cb0"/><text x="30" y="40" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#fff" text-anchor="middle">LV</text></svg>',
   filemoon:
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#0f172a"/><path d="M38 18a15 15 0 1 0 0 24 12 12 0 1 1 0-24z" fill="#facc15"/></svg>',
+  voe:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#1d4ed8"/><path d="M24 19l18 11-18 11z" fill="#fff"/></svg>',
 };
 function prepareActionBar() {
   if (Interval.exists("_prepareActionBar")) return;
@@ -1484,6 +1487,7 @@ function websiteSelector() {
     new Matcher("google.com/", fixGoogle),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
+    new Matcher("johnfullwonder.com", fixVoe, true, "voe", true),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
@@ -1961,6 +1965,16 @@ function fixFilemoon() {
     () => query("video"),
     { interval: 1000, pauseInBg: false },
   );
+}
+
+// ----
+// VOE-Player (johnfullwonder.com/e/...), eingebettet u. a. auf serienstream.to
+// ---
+// VOE wechselt seine Player-Domains laufend. Taucht der Player unter einer neuen Adresse
+// auf, braucht es nur deren Muster in manifest.json und einen weiteren Matcher mit site "voe"
+// -- die Einstellung bleibt dieselbe.
+function fixVoe() {
+  _init_set_video_rate_repeater__generic();
 }
 
 // ----
@@ -6845,7 +6859,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.7.4.1",
+  version: "1.8.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7119,6 +7133,27 @@ let userOptions = {
             min: 0.2,
             max: 5,
             step: 0.1,
+          },
+        },
+      },
+    },
+  },
+  voe: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
           },
         },
       },

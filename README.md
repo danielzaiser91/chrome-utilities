@@ -2,7 +2,7 @@
 
 A browser extension that adds quality-of-life improvements to a variety of websites — auto-skipping intros, custom playback speeds, UI fixes, and more.
 
-> Current version: **v1.5.0** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
+> Current version: **v1.7.3** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
 
 ---
 
@@ -60,8 +60,8 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 ### DS3 Cheat Sheet
 - Dark mode
 
-### luluvdo / Filemoon
-- Custom playback speed (0.2×–5×)
+### luluvdo / Filemoon / VOE
+- Custom playback speed (0.2×–5×), also when the player is embedded on another site (e.g. VOE on serienstream.to)
 
 ---
 

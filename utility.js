@@ -1487,7 +1487,7 @@ function websiteSelector() {
     new Matcher("google.com/", fixGoogle),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
-    new Matcher("johnfullwonder.com", fixVoe, true, "voe", true),
+    ...VOE_HOSTS.map((host) => new Matcher(host, fixVoe, true, "voe", true)),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
@@ -1968,11 +1968,14 @@ function fixFilemoon() {
 }
 
 // ----
-// VOE-Player (johnfullwonder.com/e/...), eingebettet u. a. auf serienstream.to
+// VOE-Player (<domain>/e/<id>), eingebettet u. a. auf serienstream.to
 // ---
-// VOE wechselt seine Player-Domains laufend. Taucht der Player unter einer neuen Adresse
-// auf, braucht es nur deren Muster in manifest.json und einen weiteren Matcher mit site "voe"
-// -- die Einstellung bleibt dieselbe.
+// VOE wechselt seine Player-Domains laufend -- johnfullwonder.com am 16.09.2026,
+// katherineschoolphone.com am 17.09.2026. Eine Domain dazu heisst: hier eintragen UND als
+// "*://*.<domain>/*" in manifest.json. Ohne das Manifest-Muster laedt Chrome das Skript im
+// iframe gar nicht erst. Alte Domains bleiben stehen, VOE verteilt Folgen offenbar ueber
+// mehrere gleichzeitig.
+const VOE_HOSTS = ["johnfullwonder.com", "katherineschoolphone.com"];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
 }
@@ -6859,7 +6862,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.8.0",
+  version: "1.8.1.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

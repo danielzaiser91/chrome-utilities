@@ -1975,6 +1975,10 @@ function fixFilemoon() {
 // "*://*.<domain>/*" in manifest.json. Ohne das Manifest-Muster laedt Chrome das Skript im
 // iframe gar nicht erst. Alte Domains bleiben stehen, VOE verteilt Folgen offenbar ueber
 // mehrere gleichzeitig.
+// Domainunabhaengig erkennbar waere der Player am Inhalt (gemessen 17.09.2026):
+// <meta name="keywords" content="VOE"> und ein JW Player (div.jwplayer). Das hilft aber nur,
+// wenn die Erweiterung auf der Domain ueberhaupt geladen wird -- und das entscheidet Chrome
+// allein am Manifest. Warum die Liste trotzdem bleibt: CLAUDE.md, "VOE-Domains".
 const VOE_HOSTS = ["johnfullwonder.com", "katherineschoolphone.com"];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();

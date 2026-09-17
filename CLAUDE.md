@@ -47,6 +47,22 @@ Zustand bringt, ist oft die letzte einer Serie.
 Und: Jede Bedingung wird **in** der Prüfung ausgewertet, nicht einmal beim Start. Pfad und
 Parameter ändern sich unter dem laufenden Skript.
 
+### VOE-Domains: Liste statt Zugriff auf alle Websites
+
+VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
+katherineschoolphone.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
+`manifest.json`.
+
+Geprüft und verworfen am 17.09.2026: den Player am Inhalt erkennen (`meta[name=keywords]`
+= "VOE") und dafür per Schalter auf der Einstellungsseite optional Zugriff auf alle Websites
+anfragen. Das wäre die einzige Bauweise, die jede künftige Domain ohne Update abdeckt —
+Chrome lädt ein Content-Skript nur dort, wo eine Host-Berechtigung besteht, ein Merkmal im
+HTML ändert daran nichts. Daniel hat sich für die Liste entschieden. Neu bewerten, wenn die
+Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage.
+
+Nebenwirkung der Liste: Einstellungen liegen im `localStorage` der jeweiligen Domain. Auf
+einer neuen VOE-Domain startet die Geschwindigkeit deshalb wieder bei 1.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

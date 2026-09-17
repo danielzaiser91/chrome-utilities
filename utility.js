@@ -1479,7 +1479,7 @@ function intervalHandler() {
   window.addEventListener("beforeunload", whenLeavingTab, { capture: true });
   document.addEventListener("mouseleave", whenMouseLeavesWindow);
   window.addEventListener("focus", whenFocusingTab);
-  document.body.addEventListener('mouseenter', () => whenFocusingTab);
+  document.body?.addEventListener('mouseenter', () => whenFocusingTab);
 }
 function whenMouseLeavesWindow() {
   console.info(red("Mouse is Leaving Browser-Window"));
@@ -1806,13 +1806,10 @@ function _init_set_video_rate_repeater__generic() {
       const hasVideosAtDifferentRate = !videoEls.every(
         (video) => video.playbackRate === getUserRate(),
       );
-      if (allowed) {
-        // add class
-        document.body.classList.add("cu-generic-playbackrate-allowed");
-      } else {
-        // remove class
-        document.body.classList.remove("cu-generic-playbackrate-allowed");
-      }
+      // body kann fehlen: VOE tauscht im Player-iframe das Dokument aus, und fuer einen Moment
+      // gibt es kein body -- document.body.classList warf dann jede Sekunde einen TypeError
+      // (Chrome-Fehlerliste, serienstream.to, 17.09.2026)
+      document.body?.classList.toggle("cu-generic-playbackrate-allowed", allowed);
       return allowed && hasVideosAtDifferentRate;
     },
     { pauseInBg: false, interval: 1000 },
@@ -6919,7 +6916,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.8.1",
+  version: "1.8.1.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

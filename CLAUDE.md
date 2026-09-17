@@ -68,12 +68,12 @@ in `GEMEINSAM_GESPEICHERT`. Fehlt `chrome.storage`, bleibt es beim `localStorage
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 
- → Fehler nennt die Zeilennummer der Fassung, die beim Auftreten geladen
+`chrome://extensions` → Fehler nennt die Zeilennummer der Fassung, die beim Auftreten geladen
 war, zeigt den Quelltext aber aus der **aktuellen** Datei auf der Platte. Liegen Änderungen
 dazwischen, steht dort eine unbeteiligte Zeile (17.09.2026: „reading 'classList'“ zeigte auf
-). Die Zeile deshalb in der Fassung nachsehen, die lief:
-. Der Name im Stack
-() hilft beim Eingrenzen mehr als die Nummer.
+`playbackSettings.prepend(...)`). Die Zeile deshalb in der Fassung nachsehen, die lief, etwa
+`git show v1.8.0:utility.js | sed -n '1758p'`. Der Name im Stack
+(`repeatIfCondition.pauseInBg`) hilft beim Eingrenzen mehr als die Nummer.
 
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten

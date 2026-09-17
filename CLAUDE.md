@@ -66,6 +66,15 @@ einer Domain, im iframe sogar nur der Kombination aus umgebender Seite und Domai
 VOE-Domain fing damit bei Geschwindigkeit 1 an. Weitere Seiten mit wechselnden Domains kommen
 in `GEMEINSAM_GESPEICHERT`. Fehlt `chrome.storage`, bleibt es beim `localStorage`.
 
+### Chromes Fehlerliste zeigt die falsche Zeile
+
+ → Fehler nennt die Zeilennummer der Fassung, die beim Auftreten geladen
+war, zeigt den Quelltext aber aus der **aktuellen** Datei auf der Platte. Liegen Änderungen
+dazwischen, steht dort eine unbeteiligte Zeile (17.09.2026: „reading 'classList'“ zeigte auf
+). Die Zeile deshalb in der Fassung nachsehen, die lief:
+. Der Name im Stack
+() hilft beim Eingrenzen mehr als die Nummer.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

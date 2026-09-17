@@ -1365,6 +1365,8 @@ function loadUserSettings() {
     window.localStorage.removeItem('Chrome:Utility:userOptions');
   }
 
+  _ladeGemeinsam(site);
+
   let stored;
   try { stored = JSON.parse(window.localStorage.getItem('cu:opts')); } catch {}
   if (!stored) return;
@@ -1375,6 +1377,49 @@ function loadUserSettings() {
   // extension auto-updated, unless something happened to trigger a save before the tab closed.
   const { version, ...storedSite } = stored;
   _mergeSiteValues(site, storedSite);
+}
+
+// Seiten, deren Player unter wechselnden Domains laeuft, speichern im Speicher der Erweiterung
+// statt im localStorage der Seite. Der localStorage gehoert einer Domain -- im iframe sogar nur
+// der Kombination aus umgebender Seite und Domain --, jede neue VOE-Domain fing deshalb wieder
+// bei Geschwindigkeit 1 an (Daniel, 17.09.2026). chrome.storage.local teilen sich alle Tabs und
+// Frames der Erweiterung; die Berechtigung "storage" kommt ohne Warnhinweis.
+const GEMEINSAM_GESPEICHERT = new Set(["voe"]);
+let _gemeinsamGeladen = false;
+
+function _gemeinsamerSpeicher(site) {
+  // globalThis.chrome statt chrome: fehlt die Erweiterungs-API ganz (fremder Browser, Skript
+  // ausserhalb der Erweiterung), waere ein nacktes chrome ein ReferenceError. Dann bleibt es
+  // beim localStorage der Domain wie bis v1.8.0.
+  return GEMEINSAM_GESPEICHERT.has(site) ? globalThis.chrome?.storage?.local ?? null : null;
+}
+
+function _ladeGemeinsam(site) {
+  const speicher = _gemeinsamerSpeicher(site);
+  if (!speicher) return;
+  const schluessel = "cu:opts:" + site;
+  // Rueckruf statt Promise: beides kann Chrome, der Rueckruf laeuft aber auch in Browsern, deren
+  // chrome.*-Namensraum keine Promises liefert.
+  speicher.get(schluessel, (daten = {}) => {
+    _gemeinsamGeladen = true;
+    const stored = daten[schluessel];
+    if (!stored) {
+      // Uebernahme: v1.8.0 hat VOE noch im localStorage der Domain gespeichert, dieser Wert steht
+      // schon in userOptions. Befristet (17.09.2026) -- entfernen, sobald v1.8.0 ein paar Wochen
+      // abgeloest ist; danach reicht der Standardwert.
+      saveUserSettings();
+      return;
+    }
+    const { version, ...storedSite } = stored;
+    _mergeSiteValues(site, storedSite);
+  });
+  // Andere Tabs und Frames aendern den Wert -- sofort uebernehmen. Ohne das schriebe ein altes
+  // Fenster beim Verlassen (whenLeavingTab speichert) seinen veralteten Wert zurueck.
+  globalThis.chrome.storage.onChanged?.addListener((aenderungen, bereich) => {
+    if (bereich !== "local" || !aenderungen[schluessel]?.newValue) return;
+    const { version, ...storedSite } = aenderungen[schluessel].newValue;
+    _mergeSiteValues(site, storedSite);
+  });
 }
 
 function _mergeSiteValues(site, storedSite) {
@@ -1412,7 +1457,15 @@ function _saveSiteValues(site, siteOpts, version) {
       }
     });
   });
-  window.localStorage.setItem('cu:opts', JSON.stringify(toSave));
+  const speicher = _gemeinsamerSpeicher(site);
+  if (!speicher) {
+    window.localStorage.setItem('cu:opts', JSON.stringify(toSave));
+    return;
+  }
+  // vor dem ersten Laden nicht schreiben -- sonst ueberschreibt ein frisch geoeffneter Player,
+  // dessen Maus das Fenster verlaesst, den gemeinsamen Wert mit seinem Standardwert
+  if (!_gemeinsamGeladen) return;
+  speicher.set({ ["cu:opts:" + site]: toSave });
 }
 
 function saveUserSettings() {
@@ -6866,7 +6919,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.8.1.0",
+  version: "1.8.1.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

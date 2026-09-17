@@ -1,7 +1,4 @@
 # TODO
-- 💡 VOE-Geschwindigkeit domainübergreifend speichern (chrome.storage statt localStorage der
-  jeweiligen Domain) — sonst startet jede neue VOE-Domain wieder bei 1. Braucht die
-  Berechtigung "storage" (ohne Warnhinweis). Notiert 17.09.2026.
 
 <!-- Done: GeoGuessr-Scrollbalken, 20.08.2026 -- zweiter Anlauf, diesmal getroffen.
      Ursache: die Intro-Animation "dc-intro-rays" bewegt ein Sternenfeld per transform. Das

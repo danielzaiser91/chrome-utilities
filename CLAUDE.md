@@ -60,8 +60,11 @@ Chrome lädt ein Content-Skript nur dort, wo eine Host-Berechtigung besteht, ein
 HTML ändert daran nichts. Daniel hat sich für die Liste entschieden. Neu bewerten, wenn die
 Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage.
 
-Nebenwirkung der Liste: Einstellungen liegen im `localStorage` der jeweiligen Domain. Auf
-einer neuen VOE-Domain startet die Geschwindigkeit deshalb wieder bei 1.
+Einstellungen: VOE speichert seit 17.09.2026 in `chrome.storage.local` unter `cu:opts:voe`
+(Berechtigung `storage`, ohne Warnhinweis), nicht im `localStorage` der Domain. Der gehört
+einer Domain, im iframe sogar nur der Kombination aus umgebender Seite und Domain; jede neue
+VOE-Domain fing damit bei Geschwindigkeit 1 an. Weitere Seiten mit wechselnden Domains kommen
+in `GEMEINSAM_GESPEICHERT`. Fehlt `chrome.storage`, bleibt es beim `localStorage`.
 
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten

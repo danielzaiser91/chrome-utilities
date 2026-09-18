@@ -2087,6 +2087,10 @@ function fixVoe() {
 // ----
 // toggo.de
 // ---
+// TOGGO selbst (nicht die Erweiterung, 19.09.2026 von Daniel bemerkt): Nach einem Neuladen
+// einer Folge spielt der Player nicht, er zeigt endlos den Ladekreis. Nur aus der Uebersicht
+// heraus gestartete Folgen laufen. Wer das Fortsetzen testet, oeffnet die Folge deshalb ueber
+// die Uebersicht, nicht per Neuladen.
 const TOGGO_SITE = "toggo";
 
 function fixToggo() {

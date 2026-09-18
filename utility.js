@@ -2104,8 +2104,45 @@ function fixToggo() {
     getTitle: toggo_getEpisodeTitle,
     getSeries: toggo_getSeriesTitle,
   });
-  cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
+  cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")], toggo_spiegleLautstaerke);
+  const gemerkt = cu_readVolume(TOGGO_SITE);
+  if (gemerkt && isAllowed(userOptions[TOGGO_SITE].featureRememberVolume.isEnabled))
+    toggo_spiegleLautstaerke(gemerkt);
+  toggo_uiInFokusfalle();
   cu_diagnose(TOGGO_SITE);
+}
+
+// TOGGO merkt sich die Lautstaerke selbst unter localStorage "playerVolume" als
+// { level, muted } und stellt beim Start Player UND Slider danach ein, ohne Eintrag auf 0,5
+// (gelesen im Bundle main.*.js, 19.09.2026: fe("playerVolume"), Rueckfall .5). Geschrieben wird
+// der Eintrag dort nur unter einer Bedingung, die bei Daniel nie eintrat -- deshalb stand der
+// Slider auf 0,5, obwohl das Video nach unserer Korrektur auf dem gemerkten Wert lief.
+// Mitschreiben laesst beide von Anfang an auf unserem Wert starten.
+function toggo_spiegleLautstaerke({ volume, muted }) {
+  localStorage.setItem("playerVolume", JSON.stringify({ level: muted ? 0 : volume, muted }));
+}
+
+// Die Serienuebersicht ist ein Modal mit focus-trap (Bibliothek im Bundle, 19.09.2026): Sie
+// schluckt jeden Klick ausserhalb ihres Containers in der Capture-Phase am document
+// (preventDefault + stopImmediatePropagation) und holt den Fokus zurueck. Zahnrad, Checkboxen
+// und Eingabefelder der Erweiterung waren damit tot. Gemessen: Haengt unsere Oberflaeche im
+// Overlay-Element, gilt sie als "innen" und alles funktioniert; das Modal bleibt offen.
+// Schliesst TOGGO das Modal, nimmt React das Overlay samt unserer Knoten mit -- der Observer
+// haengt sie sofort (Microtask, vor jedem Intervall) wieder an body, sonst baute
+// prepareActionBar eine zweite Leiste.
+function toggo_uiInFokusfalle() {
+  let eigene = [];
+  const umhaengen = () => {
+    const gefunden = [...document.querySelectorAll(".cu-settings, .cu-actions-container")];
+    if (gefunden.length) eigene = gefunden;
+    const ziel =
+      document.querySelector('#modal-root [class*="StyledOverlay-"]') ?? document.body;
+    eigene.forEach((el) => {
+      if (el.parentElement !== ziel) ziel.appendChild(el);
+    });
+  };
+  new MutationObserver(umhaengen).observe(document.body, { childList: true, subtree: true });
+  umhaengen();
 }
 
 function toggo_getEpisodeUrl() {
@@ -3396,7 +3433,9 @@ function cu_volumeWeichtAb(video, gemerkt) {
   return video.muted && !!navigator.userActivation?.hasBeenActive;
 }
 
-function cu_initVolumeMemory(site, getVideos) {
+/** @param {(gemerkt:{volume:number, muted:boolean})=>void} [beimSpeichern] z. B. den Wert
+ *   zusaetzlich dort ablegen, wo der Player selbst nachsieht */
+function cu_initVolumeMemory(site, getVideos, beimSpeichern) {
   const aktiv = () => isAllowed(userOptions[site].featureRememberVolume.isEnabled);
   const anwenden = (video) => {
     const gemerkt = cu_readVolume(site);
@@ -3433,10 +3472,9 @@ function cu_initVolumeMemory(site, getVideos) {
             return;
           }
           if (!uebernommen) return;
-          localStorage.setItem(
-            cu_volumeKey(site),
-            JSON.stringify({ volume: video.volume, muted: video.muted }),
-          );
+          const gemerkt = { volume: video.volume, muted: video.muted };
+          localStorage.setItem(cu_volumeKey(site), JSON.stringify(gemerkt));
+          beimSpeichern?.(gemerkt);
         });
       });
     },
@@ -7322,7 +7360,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.5",
+  version: "1.9.0.6",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

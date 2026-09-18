@@ -2128,12 +2128,20 @@ function fixToggo() {
 // Korrigiert wird erst, wenn die Abweichung zwei Takte lang unveraendert steht: Zieht der
 // Nutzer gerade selbst, bewegt sich der Griff noch (Feder-Animation), und der neue Wert landet
 // ueber volumechange ohnehin im Speicher -- ein Takt allein wuerde gegen ihn arbeiten.
+// Nur EINMAL je Slider und nur kurz nach seinem Erscheinen: TOGGOs Ruecksprung passiert beim
+// Einblenden. Spaeter (Vollbild, Groessenwechsel) kann die Griffposition kurz nicht zur
+// Spurhoehe passen; ein Klick dann oeffnete den Slider ohne Anlass (Daniel, 19.09.2026).
+const TOGGO_SLIDER_FENSTER_MS = 8000;
 function toggo_sliderNachstellen() {
   let vorher = null;
+  const gesehen = new WeakMap(); // Slider -> Zeitpunkt des Erscheinens, null = erledigt
   repeatIfCondition(
     () => {
       const gemerkt = cu_readVolume(TOGGO_SITE);
       const griff = query('[class*="RangeSlidercss__RangeSliderMain"]');
+      if (griff && !gesehen.has(griff)) gesehen.set(griff, Date.now());
+      const seit = griff && gesehen.get(griff);
+      if (!seit || Date.now() - seit > TOGGO_SLIDER_FENSTER_MS) return;
       const spur = griff?.querySelector('[class*="RangeSlidercss__RangeSliderProgress"]');
       const knopf = griff?.querySelector('[class*="RangeSlidercss__RangeSliderHandle"]');
       if (
@@ -2155,6 +2163,7 @@ function toggo_sliderNachstellen() {
       vorher = zeigt;
       if (!stabil) return;
       vorher = null;
+      gesehen.set(griff, null);
       let oben = 0;
       for (let el = spur; el; el = el.offsetParent) oben += el.offsetTop;
       const clientY = oben - window.scrollY + (1 - gemerkt.volume) * spur.offsetHeight;
@@ -7312,7 +7321,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.9",
+  version: "1.9.0.10",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

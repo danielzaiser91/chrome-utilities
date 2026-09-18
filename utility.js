@@ -2101,6 +2101,7 @@ function fixToggo() {
     getSeries: toggo_getSeriesTitle,
   });
   cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
+  cu_diagnose(TOGGO_SITE);
 }
 
 function toggo_getEpisodeUrl() {
@@ -3249,12 +3250,14 @@ function cu_initPositionMemory(site, quelle) {
     if (!Number.isFinite(video.duration) || video.duration <= 0) return;
     zustand.resumeDone = true;
     const saved = cu_readPosition(site, zustand.id)?.seconds ?? 0;
+    cu_diag({ was: "fortsetzen-pruefung", id: zustand.id, gemerkt: saved, zeit: video.currentTime, dauer: video.duration });
     if (
       saved < CU_POSITION_MIN_SECONDS ||
       saved > video.duration - CU_POSITION_END_MARGIN_SECONDS
     )
       return;
     if (Math.abs(video.currentTime - saved) <= CU_RESUME_TOLERANCE_SECONDS) return;
+    cu_diagGesetzt(video, "position-gesetzt", saved, () => video.currentTime);
     video.currentTime = saved;
   };
 
@@ -3345,7 +3348,7 @@ function cu_initVolumeMemory(site, getVideos) {
   const anwenden = (video) => {
     const gemerkt = cu_readVolume(site);
     if (!aktiv() || !gemerkt) return;
-    cu_volumeDiagnoseEigen(video, gemerkt);
+    cu_diagGesetzt(video, "lautstaerke-gesetzt", gemerkt, () => ({ volume: video.volume, muted: video.muted }));
     video.volume = gemerkt.volume;
     if (gemerkt.muted) video.muted = true;
     else if (navigator.userActivation?.hasBeenActive) video.muted = false;
@@ -3378,62 +3381,77 @@ function cu_initVolumeMemory(site, getVideos) {
     () => true,
     { interval: 500, pauseInBg: false },
   );
-  cu_volumeDiagnose(site);
 }
 
-// ── TEMP: Mitschnitt, wer die Lautstaerke wann setzt ──────────────────────────────────────
-// Eingebaut 19.09.2026, weil "Lautstaerke merken" auf TOGGO nicht griff und die Ursache nicht
-// geraten werden soll. Nur aktiv mit localStorage "cu_volume_debug" = "1" auf der Seite (in der
-// Konsole: localStorage.setItem("cu_volume_debug", "1"), dann neu laden). Zeichnet 60 s lang
-// auf und laedt dann cu-volume-diagnose.json herunter. Wieder entfernen, sobald die Ursache
-// feststeht.
-const CU_VOLUME_DIAGNOSE_MS = 60000;
-let _cuVolumeLog = null;
-let _cuVolumeStart = 0;
+// ── TEMP: Mitschnitt, was der Player mit Lautstaerke und Position macht ─────────────────────
+// Eingebaut 19.09.2026: Auf TOGGO wird die Lautstaerke richtig gemerkt, aber nicht gehalten,
+// und das Fortsetzen landet an der falschen Stelle. Statt zu raten wird mitgeschnitten.
+// Nur aktiv mit localStorage "cu_debug" = "1" auf der Seite (Konsole:
+// localStorage.setItem("cu_debug", "1"), dann neu laden). Zeichnet 90 s lang auf und laedt
+// dann cu-diagnose.json herunter. Jedes Setzen durch die Erweiterung wird festgehalten,
+// zusammen mit dem Wert, der 1 s und 3 s spaeter tatsaechlich im Player steht.
+// Wieder entfernen, sobald die Ursache feststeht.
+const CU_DIAGNOSE_MS = 90000;
+let _cuDiagLog = null;
+let _cuDiagStart = 0;
 
-function cu_volumeDiagnoseEigen(video, gemerkt) {
-  _cuVolumeLog?.push({
-    t: Date.now() - _cuVolumeStart,
-    was: "erweiterung-setzt",
-    video: video.dataset.cuDiagId ?? "?",
-    volume: gemerkt.volume,
-    muted: gemerkt.muted,
-    aktivierung: !!navigator.userActivation?.hasBeenActive,
-  });
+function cu_diag(eintrag) {
+  _cuDiagLog?.push({ t: Date.now() - _cuDiagStart, ...eintrag });
 }
 
-function cu_volumeDiagnose(site) {
+// was die Erweiterung gerade setzt, und was davon nach 1 s und 3 s noch uebrig ist
+function cu_diagGesetzt(video, was, gesetzt, lesen) {
+  if (!_cuDiagLog) return;
+  cu_diag({ was, video: video.dataset.cuDiagId ?? "?", gesetzt, vorher: lesen() });
+  [1000, 3000].forEach((ms) =>
+    setTimeout(() => cu_diag({ was: `${was}-nach-${ms}ms`, video: video.dataset.cuDiagId ?? "?", ist: lesen() }), ms),
+  );
+}
+
+function cu_diagTitel() {
+  return {
+    url: location.href,
+    titel: document.title,
+    h1: document.querySelector("h1")?.textContent?.trim()?.slice(0, 120),
+    ogTitle: document.querySelector('meta[property="og:title"]')?.content,
+  };
+}
+
+function cu_diagnose(site) {
   let aus;
   try {
-    aus = localStorage.getItem("cu_volume_debug") !== "1";
+    aus = localStorage.getItem("cu_debug") !== "1";
   } catch {
     aus = true;
   }
-  if (aus || _cuVolumeLog) return;
-  _cuVolumeLog = [];
-  _cuVolumeStart = Date.now();
-  const log = _cuVolumeLog;
-  const zeit = () => Date.now() - _cuVolumeStart;
+  if (aus || _cuDiagLog) return;
+  _cuDiagLog = [];
+  _cuDiagStart = Date.now();
   const speicherMitVol = () => {
     const funde = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (/vol|mute|sound/i.test(k)) funde[k] = localStorage.getItem(k)?.slice(0, 200);
+      if (/vol|mute|sound|pos|time|resume/i.test(k)) funde[k] = localStorage.getItem(k)?.slice(0, 200);
     }
     return funde;
   };
-  log.push({ t: 0, was: "start", url: location.href, gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol() });
+  cu_diag({ was: "start", ...cu_diagTitel(), gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol() });
 
   let naechsteId = 0;
-  const ereignisse = ["loadstart", "emptied", "loadedmetadata", "playing", "pause", "ended", "volumechange"];
+  let letzteAdresse = location.href;
+  const ereignisse = ["loadstart", "emptied", "loadedmetadata", "canplay", "playing", "pause", "seeking", "seeked", "ended", "volumechange"];
   const beobachten = () => {
+    if (location.href !== letzteAdresse) {
+      letzteAdresse = location.href;
+      cu_diag({ was: "adresse", ...cu_diagTitel() });
+    }
     document.querySelectorAll("video").forEach((video) => {
       if (video.dataset.cuDiagId) return;
       video.dataset.cuDiagId = String(naechsteId++);
-      log.push({ t: zeit(), was: "neues-video", video: video.dataset.cuDiagId, src: (video.currentSrc || video.src || "").slice(0, 120), volume: video.volume, muted: video.muted, paused: video.paused });
+      cu_diag({ was: "neues-video", video: video.dataset.cuDiagId, src: (video.currentSrc || video.src || "").slice(0, 120), volume: video.volume, muted: video.muted, paused: video.paused, zeit: video.currentTime, dauer: video.duration });
       ereignisse.forEach((typ) =>
         video.addEventListener(typ, () =>
-          log.push({ t: zeit(), was: typ, video: video.dataset.cuDiagId, volume: video.volume, muted: video.muted, src: typ === "loadstart" ? (video.currentSrc || video.src || "").slice(0, 120) : undefined }),
+          cu_diag({ was: typ, video: video.dataset.cuDiagId, volume: video.volume, muted: video.muted, zeit: Math.round(video.currentTime * 10) / 10, dauer: video.duration, src: typ === "loadstart" ? (video.currentSrc || video.src || "").slice(0, 120) : undefined }),
         ),
       );
     });
@@ -3443,15 +3461,15 @@ function cu_volumeDiagnose(site) {
 
   setTimeout(() => {
     clearInterval(takt);
-    log.push({ t: zeit(), was: "ende", gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol(), videos: document.querySelectorAll("video").length });
-    const blob = new Blob([JSON.stringify(log, null, 1)], { type: "application/json" });
+    cu_diag({ was: "ende", ...cu_diagTitel(), gemerkt: cu_readVolume(site), gemerktePositionen: cu_listPositions(site), seitenSpeicher: speicherMitVol(), videos: document.querySelectorAll("video").length });
+    const blob = new Blob([JSON.stringify(_cuDiagLog, null, 1)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "cu-volume-diagnose.json";
+    a.download = "cu-diagnose.json";
     document.body.appendChild(a);
     a.click();
     a.remove();
-  }, CU_VOLUME_DIAGNOSE_MS);
+  }, CU_DIAGNOSE_MS);
 }
 
 // ---
@@ -7242,7 +7260,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.3",
+  version: "1.9.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

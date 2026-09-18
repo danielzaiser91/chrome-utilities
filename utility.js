@@ -2101,7 +2101,7 @@ function fixToggo() {
     // draussen: sie aendern sich je nach Link, ueber den man kommt, die Folge nicht.
     getId: toggo_getEpisodeUrl,
     getUrl: toggo_getEpisodeUrl,
-    getTitle: () => document.title.trim(),
+    getTitle: toggo_getEpisodeTitle,
     getSeries: toggo_getSeriesTitle,
   });
   cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
@@ -2114,11 +2114,42 @@ function toggo_getEpisodeUrl() {
 
 // "/toggolino/die-supermonster/folge/lampenfieber" -> "Die Supermonster": der Abschnitt vor
 // "folge"; ohne "folge" in der Adresse der zweite Abschnitt
+// Gemessen 19.09.2026: document.title ist "Dragon Ball DAIMA – Ganze Staffeln kostenlos
+// anschauen | toggo.de", auch auf der Folgenseite. Die Folge steht nur in der h1:
+// "Staffel 1 | Folge 16 | Degesu". Die Adresse traegt Kennungen (dragon-ball-daima-vse446,
+// degesu-vep25270) und taugt nur als Rueckfall.
 function toggo_getSeriesTitle() {
+  const ausTitel = document.title.split(/\s[–|]\s/)[0].trim();
+  if (ausTitel && !/toggo/i.test(ausTitel)) return ausTitel;
   const teile = location.pathname.split("/").filter(Boolean);
   const stelle = teile.indexOf("folge");
-  const slug = stelle > 0 ? teile[stelle - 1] : teile[1] ?? teile[0] ?? "";
+  return toggo_slugZuText(stelle > 0 ? teile[stelle - 1] : teile.at(-1) ?? "");
+}
+
+// "S1 E16 · Degesu". Die h1 zaehlt nur, wenn sie zur Adresse passt: Nach einem SPA-Wechsel
+// kann kurz noch die der vorigen Folge dastehen.
+function toggo_getEpisodeTitle() {
+  const slug = location.pathname.split("/").filter(Boolean).at(-1) ?? "";
+  const teile = (document.querySelector("h1")?.textContent ?? "").split("|").map((t) => t.trim());
+  const name = teile.at(-1) ?? "";
+  if (!name || !toggo_normalisiere(slug).startsWith(toggo_normalisiere(name)))
+    return toggo_slugZuText(slug);
+  const staffel = teile.find((t) => /^staffel\s+\d+$/i.test(t))?.match(/\d+/)[0];
+  const folge = teile.find((t) => /^folge\s+\d+$/i.test(t))?.match(/\d+/)[0];
+  const nummer = [staffel && `S${staffel}`, folge && `E${folge}`].filter(Boolean).join(" ");
+  return nummer ? `${nummer} · ${name}` : name;
+}
+
+function toggo_normalisiere(text) {
+  return text
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function toggo_slugZuText(slug) {
   return slug
+    .replace(/-v(se|ep)\d+$/, "")
     .split("-")
     .map((wort) => wort.charAt(0).toUpperCase() + wort.slice(1))
     .join(" ");
@@ -3234,6 +3265,11 @@ const CU_POSITION_MIN_SECONDS = 15;
 const CU_POSITION_END_MARGIN_SECONDS = 60;
 const CU_POSITION_SAVE_EVERY_MS = 2000;
 const CU_RESUME_TOLERANCE_SECONDS = 10;
+// Kuerzer ist kein Inhalt: TOGGO spielt vor jeder Folge einen 0,05-s-Blob ab (Mitschnitt
+// 19.09.2026), und dessen "playing" verbrauchte bisher das einmalige Fortsetzen.
+const CU_REAL_VIDEO_MIN_SECONDS = 60;
+const cu_isRealVideo = (video) =>
+  Number.isFinite(video.duration) && video.duration >= CU_REAL_VIDEO_MIN_SECONDS;
 
 /**
  * @param {string} site Schluessel in userOptions, braucht featureRememberPosition
@@ -3251,7 +3287,7 @@ function cu_initPositionMemory(site, quelle) {
       zustand.resumeDone = true;
       return;
     }
-    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+    if (!cu_isRealVideo(video)) return;
     zustand.resumeDone = true;
     const saved = cu_readPosition(site, zustand.id)?.seconds ?? 0;
     cu_diag({ was: "fortsetzen-pruefung", id: zustand.id, gemerkt: saved, zeit: video.currentTime, dauer: video.duration });
@@ -3269,7 +3305,7 @@ function cu_initPositionMemory(site, quelle) {
     if (!aktiv() || !zustand.resumeDone) return;
     if (zustand.id !== quelle.getId()) return; // Adresse schon weiter, Wert gehoert der alten Folge
     if (!sofort && Date.now() - zustand.savedAt < CU_POSITION_SAVE_EVERY_MS) return;
-    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+    if (!cu_isRealVideo(video)) return;
     zustand.savedAt = Date.now();
     if (video.currentTime > video.duration - CU_POSITION_END_MARGIN_SECONDS) {
       cu_deletePosition(site, zustand.id);
@@ -3318,10 +3354,13 @@ function cu_initPositionMemory(site, quelle) {
 
 // ══ Lautstaerke merken, fuer jede Seite ═════════════════════════════════════════════════════
 // Gespeichert unter "cu:<site>:volume" als { volume, muted }. Uebernommen wird der gemerkte Wert
-// zweimal: sofort, wenn das Video auftaucht, und noch einmal beim ersten "playing" -- viele
-// Player setzen beim Start ihre eigene Lautstaerke und wuerden die erste Uebernahme
-// ueberschreiben. Erst danach wird mitgeschrieben, sonst landete genau dieser Player-Wert im
-// Speicher. Stummschaltung wird nur dann aufgehoben, wenn der Nutzer auf der Seite schon
+// sofort, wenn das Video auftaucht, und erneut bei jedem "loadedmetadata" und "playing" eines
+// echten Videos (siehe cu_isRealVideo). Danach haelt eine Schutzfrist den Wert fest: Jede
+// Aenderung darin gilt als Player, wird zurueckgedreht und nicht gespeichert. Gemessen auf
+// TOGGO (Mitschnitt 19.09.2026): Der Player setzt 200 ms nach loadedmetadata 1 und 4 ms nach
+// playing 0,5 -- bei jeder Folge, auch beim Wechsel ueber die Uebersicht. Vorher wurde das
+// erste "playing" vom Platzhalter-Clip verbraucht und die 0,5 als Nutzerwert gespeichert.
+// Gespeichert wird erst nach dem ersten echten "playing" und nur ausserhalb der Schutzfrist. Stummschaltung wird nur dann aufgehoben, wenn der Nutzer auf der Seite schon
 // geklickt hat: ohne Geste pausiert Chrome ein Video, das per Skript laut gestellt wird.
 const cu_volumeKey = (site) => `cu:${site}:volume`;
 
@@ -3347,6 +3386,16 @@ function cu_describeVolume(site) {
  * @param {()=>HTMLVideoElement[]} getVideos ALLE Videos der Seite: ein Werbeclip vor der Folge
  *   ist oft ein eigenes Element, und das Element der Folge taucht erst danach auf
  */
+const CU_VOLUME_GUARD_MS = 1500;
+
+// weicht der Player vom gemerkten Wert ab? Stumm zaehlt nur, wenn wir es aufheben duerften
+function cu_volumeWeichtAb(video, gemerkt) {
+  if (!gemerkt) return false;
+  if (Math.abs(video.volume - gemerkt.volume) > 0.005) return true;
+  if (gemerkt.muted) return !video.muted;
+  return video.muted && !!navigator.userActivation?.hasBeenActive;
+}
+
 function cu_initVolumeMemory(site, getVideos) {
   const aktiv = () => isAllowed(userOptions[site].featureRememberVolume.isEnabled);
   const anwenden = (video) => {
@@ -3364,17 +3413,26 @@ function cu_initVolumeMemory(site, getVideos) {
         if (video.dataset.cuVolumeWatched) return;
         video.dataset.cuVolumeWatched = "1";
         let uebernommen = false;
+        let schutzBis = 0;
         anwenden(video);
         // lief das Video schon, bevor wir es gefunden haben, kommt kein "playing" mehr --
         // ohne das wuerde dieses Video nie mitschreiben
-        if (!video.paused) uebernommen = true;
-        video.addEventListener("playing", () => {
-          if (uebernommen) return;
-          uebernommen = true;
+        if (!video.paused && cu_isRealVideo(video)) uebernommen = true;
+        const festhalten = (event) => {
+          if (!cu_isRealVideo(video)) return;
+          if (event.type === "playing") uebernommen = true;
+          schutzBis = Date.now() + CU_VOLUME_GUARD_MS;
           anwenden(video);
-        });
+        };
+        video.addEventListener("loadedmetadata", festhalten);
+        video.addEventListener("playing", festhalten);
         video.addEventListener("volumechange", () => {
-          if (!uebernommen || !aktiv()) return;
+          if (!aktiv()) return;
+          if (Date.now() < schutzBis) {
+            if (cu_volumeWeichtAb(video, cu_readVolume(site))) anwenden(video);
+            return;
+          }
+          if (!uebernommen) return;
           localStorage.setItem(
             cu_volumeKey(site),
             JSON.stringify({ volume: video.volume, muted: video.muted }),
@@ -7264,7 +7322,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.4",
+  version: "1.9.0.5",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

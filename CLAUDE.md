@@ -75,6 +75,29 @@ dazwischen, steht dort eine unbeteiligte Zeile (17.09.2026: „reading 'classLis
 `git show v1.8.0:utility.js | sed -n '1758p'`. Der Name im Stack
 (`repeatIfCondition.pauseInBg`) hilft beim Eingrenzen mehr als die Nummer.
 
+### Player-Eigenheiten: erst mitschneiden, dann fixen (TOGGO, 19.09.2026)
+
+Drei Fallen, alle erst durch Messen gefunden, alle vorher falsch vermutet:
+
+- **Platzhalter-Clip vor dem Inhalt.** TOGGO spielt vor jeder Folge einen 0,05-s-Blob ab. Sein
+  `playing` verbrauchte jede „einmal beim Start“-Logik (Fortsetzen, Lautstärke). Daher
+  `cu_isRealVideo()` (ab 60 s) in Positions- und Lautstärke-Gedächtnis.
+- **Der Player setzt die Lautstärke selbst**, mehrfach und zeitversetzt (1 nach
+  `loadedmetadata`, 0,5 nach `playing`). Einmal setzen reicht nicht, und blind mitschreiben
+  speichert den Player-Wert als Nutzerwert. Lösung: Schutzfrist nach dem Start, in der
+  zurückgedreht und nicht gespeichert wird. Einen eigenen Speicher des Players
+  (`playerVolume`) zu beschreiben half nicht: Der Slider animiert unabhängig davon auf 0,5.
+- **Modal mit focus-trap** schluckt Klicks und Fokus außerhalb seines Containers in der
+  Capture-Phase am `document`. Unsere Oberfläche wird deshalb ins Overlay umgehängt
+  (`toggo_uiInFokusfalle`); dort braucht `.cu-settings` explizite `top/left`, sonst gilt die
+  statische Position unterhalb des Modal-Inhalts.
+
+Werkzeug dafür: die Erweiterung echt in Playwright laden (`--load-extension`, headless,
+`--mute-audio`, siehe `ai_agent_tools.md`) und Zustand plus Schreibzugriffe mitprotokollieren
+(`addInitScript`, das `Storage.prototype.setItem` umhüllt). Den Bundle-Code der Seite per
+`curl` holen und an der Stack-Position lesen: Die Klassennamen von styled-components tragen
+den Komponentennamen (`RangeSlidercss__RangeSliderHandle`) und taugen als Selektor.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

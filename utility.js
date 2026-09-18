@@ -2043,8 +2043,36 @@ function fixVoe() {
 // ----
 // toggo.de
 // ---
+const TOGGO_SITE = "toggo";
+
 function fixToggo() {
   _init_set_video_rate_repeater__generic();
+  cu_initPositionMemory(TOGGO_SITE, {
+    getVideo: () => queryVisible("video"),
+    // Die Adresse ist die Folge (/toggolino/<serie>/folge/<folge>). Query und Hash bleiben
+    // draussen: sie aendern sich je nach Link, ueber den man kommt, die Folge nicht.
+    getId: toggo_getEpisodeUrl,
+    getUrl: toggo_getEpisodeUrl,
+    getTitle: () => document.title.trim(),
+    getSeries: toggo_getSeriesTitle,
+  });
+  cu_initVolumeMemory(TOGGO_SITE, () => queryVisible("video"));
+}
+
+function toggo_getEpisodeUrl() {
+  return location.origin + location.pathname;
+}
+
+// "/toggolino/die-supermonster/folge/lampenfieber" -> "Die Supermonster": der Abschnitt vor
+// "folge"; ohne "folge" in der Adresse der zweite Abschnitt
+function toggo_getSeriesTitle() {
+  const teile = location.pathname.split("/").filter(Boolean);
+  const stelle = teile.indexOf("folge");
+  const slug = stelle > 0 ? teile[stelle - 1] : teile[1] ?? teile[0] ?? "";
+  return slug
+    .split("-")
+    .map((wort) => wort.charAt(0).toUpperCase() + wort.slice(1))
+    .join(" ");
 }
 
 // ----
@@ -3139,6 +3167,156 @@ function cu_formatTime(seconds) {
   return parts
     .map((part, i) => (i === 0 ? String(part) : String(part).padStart(2, "0")))
     .join(":");
+}
+
+// ══ Position merken und fortsetzen, fuer jede Seite ═════════════════════════════════════════
+// Dieselben Regeln wie bei ADN (dort mit Begruendung und Anlass kommentiert), ohne dessen
+// Sonderfaelle -- Versionswechsel, eigenes Fortsetzen des Players, Autoplay:
+// - fortgesetzt wird genau EINMAL je Folge, beim ersten "playing", nicht bei jedem Play;
+// - gespeichert wird erst danach, sonst ueberschriebe currentTime 0 die gemerkte Stelle;
+// - die ersten 15 s und die letzten 60 s sind "nichts, was sich zu merken lohnt";
+//   durchgeschaut heisst: Eintrag weg, der naechste Besuch beginnt von vorn;
+// - gespeichert wird alle 2 s und zusaetzlich bei seeked, pause und pagehide;
+// - ein Wert wird nur unter der Folge abgelegt, zu der er gehoert: hat die Adresse schon
+//   gewechselt (SPA), wird nichts mehr geschrieben.
+// Die Folge erkennt quelle.getId() -- bewusst von der Seite geliefert, nie aus der Video-Quelle,
+// die eine wechselnde Blob-/CDN-Adresse sein kann.
+const CU_POSITION_MIN_SECONDS = 15;
+const CU_POSITION_END_MARGIN_SECONDS = 60;
+const CU_POSITION_SAVE_EVERY_MS = 2000;
+const CU_RESUME_TOLERANCE_SECONDS = 10;
+
+/**
+ * @param {string} site Schluessel in userOptions, braucht featureRememberPosition
+ * @param {{getVideo:()=>HTMLVideoElement|null, getId:()=>string, getUrl:()=>string,
+ *   getTitle?:()=>string, getSeries?:()=>string, getEpisode?:()=>number|null}} quelle
+ */
+function cu_initPositionMemory(site, quelle) {
+  const zustand = { id: null, resumeDone: false, savedAt: 0 };
+  const aktiv = () =>
+    isAllowed(userOptions[site].featureRememberPosition.isEnabled);
+
+  const fortsetzen = (video) => {
+    if (zustand.resumeDone) return;
+    if (!aktiv()) {
+      zustand.resumeDone = true;
+      return;
+    }
+    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+    zustand.resumeDone = true;
+    const saved = cu_readPosition(site, zustand.id)?.seconds ?? 0;
+    if (
+      saved < CU_POSITION_MIN_SECONDS ||
+      saved > video.duration - CU_POSITION_END_MARGIN_SECONDS
+    )
+      return;
+    if (Math.abs(video.currentTime - saved) <= CU_RESUME_TOLERANCE_SECONDS) return;
+    video.currentTime = saved;
+  };
+
+  const merken = (video, sofort) => {
+    if (!aktiv() || !zustand.resumeDone) return;
+    if (zustand.id !== quelle.getId()) return; // Adresse schon weiter, Wert gehoert der alten Folge
+    if (!sofort && Date.now() - zustand.savedAt < CU_POSITION_SAVE_EVERY_MS) return;
+    if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+    zustand.savedAt = Date.now();
+    if (video.currentTime > video.duration - CU_POSITION_END_MARGIN_SECONDS) {
+      cu_deletePosition(site, zustand.id);
+      return;
+    }
+    if (video.currentTime < CU_POSITION_MIN_SECONDS) return;
+    cu_savePosition(site, zustand.id, {
+      seconds: video.currentTime,
+      duration: video.duration,
+      url: quelle.getUrl(),
+      title: quelle.getTitle?.() ?? "",
+      series: quelle.getSeries?.() ?? "",
+      episode: quelle.getEpisode?.() ?? null,
+    });
+  };
+
+  const anbinden = (video) => {
+    if (video.dataset.cuPositionWatched) return;
+    video.dataset.cuPositionWatched = "1";
+    video.addEventListener("playing", () => fortsetzen(video));
+    const sofort = () => merken(video, true);
+    video.addEventListener("seeked", sofort);
+    video.addEventListener("pause", sofort);
+    window.addEventListener("pagehide", sofort);
+  };
+
+  repeatIfCondition(
+    () => {
+      const id = quelle.getId();
+      if (zustand.id !== id) {
+        zustand.id = id;
+        zustand.resumeDone = false;
+        zustand.savedAt = 0;
+      }
+      const video = quelle.getVideo();
+      if (!video) return;
+      anbinden(video);
+      // Netz, falls "playing" kam, bevor der Listener hing
+      if (!video.paused && !video.seeking) fortsetzen(video);
+      merken(video);
+    },
+    () => true,
+    { interval: 500, pauseInBg: false },
+  );
+}
+
+// ══ Lautstaerke merken, fuer jede Seite ═════════════════════════════════════════════════════
+// Gespeichert unter "cu:<site>:volume" als { volume, muted }. Uebernommen wird der gemerkte Wert
+// zweimal: sofort, wenn das Video auftaucht, und noch einmal beim ersten "playing" -- viele
+// Player setzen beim Start ihre eigene Lautstaerke und wuerden die erste Uebernahme
+// ueberschreiben. Erst danach wird mitgeschrieben, sonst landete genau dieser Player-Wert im
+// Speicher. Stummschaltung wird nur dann aufgehoben, wenn der Nutzer auf der Seite schon
+// geklickt hat: ohne Geste pausiert Chrome ein Video, das per Skript laut gestellt wird.
+/**
+ * @param {string} site Schluessel in userOptions, braucht featureRememberVolume
+ * @param {()=>HTMLVideoElement|null} getVideo
+ */
+function cu_initVolumeMemory(site, getVideo) {
+  const schluessel = `cu:${site}:volume`;
+  const aktiv = () => isAllowed(userOptions[site].featureRememberVolume.isEnabled);
+  const lesen = () => {
+    try {
+      return JSON.parse(localStorage.getItem(schluessel));
+    } catch {
+      return null;
+    }
+  };
+  const anwenden = (video) => {
+    const gemerkt = lesen();
+    if (!aktiv() || !gemerkt) return;
+    video.volume = gemerkt.volume;
+    if (gemerkt.muted) video.muted = true;
+    else if (navigator.userActivation?.hasBeenActive) video.muted = false;
+  };
+
+  repeatIfCondition(
+    () => {
+      const video = getVideo();
+      if (!video || video.dataset.cuVolumeWatched) return;
+      video.dataset.cuVolumeWatched = "1";
+      let uebernommen = false;
+      anwenden(video);
+      video.addEventListener("playing", () => {
+        if (uebernommen) return;
+        uebernommen = true;
+        anwenden(video);
+      });
+      video.addEventListener("volumechange", () => {
+        if (!uebernommen || !aktiv()) return;
+        localStorage.setItem(
+          schluessel,
+          JSON.stringify({ volume: video.volume, muted: video.muted }),
+        );
+      });
+    },
+    () => true,
+    { interval: 500, pauseInBg: false },
+  );
 }
 
 // ---
@@ -6929,7 +7107,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.0",
+  version: "1.9.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7230,6 +7408,31 @@ let userOptions = {
     },
   },
   toggo: {
+    featureRememberPosition: {
+      featureName: "Remember Video Position",
+      featureDescription:
+        "Picks every episode up where you stopped, so you never search for the spot again. " +
+        "An episode you watched to the end starts over instead. Everything stays in this " +
+        "browser and is never uploaded.",
+      featureHistory: {
+        list: () => cu_listPositions(TOGGO_SITE),
+        remove: (entry) => cu_deletePosition(TOGGO_SITE, entry.id),
+      },
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "remember where you stopped, per episode",
+      },
+    },
+    featureRememberVolume: {
+      featureName: "Remember Volume",
+      featureDescription: "every video starts at the volume you set last",
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "keep the volume between videos",
+      },
+    },
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",

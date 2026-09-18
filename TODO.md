@@ -1,4 +1,7 @@
 # TODO
+- 💡 ADN auf den generischen Baustein cu_initPositionMemory umstellen (seit 19.09.2026 fuer TOGGO
+  im Einsatz). ADN hat eigene Sonderfaelle (Versionswechsel, eigenes Fortsetzen, Autoplay), die der
+  Baustein dafuer als Haken bekommen muesste -- nur angehen, wenn ADN ohnehin angefasst wird.
 
 <!-- Done: GeoGuessr-Scrollbalken, 20.08.2026 -- zweiter Anlauf, diesmal getroffen.
      Ursache: die Intro-Animation "dc-intro-rays" bewegt ein Sternenfeld per transform. Das

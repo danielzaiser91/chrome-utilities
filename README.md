@@ -62,6 +62,8 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 
 ### TOGGO
 - Custom playback speed (0.2×–5×)
+- Remembers where you stopped and continues from there
+- Remembers the volume
 
 ### luluvdo / Filemoon / VOE
 - Custom playback speed (0.2×–5×), also when the player is embedded on another site (e.g. VOE on serienstream.to)

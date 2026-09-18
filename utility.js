@@ -2167,9 +2167,11 @@ function toggo_sliderNachstellen() {
       let oben = 0;
       for (let el = spur; el; el = el.offsetParent) oben += el.offsetTop;
       const clientY = oben - window.scrollY + (1 - gemerkt.volume) * spur.offsetHeight;
-      griff.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, clientY, pointerId: 1, isPrimary: true }),
-      );
+      // ohne das Loslassen bleibt die Tap-Geste offen und der Slider aufgeklappt (gemessen)
+      for (const typ of ["pointerdown", "pointerup"])
+        griff.dispatchEvent(
+          new PointerEvent(typ, { bubbles: true, clientY, pointerId: 1, isPrimary: true }),
+        );
     },
     () => true,
     { interval: 500, pauseInBg: false },
@@ -7321,7 +7323,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.10",
+  version: "1.9.0.11",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

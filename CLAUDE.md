@@ -92,6 +92,15 @@ Drei Fallen, alle erst durch Messen gefunden, alle vorher falsch vermutet:
   (`toggo_uiInFokusfalle`); dort braucht `.cu-settings` explizite `top/left`, sonst gilt die
   statische Position unterhalb des Modal-Inhalts.
 
+- **Fehler der Seite selbst sind manchmal behebbar.** Folgen, die per Neuladen/Link geöffnet
+  werden, starteten nie: TOGGO ruft `window.foundation.api.createPlayer` auf, bevor das
+  Player-Skript geladen ist. `toggo-main-world.js` (Manifest-Eintrag mit `"world": "MAIN"`,
+  `document_start`) legt `window.foundation` vorher an und lässt zu frühe Aufrufe warten.
+  Nur so erreichbar: Der isolierte Kontext von `utility.js` sieht die `window`-Objekte der
+  Seite nicht.
+- **Synthetische Klicks brauchen das Loslassen.** Ein `pointerdown` allein lässt bei
+  framer-motion die Tap-Geste offen, und der Slider bleibt aufgeklappt.
+
 Werkzeug dafür: die Erweiterung echt in Playwright laden (`--load-extension`, headless,
 `--mute-audio`, siehe `ai_agent_tools.md`) und Zustand plus Schreibzugriffe mitprotokollieren
 (`addInitScript`, das `Storage.prototype.setItem` umhüllt). Den Bundle-Code der Seite per

@@ -915,6 +915,17 @@ function prepareActionBar() {
       padding: 4px 0;
       border-bottom: 1px solid #f1f3f6;
     }
+    /* the row itself is display:contents and has no box of its own -- cursor and highlight go
+       on its cells. :hover still matches the row, because it is an ancestor of the hovered cell */
+    .cu-history-clickable > * {
+      cursor: pointer;
+    }
+    /* opacity too: time and trash are dimmed cells, and a dimmed cell dims its background with it
+       -- measured 19.09.2026, the highlight only showed behind the episode name */
+    .cu-history-clickable:hover > * {
+      background: #eaf0f7;
+      opacity: 1;
+    }
     .cu-history a {
       color: ${color.secondary};
       text-decoration: none;
@@ -1215,9 +1226,23 @@ function cu_historyRow(entryOrLabels, { header = false, onDelete } = {}) {
   remove.classList.add("cu-history-delete");
   remove.title = "Forget this episode";
   remove.innerHTML = CU_TRASH_ICON;
-  remove.addEventListener("click", onDelete);
+  remove.addEventListener("click", (event) => {
+    // the row opens the episode on click -- deleting must never navigate as well
+    event.stopPropagation();
+    onDelete(event);
+  });
 
   row.append(label, time, remove);
+  // the whole row opens the episode, not just its name; same target as the name link. The
+  // episode you are watching stays inert, like its label.
+  if (!isCurrent) {
+    row.classList.add("cu-history-clickable");
+    row.addEventListener("click", (event) => {
+      // the link opens itself, the delete button must not navigate at all
+      if (event.target.closest("a, button")) return;
+      window.open(entry.url, "_blank", "noreferrer");
+    });
+  }
   return row;
 }
 
@@ -7107,7 +7132,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.1",
+  version: "1.9.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

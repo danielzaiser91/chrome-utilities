@@ -911,6 +911,12 @@ function prepareActionBar() {
       top: 0;
       background: #fff;
     }
+    .cu-feature-info {
+      font-size: 12.5px;
+      padding: 3px 0 0 44px;
+      color: #000;
+      opacity: 0.75;
+    }
     .cu-history-row > * {
       padding: 4px 0;
       border-bottom: 1px solid #f1f3f6;
@@ -1002,6 +1008,8 @@ function renderOptions() {
         const featureDescription = feature.featureDescription;
         const featureCategory = feature.featureCategory;
         const featureHistory = feature.featureHistory;
+        const featureInfo = feature.featureInfo;
+        delete feature.featureInfo;
         delete feature.featureName;
         delete feature.featureDescription;
         delete feature.featureCategory;
@@ -1053,6 +1061,17 @@ function renderOptions() {
           featureContainer.appendChild(
             renderFeatureHistory(featureHistory.list, featureHistory.remove),
           );
+        }
+        // one line of live state ("Remembered: 35 %"), read fresh every time the panel renders
+        if (featureInfo) {
+          const infoEl = document.createElement("div");
+          infoEl.classList.add("cu-feature-info");
+          try {
+            infoEl.textContent = featureInfo();
+          } catch {
+            // a broken info line must never take the settings panel down with it
+          }
+          featureContainer.appendChild(infoEl);
         }
 
         restEntries.forEach(([k, v]) => {
@@ -2081,7 +2100,7 @@ function fixToggo() {
     getTitle: () => document.title.trim(),
     getSeries: toggo_getSeriesTitle,
   });
-  cu_initVolumeMemory(TOGGO_SITE, () => queryVisible("video"));
+  cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
 }
 
 function toggo_getEpisodeUrl() {
@@ -3297,23 +3316,36 @@ function cu_initPositionMemory(site, quelle) {
 // ueberschreiben. Erst danach wird mitgeschrieben, sonst landete genau dieser Player-Wert im
 // Speicher. Stummschaltung wird nur dann aufgehoben, wenn der Nutzer auf der Seite schon
 // geklickt hat: ohne Geste pausiert Chrome ein Video, das per Skript laut gestellt wird.
+const cu_volumeKey = (site) => `cu:${site}:volume`;
+
+/** @returns {{volume:number, muted:boolean}|null} */
+function cu_readVolume(site) {
+  try {
+    return JSON.parse(localStorage.getItem(cu_volumeKey(site)));
+  } catch {
+    return null;
+  }
+}
+
+/** for the settings: "Remembered: 35 %", "Remembered: 35 %, muted", or that there is none */
+function cu_describeVolume(site) {
+  const gemerkt = cu_readVolume(site);
+  if (!gemerkt) return "Nothing remembered yet";
+  const prozent = Math.round(gemerkt.volume * 100);
+  return `Remembered: ${prozent} %${gemerkt.muted ? ", muted" : ""}`;
+}
+
 /**
  * @param {string} site Schluessel in userOptions, braucht featureRememberVolume
- * @param {()=>HTMLVideoElement|null} getVideo
+ * @param {()=>HTMLVideoElement[]} getVideos ALLE Videos der Seite: ein Werbeclip vor der Folge
+ *   ist oft ein eigenes Element, und das Element der Folge taucht erst danach auf
  */
-function cu_initVolumeMemory(site, getVideo) {
-  const schluessel = `cu:${site}:volume`;
+function cu_initVolumeMemory(site, getVideos) {
   const aktiv = () => isAllowed(userOptions[site].featureRememberVolume.isEnabled);
-  const lesen = () => {
-    try {
-      return JSON.parse(localStorage.getItem(schluessel));
-    } catch {
-      return null;
-    }
-  };
   const anwenden = (video) => {
-    const gemerkt = lesen();
+    const gemerkt = cu_readVolume(site);
     if (!aktiv() || !gemerkt) return;
+    cu_volumeDiagnoseEigen(video, gemerkt);
     video.volume = gemerkt.volume;
     if (gemerkt.muted) video.muted = true;
     else if (navigator.userActivation?.hasBeenActive) video.muted = false;
@@ -3321,27 +3353,105 @@ function cu_initVolumeMemory(site, getVideo) {
 
   repeatIfCondition(
     () => {
-      const video = getVideo();
-      if (!video || video.dataset.cuVolumeWatched) return;
-      video.dataset.cuVolumeWatched = "1";
-      let uebernommen = false;
-      anwenden(video);
-      video.addEventListener("playing", () => {
-        if (uebernommen) return;
-        uebernommen = true;
+      getVideos().forEach((video) => {
+        if (video.dataset.cuVolumeWatched) return;
+        video.dataset.cuVolumeWatched = "1";
+        let uebernommen = false;
         anwenden(video);
-      });
-      video.addEventListener("volumechange", () => {
-        if (!uebernommen || !aktiv()) return;
-        localStorage.setItem(
-          schluessel,
-          JSON.stringify({ volume: video.volume, muted: video.muted }),
-        );
+        // lief das Video schon, bevor wir es gefunden haben, kommt kein "playing" mehr --
+        // ohne das wuerde dieses Video nie mitschreiben
+        if (!video.paused) uebernommen = true;
+        video.addEventListener("playing", () => {
+          if (uebernommen) return;
+          uebernommen = true;
+          anwenden(video);
+        });
+        video.addEventListener("volumechange", () => {
+          if (!uebernommen || !aktiv()) return;
+          localStorage.setItem(
+            cu_volumeKey(site),
+            JSON.stringify({ volume: video.volume, muted: video.muted }),
+          );
+        });
       });
     },
     () => true,
     { interval: 500, pauseInBg: false },
   );
+  cu_volumeDiagnose(site);
+}
+
+// ── TEMP: Mitschnitt, wer die Lautstaerke wann setzt ──────────────────────────────────────
+// Eingebaut 19.09.2026, weil "Lautstaerke merken" auf TOGGO nicht griff und die Ursache nicht
+// geraten werden soll. Nur aktiv mit localStorage "cu_volume_debug" = "1" auf der Seite (in der
+// Konsole: localStorage.setItem("cu_volume_debug", "1"), dann neu laden). Zeichnet 60 s lang
+// auf und laedt dann cu-volume-diagnose.json herunter. Wieder entfernen, sobald die Ursache
+// feststeht.
+const CU_VOLUME_DIAGNOSE_MS = 60000;
+let _cuVolumeLog = null;
+let _cuVolumeStart = 0;
+
+function cu_volumeDiagnoseEigen(video, gemerkt) {
+  _cuVolumeLog?.push({
+    t: Date.now() - _cuVolumeStart,
+    was: "erweiterung-setzt",
+    video: video.dataset.cuDiagId ?? "?",
+    volume: gemerkt.volume,
+    muted: gemerkt.muted,
+    aktivierung: !!navigator.userActivation?.hasBeenActive,
+  });
+}
+
+function cu_volumeDiagnose(site) {
+  let aus;
+  try {
+    aus = localStorage.getItem("cu_volume_debug") !== "1";
+  } catch {
+    aus = true;
+  }
+  if (aus || _cuVolumeLog) return;
+  _cuVolumeLog = [];
+  _cuVolumeStart = Date.now();
+  const log = _cuVolumeLog;
+  const zeit = () => Date.now() - _cuVolumeStart;
+  const speicherMitVol = () => {
+    const funde = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (/vol|mute|sound/i.test(k)) funde[k] = localStorage.getItem(k)?.slice(0, 200);
+    }
+    return funde;
+  };
+  log.push({ t: 0, was: "start", url: location.href, gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol() });
+
+  let naechsteId = 0;
+  const ereignisse = ["loadstart", "emptied", "loadedmetadata", "playing", "pause", "ended", "volumechange"];
+  const beobachten = () => {
+    document.querySelectorAll("video").forEach((video) => {
+      if (video.dataset.cuDiagId) return;
+      video.dataset.cuDiagId = String(naechsteId++);
+      log.push({ t: zeit(), was: "neues-video", video: video.dataset.cuDiagId, src: (video.currentSrc || video.src || "").slice(0, 120), volume: video.volume, muted: video.muted, paused: video.paused });
+      ereignisse.forEach((typ) =>
+        video.addEventListener(typ, () =>
+          log.push({ t: zeit(), was: typ, video: video.dataset.cuDiagId, volume: video.volume, muted: video.muted, src: typ === "loadstart" ? (video.currentSrc || video.src || "").slice(0, 120) : undefined }),
+        ),
+      );
+    });
+  };
+  const takt = setInterval(beobachten, 200);
+  beobachten();
+
+  setTimeout(() => {
+    clearInterval(takt);
+    log.push({ t: zeit(), was: "ende", gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol(), videos: document.querySelectorAll("video").length });
+    const blob = new Blob([JSON.stringify(log, null, 1)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cu-volume-diagnose.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, CU_VOLUME_DIAGNOSE_MS);
 }
 
 // ---
@@ -7132,7 +7242,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.2",
+  version: "1.9.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7452,6 +7562,7 @@ let userOptions = {
     featureRememberVolume: {
       featureName: "Remember Volume",
       featureDescription: "every video starts at the volume you set last",
+      featureInfo: () => cu_describeVolume(TOGGO_SITE),
       isEnabled: {
         value: true,
         label: "Activate",

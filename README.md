@@ -60,6 +60,9 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 ### DS3 Cheat Sheet
 - Dark mode
 
+### TOGGO
+- Custom playback speed (0.2×–5×)
+
 ### luluvdo / Filemoon / VOE
 - Custom playback speed (0.2×–5×), also when the player is embedded on another site (e.g. VOE on serienstream.to)
 

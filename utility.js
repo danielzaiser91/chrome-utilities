@@ -399,6 +399,7 @@ const CU_SWITCH_HEIGHT = 20;
 const siteDisplayNames = {
   adn: "ADN",
   voe: "VOE",
+  toggo: "TOGGO",
 };
 function getSiteDisplayName(site) {
   return siteDisplayNames[site] ?? site;
@@ -442,6 +443,8 @@ const svg = {
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#0f172a"/><path d="M38 18a15 15 0 1 0 0 24 12 12 0 1 1 0-24z" fill="#facc15"/></svg>',
   voe:
     '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#1d4ed8"/><path d="M24 19l18 11-18 11z" fill="#fff"/></svg>',
+  toggo:
+    '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" rx="12" fill="#e4007c"/><text x="30" y="38" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#fff" text-anchor="middle">TOGGO</text></svg>',
 };
 function prepareActionBar() {
   if (Interval.exists("_prepareActionBar")) return;
@@ -1543,6 +1546,7 @@ function websiteSelector() {
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
     ...VOE_HOSTS.map((host) => new Matcher(host, fixVoe, true, "voe", true)),
+    new Matcher("toggo.de", fixToggo, true, "toggo"),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
@@ -2033,6 +2037,13 @@ function fixFilemoon() {
 // allein am Manifest. Warum die Liste trotzdem bleibt: CLAUDE.md, "VOE-Domains".
 const VOE_HOSTS = ["johnfullwonder.com", "katherineschoolphone.com"];
 function fixVoe() {
+  _init_set_video_rate_repeater__generic();
+}
+
+// ----
+// toggo.de
+// ---
+function fixToggo() {
   _init_set_video_rate_repeater__generic();
 }
 
@@ -6918,7 +6929,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.8.2",
+  version: "1.9.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7198,6 +7209,27 @@ let userOptions = {
     },
   },
   voe: {
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
+          },
+        },
+      },
+    },
+  },
+  toggo: {
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",

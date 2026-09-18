@@ -536,6 +536,10 @@ function prepareActionBar() {
 
     .cu-settings {
       position: fixed;
+      /* explicit, not the static position: hung inside TOGGO's modal overlay (see
+         toggo_uiInFokusfalle) it otherwise lands below the page content */
+      top: 0;
+      left: 0;
       width: 100vw;
       height: 100vh;
       background: #0000008a;
@@ -7360,7 +7364,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.6",
+  version: "1.9.0.7",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Web Utility Plugin",
   "description": "This extension will fix some anoying things about multiple websites",
-  "version": "1.8.1.2",
-  "version_name": "1.8.1.2",
+  "version": "1.8.2",
+  "version_name": "1.8.2",
   "permissions": ["storage"],
   "icons": {
     "128": "icon.png"
@@ -24,7 +24,6 @@
         "*://*.fandom.com/*",
         "*://*.fextralife.com/*",
         "*://www.google.com/maps/*",
-        "*://*.instagram.com/*",
         "*://*.johnfullwonder.com/*",
         "*://*.katherineschoolphone.com/*",
         "*://*.keyforsteam.com/*",

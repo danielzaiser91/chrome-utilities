@@ -1536,7 +1536,9 @@ function websiteSelector() {
     new Matcher("www.geoguessr.com", fixGeoguessr),
     new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
-    new Matcher("instagram.com", fixInstagram, true),
+    // Abgeschaltet 18.09.2026 (Daniel: Probleme gefunden, sollen nicht behoben werden).
+    // Wieder an: diese Zeile zurueck UND "*://*.instagram.com/*" in manifest.json.
+    // new Matcher("instagram.com", fixInstagram, true),
     new Matcher("google.com/", fixGoogle),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
@@ -6916,7 +6918,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.8.1.2",
+  version: "1.8.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

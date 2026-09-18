@@ -2108,22 +2108,63 @@ function fixToggo() {
     getTitle: toggo_getEpisodeTitle,
     getSeries: toggo_getSeriesTitle,
   });
-  cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")], toggo_spiegleLautstaerke);
-  const gemerkt = cu_readVolume(TOGGO_SITE);
-  if (gemerkt && isAllowed(userOptions[TOGGO_SITE].featureRememberVolume.isEnabled))
-    toggo_spiegleLautstaerke(gemerkt);
+  cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
+  toggo_sliderNachstellen();
   toggo_uiInFokusfalle();
-  cu_diagnose(TOGGO_SITE);
 }
 
-// TOGGO merkt sich die Lautstaerke selbst unter localStorage "playerVolume" als
-// { level, muted } und stellt beim Start Player UND Slider danach ein, ohne Eintrag auf 0,5
-// (gelesen im Bundle main.*.js, 19.09.2026: fe("playerVolume"), Rueckfall .5). Geschrieben wird
-// der Eintrag dort nur unter einer Bedingung, die bei Daniel nie eintrat -- deshalb stand der
-// Slider auf 0,5, obwohl das Video nach unserer Korrektur auf dem gemerkten Wert lief.
-// Mitschreiben laesst beide von Anfang an auf unserem Wert starten.
-function toggo_spiegleLautstaerke({ volume, muted }) {
-  localStorage.setItem("playerVolume", JSON.stringify({ level: muted ? 0 : volume, muted }));
+// TOGGOs Lautstaerke-Slider laeuft beim Einblenden IMMER auf 0,5 -- ein Fehler bei TOGGO: Die
+// Komponente animiert auf einen Ref, der beim ersten Durchlauf noch leer ist (Rueckfall .5),
+// und schreibt jeden Zwischenschritt als Lautstaerke in den Player und in localStorage
+// "playerVolume". Was dort vorher stand, spielt keine Rolle (gemessen 19.09.2026 mit geladener
+// Erweiterung: 0,73 vorbelegt, danach 0,67 ... 0,5). Das Video selbst haelt cu_initVolumeMemory
+// auf dem gemerkten Wert, nur die Anzeige stimmte nicht.
+// Nachgestellt wird wie per Hand: ein pointerdown auf den Slider an der Hoehe des Werts. Die
+// Komponente rechnet Wert = 1 - (pageY - Summe der offsetTop der Spur) / Hoehe der Spur;
+// gemessen trifft das exakt (Ziel 0,73 -> 0,73, Ziel 0,2 -> 0,2).
+// Was der Slider zeigt, steht nur in der Verschiebung seines Griffs: translateY = (1 - Wert) *
+// Spurhoehe. "playerVolume" taugt dafuer nicht -- TOGGO schreibt es nur unter einer Bedingung,
+// und im zweiten Messlauf blieb es leer, waehrend der Slider auf 0,5 stand.
+// Korrigiert wird erst, wenn die Abweichung zwei Takte lang unveraendert steht: Zieht der
+// Nutzer gerade selbst, bewegt sich der Griff noch (Feder-Animation), und der neue Wert landet
+// ueber volumechange ohnehin im Speicher -- ein Takt allein wuerde gegen ihn arbeiten.
+function toggo_sliderNachstellen() {
+  let vorher = null;
+  repeatIfCondition(
+    () => {
+      const gemerkt = cu_readVolume(TOGGO_SITE);
+      const griff = query('[class*="RangeSlidercss__RangeSliderMain"]');
+      const spur = griff?.querySelector('[class*="RangeSlidercss__RangeSliderProgress"]');
+      const knopf = griff?.querySelector('[class*="RangeSlidercss__RangeSliderHandle"]');
+      if (
+        !gemerkt ||
+        gemerkt.muted ||
+        !isAllowed(userOptions[TOGGO_SITE].featureRememberVolume.isEnabled) ||
+        !knopf ||
+        !spur?.offsetHeight
+      ) {
+        vorher = null;
+        return;
+      }
+      const zeigt = 1 - new DOMMatrix(getComputedStyle(knopf).transform).m42 / spur.offsetHeight;
+      if (Math.abs(zeigt - gemerkt.volume) < 0.01) {
+        vorher = null;
+        return;
+      }
+      const stabil = vorher !== null && Math.abs(vorher - zeigt) < 0.001;
+      vorher = zeigt;
+      if (!stabil) return;
+      vorher = null;
+      let oben = 0;
+      for (let el = spur; el; el = el.offsetParent) oben += el.offsetTop;
+      const clientY = oben - window.scrollY + (1 - gemerkt.volume) * spur.offsetHeight;
+      griff.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, clientY, pointerId: 1, isPrimary: true }),
+      );
+    },
+    () => true,
+    { interval: 500, pauseInBg: false },
+  );
 }
 
 // Die Serienuebersicht ist ein Modal mit focus-trap (Bibliothek im Bundle, 19.09.2026): Sie
@@ -3331,14 +3372,12 @@ function cu_initPositionMemory(site, quelle) {
     if (!cu_isRealVideo(video)) return;
     zustand.resumeDone = true;
     const saved = cu_readPosition(site, zustand.id)?.seconds ?? 0;
-    cu_diag({ was: "fortsetzen-pruefung", id: zustand.id, gemerkt: saved, zeit: video.currentTime, dauer: video.duration });
     if (
       saved < CU_POSITION_MIN_SECONDS ||
       saved > video.duration - CU_POSITION_END_MARGIN_SECONDS
     )
       return;
     if (Math.abs(video.currentTime - saved) <= CU_RESUME_TOLERANCE_SECONDS) return;
-    cu_diagGesetzt(video, "position-gesetzt", saved, () => video.currentTime);
     video.currentTime = saved;
   };
 
@@ -3437,14 +3476,11 @@ function cu_volumeWeichtAb(video, gemerkt) {
   return video.muted && !!navigator.userActivation?.hasBeenActive;
 }
 
-/** @param {(gemerkt:{volume:number, muted:boolean})=>void} [beimSpeichern] z. B. den Wert
- *   zusaetzlich dort ablegen, wo der Player selbst nachsieht */
-function cu_initVolumeMemory(site, getVideos, beimSpeichern) {
+function cu_initVolumeMemory(site, getVideos) {
   const aktiv = () => isAllowed(userOptions[site].featureRememberVolume.isEnabled);
   const anwenden = (video) => {
     const gemerkt = cu_readVolume(site);
     if (!aktiv() || !gemerkt) return;
-    cu_diagGesetzt(video, "lautstaerke-gesetzt", gemerkt, () => ({ volume: video.volume, muted: video.muted }));
     video.volume = gemerkt.volume;
     if (gemerkt.muted) video.muted = true;
     else if (navigator.userActivation?.hasBeenActive) video.muted = false;
@@ -3476,104 +3512,16 @@ function cu_initVolumeMemory(site, getVideos, beimSpeichern) {
             return;
           }
           if (!uebernommen) return;
-          const gemerkt = { volume: video.volume, muted: video.muted };
-          localStorage.setItem(cu_volumeKey(site), JSON.stringify(gemerkt));
-          beimSpeichern?.(gemerkt);
+          localStorage.setItem(
+            cu_volumeKey(site),
+            JSON.stringify({ volume: video.volume, muted: video.muted }),
+          );
         });
       });
     },
     () => true,
     { interval: 500, pauseInBg: false },
   );
-}
-
-// ── TEMP: Mitschnitt, was der Player mit Lautstaerke und Position macht ─────────────────────
-// Eingebaut 19.09.2026: Auf TOGGO wird die Lautstaerke richtig gemerkt, aber nicht gehalten,
-// und das Fortsetzen landet an der falschen Stelle. Statt zu raten wird mitgeschnitten.
-// Nur aktiv mit localStorage "cu_debug" = "1" auf der Seite (Konsole:
-// localStorage.setItem("cu_debug", "1"), dann neu laden). Zeichnet 90 s lang auf und laedt
-// dann cu-diagnose.json herunter. Jedes Setzen durch die Erweiterung wird festgehalten,
-// zusammen mit dem Wert, der 1 s und 3 s spaeter tatsaechlich im Player steht.
-// Wieder entfernen, sobald die Ursache feststeht.
-const CU_DIAGNOSE_MS = 90000;
-let _cuDiagLog = null;
-let _cuDiagStart = 0;
-
-function cu_diag(eintrag) {
-  _cuDiagLog?.push({ t: Date.now() - _cuDiagStart, ...eintrag });
-}
-
-// was die Erweiterung gerade setzt, und was davon nach 1 s und 3 s noch uebrig ist
-function cu_diagGesetzt(video, was, gesetzt, lesen) {
-  if (!_cuDiagLog) return;
-  cu_diag({ was, video: video.dataset.cuDiagId ?? "?", gesetzt, vorher: lesen() });
-  [1000, 3000].forEach((ms) =>
-    setTimeout(() => cu_diag({ was: `${was}-nach-${ms}ms`, video: video.dataset.cuDiagId ?? "?", ist: lesen() }), ms),
-  );
-}
-
-function cu_diagTitel() {
-  return {
-    url: location.href,
-    titel: document.title,
-    h1: document.querySelector("h1")?.textContent?.trim()?.slice(0, 120),
-    ogTitle: document.querySelector('meta[property="og:title"]')?.content,
-  };
-}
-
-function cu_diagnose(site) {
-  let aus;
-  try {
-    aus = localStorage.getItem("cu_debug") !== "1";
-  } catch {
-    aus = true;
-  }
-  if (aus || _cuDiagLog) return;
-  _cuDiagLog = [];
-  _cuDiagStart = Date.now();
-  const speicherMitVol = () => {
-    const funde = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (/vol|mute|sound|pos|time|resume/i.test(k)) funde[k] = localStorage.getItem(k)?.slice(0, 200);
-    }
-    return funde;
-  };
-  cu_diag({ was: "start", ...cu_diagTitel(), gemerkt: cu_readVolume(site), seitenSpeicher: speicherMitVol() });
-
-  let naechsteId = 0;
-  let letzteAdresse = location.href;
-  const ereignisse = ["loadstart", "emptied", "loadedmetadata", "canplay", "playing", "pause", "seeking", "seeked", "ended", "volumechange"];
-  const beobachten = () => {
-    if (location.href !== letzteAdresse) {
-      letzteAdresse = location.href;
-      cu_diag({ was: "adresse", ...cu_diagTitel() });
-    }
-    document.querySelectorAll("video").forEach((video) => {
-      if (video.dataset.cuDiagId) return;
-      video.dataset.cuDiagId = String(naechsteId++);
-      cu_diag({ was: "neues-video", video: video.dataset.cuDiagId, src: (video.currentSrc || video.src || "").slice(0, 120), volume: video.volume, muted: video.muted, paused: video.paused, zeit: video.currentTime, dauer: video.duration });
-      ereignisse.forEach((typ) =>
-        video.addEventListener(typ, () =>
-          cu_diag({ was: typ, video: video.dataset.cuDiagId, volume: video.volume, muted: video.muted, zeit: Math.round(video.currentTime * 10) / 10, dauer: video.duration, src: typ === "loadstart" ? (video.currentSrc || video.src || "").slice(0, 120) : undefined }),
-        ),
-      );
-    });
-  };
-  const takt = setInterval(beobachten, 200);
-  beobachten();
-
-  setTimeout(() => {
-    clearInterval(takt);
-    cu_diag({ was: "ende", ...cu_diagTitel(), gemerkt: cu_readVolume(site), gemerktePositionen: cu_listPositions(site), seitenSpeicher: speicherMitVol(), videos: document.querySelectorAll("video").length });
-    const blob = new Blob([JSON.stringify(_cuDiagLog, null, 1)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "cu-diagnose.json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }, CU_DIAGNOSE_MS);
 }
 
 // ---
@@ -7364,7 +7312,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.7",
+  version: "1.9.0.9",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -100,8 +100,9 @@ Drei Fallen, alle erst durch Messen gefunden, alle vorher falsch vermutet:
   Seite nicht.
 - **„Endloser Ladekreis nach Neuladen“ war die Autoplay-Sperre**, nicht die Wettlaufsituation
   oben: Video fertig geladen (`readyState 4`), aber pausiert, weil ohne Klick auf der Seite
-  kein Ton-Autoplay erlaubt ist. `toggo_autoStart` versucht `play()` und startet notfalls
-  stumm; der erste Klick gibt den Ton zurück. Zwei Messfallen dabei: Playwright mit
+  kein Ton-Autoplay erlaubt ist. `toggo_playKnopf` blendet einen großen Play-Knopf ein; sein
+  Klick ist die geforderte Interaktion, die Folge läuft mit Ton. Ein `play()` per Skript
+  startet dort nur stumm (erster Anlauf, von Daniel verworfen). Zwei Messfallen dabei: Playwright mit
   `--autoplay-policy=no-user-gesture-required` blendet genau diese Sperre aus, und Code aus
   der DevTools-Konsole zählt in Chrome als Klick. Ein „`play()` in der Konsole geht“ beweist
   also nicht, dass es ohne Klick geht.

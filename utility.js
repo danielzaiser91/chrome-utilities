@@ -2101,9 +2101,7 @@ function fixToggo() {
   _init_set_video_rate_repeater__generic();
   cu_initPositionMemory(TOGGO_SITE, {
     getVideo: () => queryVisible("video"),
-    // Die Adresse ist die Folge (/toggolino/<serie>/folge/<folge>). Query und Hash bleiben
-    // draussen: sie aendern sich je nach Link, ueber den man kommt, die Folge nicht.
-    getId: toggo_getEpisodeUrl,
+    getId: toggo_getEpisodeId,
     getUrl: toggo_getEpisodeUrl,
     getTitle: toggo_getEpisodeTitle,
     getSeries: toggo_getSeriesTitle,
@@ -2280,6 +2278,15 @@ function toggo_getEpisodeUrl() {
   return location.origin + location.pathname;
 }
 
+// Die Folge erkennt man an TOGGOs Kennung am Ende des Pfads (.../folge/erwachen-vep25272), nicht
+// an der ganzen Adresse: Dieselbe Folge ist unter mehreren Pfaden erreichbar (/sammlung/
+// alle-formate/serien/... und /serien/..., mit und ohne Schraegstrich am Ende) und landete so
+// doppelt im Verlauf (Daniel, 19.09.2026).
+function toggo_getEpisodeId() {
+  const kennung = location.pathname.match(/-(vep\d+)\/?$/i)?.[1];
+  return kennung ? `toggo:${kennung.toLowerCase()}` : toggo_getEpisodeUrl();
+}
+
 // "/toggolino/die-supermonster/folge/lampenfieber" -> "Die Supermonster": der Abschnitt vor
 // "folge"; ohne "folge" in der Adresse der zweite Abschnitt
 // Gemessen 19.09.2026: document.title ist "Dragon Ball DAIMA – Ganze Staffeln kostenlos
@@ -2287,7 +2294,8 @@ function toggo_getEpisodeUrl() {
 // "Staffel 1 | Folge 16 | Degesu". Die Adresse traegt Kennungen (dragon-ball-daima-vse446,
 // degesu-vep25270) und taugt nur als Rueckfall.
 function toggo_getSeriesTitle() {
-  const ausTitel = document.title.split(/\s[–|]\s/)[0].trim();
+  // auf der Folgenseite setzt TOGGO nachtraeglich 'Dragon Ball DAIMA Folge: "Tabu" | toggo.de'
+  const ausTitel = document.title.split(/\s[–|]\s|\sFolge:\s/)[0].trim();
   if (ausTitel && !/toggo/i.test(ausTitel)) return ausTitel;
   const teile = location.pathname.split("/").filter(Boolean);
   const stelle = teile.indexOf("folge");
@@ -7398,7 +7406,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0",
+  version: "1.9.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

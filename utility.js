@@ -2111,6 +2111,43 @@ function fixToggo() {
   cu_initVolumeMemory(TOGGO_SITE, () => [...queryAll("video")]);
   toggo_sliderNachstellen();
   toggo_uiInFokusfalle();
+  toggo_autoStart();
+}
+
+// Folge per Neuladen oder Link geoeffnet -> endloser Ladekreis. Gemessen 19.09.2026: Das Video
+// ist fertig geladen (readyState 4), aber pausiert; TOGGO startet es nicht. Aus der Uebersicht
+// heraus laeuft es. Ein play() genuegt (Daniel: in der Konsole direkt nach dem Neuladen, ohne
+// Klick, mit Ton) -- Chrome erlaubt Ton ohne Klick auf Seiten, auf denen man oft schaut. Ohne
+// diese Erlaubnis (frisches Profil) lehnt Chrome play() mit Ton ab; dann starten wir stumm und
+// geben den Ton beim ersten Klick oder Tastendruck zurueck (danach darf die Seite entstummen).
+// Gewartet wird zwei Takte, damit TOGGO selbst starten kann. Ohne Klick auf der Seite kann der
+// Nutzer nicht selbst pausiert haben -- "pausiert" heisst hier also "nicht gestartet".
+function toggo_autoStart() {
+  let wartend = null;
+  repeatIfCondition(
+    () => {
+      if (navigator.userActivation?.hasBeenActive) return;
+      const video = [...queryAll("video")].find(
+        (v) => cu_isRealVideo(v) && v.paused && v.readyState >= 3,
+      );
+      if (!video || wartend !== video) {
+        wartend = video ?? null;
+        return;
+      }
+      wartend = null;
+      video.play().catch(() => {
+        video.muted = true;
+        video.play().catch(() => {});
+        const tonZurueck = () => {
+          if (!cu_readVolume(TOGGO_SITE)?.muted) video.muted = false;
+        };
+        window.addEventListener("pointerdown", tonZurueck, { capture: true, once: true });
+        window.addEventListener("keydown", tonZurueck, { capture: true, once: true });
+      });
+    },
+    () => true,
+    { interval: 500, pauseInBg: false },
+  );
 }
 
 // TOGGOs Lautstaerke-Slider laeuft beim Einblenden IMMER auf 0,5 -- ein Fehler bei TOGGO: Die
@@ -7323,7 +7360,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.11",
+  version: "1.9.0.12",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -98,6 +98,13 @@ Drei Fallen, alle erst durch Messen gefunden, alle vorher falsch vermutet:
   `document_start`) legt `window.foundation` vorher an und lässt zu frühe Aufrufe warten.
   Nur so erreichbar: Der isolierte Kontext von `utility.js` sieht die `window`-Objekte der
   Seite nicht.
+- **„Endloser Ladekreis nach Neuladen“ war die Autoplay-Sperre**, nicht die Wettlaufsituation
+  oben: Video fertig geladen (`readyState 4`), aber pausiert, weil ohne Klick auf der Seite
+  kein Ton-Autoplay erlaubt ist. `toggo_autoStart` versucht `play()` und startet notfalls
+  stumm; der erste Klick gibt den Ton zurück. Zwei Messfallen dabei: Playwright mit
+  `--autoplay-policy=no-user-gesture-required` blendet genau diese Sperre aus, und Code aus
+  der DevTools-Konsole zählt in Chrome als Klick. Ein „`play()` in der Konsole geht“ beweist
+  also nicht, dass es ohne Klick geht.
 - **Synthetische Klicks brauchen das Loslassen.** Ein `pointerdown` allein lässt bei
   framer-motion die Tap-Geste offen, und der Slider bleibt aufgeklappt.
 

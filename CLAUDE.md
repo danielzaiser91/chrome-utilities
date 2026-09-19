@@ -60,11 +60,17 @@ Chrome lädt ein Content-Skript nur dort, wo eine Host-Berechtigung besteht, ein
 HTML ändert daran nichts. Daniel hat sich für die Liste entschieden. Neu bewerten, wenn die
 Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage.
 
-Einstellungen: VOE speichert seit 17.09.2026 in `chrome.storage.local` unter `cu:opts:voe`
-(Berechtigung `storage`, ohne Warnhinweis), nicht im `localStorage` der Domain. Der gehört
-einer Domain, im iframe sogar nur der Kombination aus umgebender Seite und Domain; jede neue
-VOE-Domain fing damit bei Geschwindigkeit 1 an. Weitere Seiten mit wechselnden Domains kommen
-in `GEMEINSAM_GESPEICHERT`. Fehlt `chrome.storage`, bleibt es beim `localStorage`.
+Einstellungen: Alle Seiten speichern seit 19.09.2026 in `chrome.storage.local` unter
+`cu:opts:<site>` (Berechtigung `storage`, ohne Warnhinweis), nicht im `localStorage` der
+Domain. VOE hat damit am 17.09.2026 angefangen: Der `localStorage` gehört einer Domain, im
+iframe sogar nur der Kombination aus umgebender Seite und Domain, und jede neue VOE-Domain
+fing bei Geschwindigkeit 1 an. Nebeneffekt, der den Umstieg für alle begründet hat: Über
+`storage.onChanged` sehen alle Tabs eine Änderung sofort. Belegt mit zwei Tabs und der echten
+Erweiterung: Tab A auf 1,7 gestellt, Tab B lief sofort mit 1,7. Sichtbar wird das nur, wo
+die Geschwindigkeit laufend nachgestellt wird (generischer Repeater, luluvdo, filemoon).
+Netflix und WOW setzen sie nur bei einer Bedienung. Fehlt `chrome.storage`, bleibt es beim
+`localStorage`. Die einmalige Übernahme aus dem `localStorage` ist befristet, siehe
+`loadUserSettings`.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

@@ -1406,18 +1406,23 @@ function loadUserSettings() {
   const site = matcher?.site?.toLowerCase();
   if (!site || !userOptions[site]) return;
 
-  // One-time migration from old global key (stored all sites in one object)
+  // One-time migration from old global key (stored all sites in one object). Merged, not
+  // saved: saving has to wait until the shared storage has loaded (see _saveSiteValues), and
+  // _ladeGemeinsam saves the merged values itself when the shared storage has none yet.
   const legacy = window.localStorage.getItem('Chrome:Utility:userOptions');
   if (legacy) {
     try {
       const old = JSON.parse(legacy);
-      if (old[site]) _saveSiteValues(site, old[site], old.version);
+      if (old[site]) _mergeSiteValues(site, old[site]);
     } catch {}
     window.localStorage.removeItem('Chrome:Utility:userOptions');
   }
 
   _ladeGemeinsam(site);
 
+  // Bis v1.9.x lagen die Einstellungen im localStorage der Seite. Gelesen wird er nur noch als
+  // Quelle fuer die einmalige Uebernahme in den gemeinsamen Speicher (_ladeGemeinsam) --
+  // befristet (19.09.2026): entfernen, sobald v1.10.0 ein paar Wochen draussen ist.
   let stored;
   try { stored = JSON.parse(window.localStorage.getItem('cu:opts')); } catch {}
   if (!stored) return;
@@ -1430,23 +1435,24 @@ function loadUserSettings() {
   _mergeSiteValues(site, storedSite);
 }
 
-// Seiten, deren Player unter wechselnden Domains laeuft, speichern im Speicher der Erweiterung
-// statt im localStorage der Seite. Der localStorage gehoert einer Domain -- im iframe sogar nur
-// der Kombination aus umgebender Seite und Domain --, jede neue VOE-Domain fing deshalb wieder
-// bei Geschwindigkeit 1 an (Daniel, 17.09.2026). chrome.storage.local teilen sich alle Tabs und
-// Frames der Erweiterung; die Berechtigung "storage" kommt ohne Warnhinweis.
-const GEMEINSAM_GESPEICHERT = new Set(["voe"]);
+// Die Einstellungen liegen im Speicher der Erweiterung (chrome.storage.local), nicht im
+// localStorage der Seite. Den teilen sich alle Tabs und Frames: Aendert man in einem Tab die
+// Geschwindigkeit, uebernehmen die anderen sie sofort (storage.onChanged). Der localStorage
+// gehoert dagegen einer Domain -- im iframe sogar nur der Kombination aus umgebender Seite und
+// Domain. Eingefuehrt 17.09.2026 fuer VOE (jede neue Domain fing bei Geschwindigkeit 1 an), seit
+// 19.09.2026 fuer alle Seiten (Daniel: "dann sollten wir es ueberall implementieren"). Die
+// Berechtigung "storage" kommt ohne Warnhinweis.
 let _gemeinsamGeladen = false;
 
-function _gemeinsamerSpeicher(site) {
+function _gemeinsamerSpeicher() {
   // globalThis.chrome statt chrome: fehlt die Erweiterungs-API ganz (fremder Browser, Skript
   // ausserhalb der Erweiterung), waere ein nacktes chrome ein ReferenceError. Dann bleibt es
-  // beim localStorage der Domain wie bis v1.8.0.
-  return GEMEINSAM_GESPEICHERT.has(site) ? globalThis.chrome?.storage?.local ?? null : null;
+  // beim localStorage der Domain.
+  return globalThis.chrome?.storage?.local ?? null;
 }
 
 function _ladeGemeinsam(site) {
-  const speicher = _gemeinsamerSpeicher(site);
+  const speicher = _gemeinsamerSpeicher();
   if (!speicher) return;
   const schluessel = "cu:opts:" + site;
   // Rueckruf statt Promise: beides kann Chrome, der Rueckruf laeuft aber auch in Browsern, deren
@@ -1455,9 +1461,9 @@ function _ladeGemeinsam(site) {
     _gemeinsamGeladen = true;
     const stored = daten[schluessel];
     if (!stored) {
-      // Uebernahme: v1.8.0 hat VOE noch im localStorage der Domain gespeichert, dieser Wert steht
-      // schon in userOptions. Befristet (17.09.2026) -- entfernen, sobald v1.8.0 ein paar Wochen
-      // abgeloest ist; danach reicht der Standardwert.
+      // Uebernahme: Bis v1.9.x lag der Wert im localStorage der Domain und steht schon in
+      // userOptions (loadUserSettings). Befristet (19.09.2026) -- entfernen, sobald v1.10.0 ein
+      // paar Wochen draussen ist; danach reicht der Standardwert.
       saveUserSettings();
       return;
     }
@@ -1508,7 +1514,7 @@ function _saveSiteValues(site, siteOpts, version) {
       }
     });
   });
-  const speicher = _gemeinsamerSpeicher(site);
+  const speicher = _gemeinsamerSpeicher();
   if (!speicher) {
     window.localStorage.setItem('cu:opts', JSON.stringify(toSave));
     return;
@@ -7406,7 +7412,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.9.0.1",
+  version: "1.10.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

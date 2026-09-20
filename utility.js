@@ -1448,7 +1448,12 @@ function _gemeinsamerSpeicher() {
   // globalThis.chrome statt chrome: fehlt die Erweiterungs-API ganz (fremder Browser, Skript
   // ausserhalb der Erweiterung), waere ein nacktes chrome ein ReferenceError. Dann bleibt es
   // beim localStorage der Domain.
-  return globalThis.chrome?.storage?.local ?? null;
+  // runtime.id verschwindet, sobald die Erweiterung neu geladen oder aktualisiert wurde: Die
+  // schon geoeffneten Tabs laufen mit dem alten Skript weiter, jeder Zugriff auf chrome.storage
+  // wirft dann "Extension context invalidated" (Daniel, 20.09.2026, YouTube-Tab nach einem
+  // Neuladen der Erweiterung). Fuer diese Tabs bleibt es beim localStorage, bis sie neu laden.
+  if (!globalThis.chrome?.runtime?.id) return null;
+  return globalThis.chrome.storage?.local ?? null;
 }
 
 function _ladeGemeinsam(site) {
@@ -1457,26 +1462,30 @@ function _ladeGemeinsam(site) {
   const schluessel = "cu:opts:" + site;
   // Rueckruf statt Promise: beides kann Chrome, der Rueckruf laeuft aber auch in Browsern, deren
   // chrome.*-Namensraum keine Promises liefert.
-  speicher.get(schluessel, (daten = {}) => {
-    _gemeinsamGeladen = true;
-    const stored = daten[schluessel];
-    if (!stored) {
-      // Uebernahme: Bis v1.9.x lag der Wert im localStorage der Domain und steht schon in
-      // userOptions (loadUserSettings). Befristet (19.09.2026) -- entfernen, sobald v1.10.0 ein
-      // paar Wochen draussen ist; danach reicht der Standardwert.
-      saveUserSettings();
-      return;
-    }
-    const { version, ...storedSite } = stored;
-    _mergeSiteValues(site, storedSite);
-  });
-  // Andere Tabs und Frames aendern den Wert -- sofort uebernehmen. Ohne das schriebe ein altes
-  // Fenster beim Verlassen (whenLeavingTab speichert) seinen veralteten Wert zurueck.
-  globalThis.chrome.storage.onChanged?.addListener((aenderungen, bereich) => {
-    if (bereich !== "local" || !aenderungen[schluessel]?.newValue) return;
-    const { version, ...storedSite } = aenderungen[schluessel].newValue;
-    _mergeSiteValues(site, storedSite);
-  });
+  // Trotz der Pruefung oben kann die Erweiterung genau zwischen Pruefung und Aufruf neu geladen
+  // werden; dann wirft der Aufruf. Ein Tab mit altem Skript soll daran nicht sterben.
+  try {
+    speicher.get(schluessel, (daten = {}) => {
+      _gemeinsamGeladen = true;
+      const stored = daten[schluessel];
+      if (!stored) {
+        // Uebernahme: Bis v1.9.x lag der Wert im localStorage der Domain und steht schon in
+        // userOptions (loadUserSettings). Befristet (19.09.2026) -- entfernen, sobald v1.10.0 ein
+        // paar Wochen draussen ist; danach reicht der Standardwert.
+        saveUserSettings();
+        return;
+      }
+      const { version, ...storedSite } = stored;
+      _mergeSiteValues(site, storedSite);
+    });
+    // Andere Tabs und Frames aendern den Wert -- sofort uebernehmen. Ohne das schriebe ein altes
+    // Fenster beim Verlassen (whenLeavingTab speichert) seinen veralteten Wert zurueck.
+    globalThis.chrome.storage.onChanged?.addListener((aenderungen, bereich) => {
+      if (bereich !== "local" || !aenderungen[schluessel]?.newValue) return;
+      const { version, ...storedSite } = aenderungen[schluessel].newValue;
+      _mergeSiteValues(site, storedSite);
+    });
+  } catch {}
 }
 
 function _mergeSiteValues(site, storedSite) {
@@ -1522,7 +1531,9 @@ function _saveSiteValues(site, siteOpts, version) {
   // vor dem ersten Laden nicht schreiben -- sonst ueberschreibt ein frisch geoeffneter Player,
   // dessen Maus das Fenster verlaesst, den gemeinsamen Wert mit seinem Standardwert
   if (!_gemeinsamGeladen) return;
-  speicher.set({ ["cu:opts:" + site]: toSave });
+  try {
+    speicher.set({ ["cu:opts:" + site]: toSave });
+  } catch {}
 }
 
 function saveUserSettings() {
@@ -7424,7 +7435,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.1",
+  version: "1.10.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

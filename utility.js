@@ -5922,6 +5922,18 @@ function addCustomCrunchyCss() {
 // www.geoguessr.com
 function fixGeoguessr() {
   fixGeoguessrScrollbar();
+  fixGeoguessrNameClipped();
+}
+
+// Im Duell-Vorspann steht der eigene Name in einem Kasten, der ihn abschneidet: Bei langen Namen
+// fehlt das Ende (Daniel, 20.09.2026, Screenshot "DerNameMEOWa..."). Dieselbe Hash-Klasse wie
+// oben, deshalb wieder der Praefix als Selektor. Kein "clip": Hier soll nichts abgeschnitten
+// werden, sondern der Text ueberstehen duerfen -- das Leuchten gehoert ohnehin dazu.
+function fixGeoguessrNameClipped() {
+  insertCSS(
+    '[class*="summon-glow-text_root__"] { overflow: visible !important; }',
+    "geoguessr-name-clipped-fix",
+  );
 }
 
 // The daily-challenge intro animates a star field via transform. The stars swing far outside the
@@ -7412,7 +7424,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.0",
+  version: "1.10.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

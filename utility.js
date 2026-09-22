@@ -2310,13 +2310,21 @@ function toggo_getEpisodeId() {
 // anschauen | toggo.de", auch auf der Folgenseite. Die Folge steht nur in der h1:
 // "Staffel 1 | Folge 16 | Degesu". Die Adresse traegt Kennungen (dragon-ball-daima-vse446,
 // degesu-vep25270) und taugt nur als Rueckfall.
+// Die Serie steht in der Adresse (.../serien/woozle-goozle-vse29/folge/...), der schoenere Name
+// im Seitentitel ('Dragon Ball DAIMA Folge: "Tabu" | toggo.de', von TOGGO nachtraeglich gesetzt).
+// Genommen wird der Titel nur, wenn er zur Adresse passt: Am 22.09.2026 stand eine
+// Woozle-Goozle-Folge im Verlauf unter "Dragon Ball DAIMA". Woher der fremde Titel kam, liess
+// sich nicht nachstellen (Titel und Pfad liefen im Messlauf ueber 30 s synchron) -- die Pruefung
+// macht die Verwechslung unabhaengig davon unmoeglich.
 function toggo_getSeriesTitle() {
-  // auf der Folgenseite setzt TOGGO nachtraeglich 'Dragon Ball DAIMA Folge: "Tabu" | toggo.de'
-  const ausTitel = document.title.split(/\s[–|]\s|\sFolge:\s/)[0].trim();
-  if (ausTitel && !/toggo/i.test(ausTitel)) return ausTitel;
   const teile = location.pathname.split("/").filter(Boolean);
   const stelle = teile.indexOf("folge");
-  return toggo_slugZuText(stelle > 0 ? teile[stelle - 1] : teile.at(-1) ?? "");
+  const slug = stelle > 0 ? teile[stelle - 1] : teile.at(-1) ?? "";
+  const ausTitel = document.title.split(/\s[–|]\s|\sFolge:\s/)[0].trim();
+  // ohne die Kennung am Ende (-vse29), die im Titel nicht vorkommt
+  const kern = slug.replace(/-v(se|ep)\d+$/i, "");
+  const passt = ausTitel && toggo_normalisiere(kern) === toggo_normalisiere(ausTitel);
+  return passt ? ausTitel : toggo_slugZuText(slug);
 }
 
 // "S1 E16 · Degesu". Die h1 zaehlt nur, wenn sie zur Adresse passt: Nach einem SPA-Wechsel
@@ -7435,7 +7443,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.2",
+  version: "1.10.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

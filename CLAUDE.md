@@ -121,6 +121,26 @@ Werkzeug dafür: die Erweiterung echt in Playwright laden (`--load-extension`, h
 `curl` holen und an der Stack-Position lesen: Die Klassennamen von styled-components tragen
 den Komponentennamen (`RangeSlidercss__RangeSliderHandle`) und taugen als Selektor.
 
+### Crunchyroll-Watchlist: die Farbe kommt vom Anime-Kalender (30.09.2026)
+
+Crunchyrolls eigener Text („Jetzt/Erneut anschauen") war monatelang ein verlässlicher Stellvertreter
+für „auf Deutsch verfügbar": bei deutscher Tonspur stand „Jetzt anschauen", sonst „Erneut
+anschauen". Seit einem Update zählt Crunchyroll **jede** Synchro — an „Jaadugar: A Witch in
+Mongolia" stand „Synchro English", die Karte trug „Untertitelt | Synchro" und wurde grün (Daniel,
+30.09.2026).
+
+Seitdem entscheidet der Anime-Kalender: `cu_synchroFragen()` schickt **eine** Anfrage mit allen
+sichtbaren Karten (Serienkennung aus dem Serienlink, Folgenkennung aus dem Watch-Link, Folgennummer
+aus dem Untertitel) an `POST https://newsletter.animekalender.workers.dev/synchro` und bekommt je
+Eintrag `gruen`/`gelb`. Kein Zwischenspeicher — die Liste wird bei jedem Aufbau neu geschickt, damit
+Hinzufügen und Entfernen sofort stimmen. Anfragen werden alle 3 Sekunden gebündelt, weil der
+MutationObserver bei jeder Listenänderung feuert. Ohne Antwort bleibt der alte Text (grün nur bei
+„fortsetzen"), also nie ein falsches Grün. „Erneut anschauen" bleibt gelb, auch bei deutscher Folge.
+
+Die Farbe ist nur so frisch wie die Quelle: der Anime-Kalender baut die Tabelle stündlich und nimmt
+**angekündigte** deutsche Folgen samt Uhrzeit mit, damit eine Folge zur richtigen Minute grün wird,
+ohne auf einen neuen Datenlauf zu warten.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

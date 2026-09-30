@@ -6693,6 +6693,115 @@ function removeNotificationBubbleOnClick() {
   repeatIfCondition(fn, alreadyAdded);
 }
 
+// ---------------------------------------------------------------------------
+// Crunchyroll-Watchlist: grün nur, wenn es die Folge auf Deutsch gibt
+//
+// Bis Ende September 2026 war Crunchyrolls eigener Text („Jetzt/Erneut anschauen") ein
+// verlässlicher Stellvertreter für „auf Deutsch verfügbar": bei deutscher Tonspur stand dort
+// „Jetzt anschauen", sonst „Erneut anschauen". Seit einem Update zählt Crunchyroll **jede**
+// Synchro — an Jaadugar: A Witch in Mongolia stand auf der Episodenseite „Synchro English", die
+// Karte trug „Untertitelt | Synchro" und wurde grün (Daniel, 30.09.2026). Der Text sagt damit
+// nichts mehr über deutschen Ton.
+//
+// Die Farbe kommt deshalb vom Anime-Kalender: **ein** POST mit allen sichtbaren Watchlist-Einträgen
+// (Serienkennung aus dem Serienlink, Folgenkennung aus dem Watch-Link, Folgennummer aus dem
+// Untertitel) und **eine** Antwort mit ebenso vielen Farben. Kein Zwischenspeicher: die Liste wird
+// bei jedem Aufbau neu geschickt, damit Hinzufügen und Entfernen sofort stimmen. Crunchyrolls
+// „Erneut" bleibt gelb (schon gesehen), und ohne Antwort gilt der alte Text weiter, damit die
+// Liste nie farblos wird.
+const CU_SYNCHRO_URL = "https://newsletter.animekalender.workers.dev/synchro";
+// Der MutationObserver feuert bei jeder Listenänderung; Anfragen werden gebündelt.
+const CU_SYNCHRO_ABSTAND_MS = 3000;
+const CU_SYNCHRO_HOECHSTENS = 500;
+let cu_synchroFarben = {}; // Schlüssel -> "gruen" | "gelb" (nur diese Sitzung, kein Speicher)
+let cu_synchroSchluessel = "";
+let cu_synchroFragtGerade = false;
+let cu_synchroZuletzt = 0;
+
+/** Die Folgennummer aus „Jetzt anschauen: E13" — ohne sie gibt es keine angekündigte Folge. */
+function cu_watchZahl(text) {
+  const treffer = /\bE\s*(\d+)\b/i.exec(String(text ?? ""));
+  return treffer ? Number(treffer[1]) : undefined;
+}
+
+/** Kennung aus dem Link der Karte: `/series/<kennung>/…` bzw. `/watch/<kennung>/…`. */
+function cu_watchKennung(karte, art) {
+  const href = karte.querySelector('a[href*="/' + art + '/"]')?.getAttribute("href") ?? "";
+  const treffer = new RegExp("/" + art + "/([A-Za-z0-9]+)").exec(href);
+  return treffer ? treffer[1] : undefined;
+}
+
+function cu_watchEintraege() {
+  return queryAll('[class*="my-lists-item"]')
+    .map((karte) => {
+      const untertitel = karte.querySelector('[class*="watchlist-card-subtitle"]');
+      if (!untertitel) return null;
+      const s = cu_watchKennung(karte, "series");
+      const e = cu_watchKennung(karte, "watch");
+      const n = cu_watchZahl(untertitel.textContent);
+      return { karte, untertitel, s, e, n, schluessel: (e ? "e:" + e : "sn:" + s + ":" + n) };
+    })
+    .filter(Boolean);
+}
+
+function cu_watchIstFortsetzen(text) {
+  const t = String(text ?? "").toLowerCase();
+  return ["fortsetzen", "jetzt anschauen", "continue", "als nächstes", "up next", "start watching"].some((v) => t.includes(v));
+}
+
+function cu_watchlistFaerben() {
+  const eintraege = cu_watchEintraege();
+  if (!eintraege.length) return;
+
+  for (const eintrag of eintraege) {
+    const alt = eintrag.untertitel.textContent.replace(/^(?:🟢|🟡)\s*/, "");
+    const fortsetzen = cu_watchIstFortsetzen(alt);
+    const auskunft = cu_synchroFarben[eintrag.schluessel];
+    // Ohne Auskunft bleibt es beim alten Verhalten — grün nur, wenn Crunchyroll „fortsetzen" sagt.
+    const gruen = fortsetzen && (auskunft === undefined ? true : auskunft === "gruen");
+    const neu = (gruen ? "🟢" : "🟡") + alt;
+    if (eintrag.untertitel.textContent !== neu) eintrag.untertitel.textContent = neu;
+    if (!fortsetzen) {
+      // „neu"-Abzeichen ausblenden, wenn die Folge schon gesehen wurde.
+      const newTag = eintrag.karte.querySelector('[data-t="info-tag-new"]');
+      if (newTag) newTag.style.display = "unset";
+    }
+    eintrag.karte.classList.add("cu-added-watch-status");
+  }
+
+  const schluessel = eintraege.map((e) => e.schluessel).join("|");
+  const jetzt = Date.now();
+  if (schluessel !== cu_synchroSchluessel && !cu_synchroFragtGerade && jetzt - cu_synchroZuletzt >= CU_SYNCHRO_ABSTAND_MS) {
+    cu_synchroSchluessel = schluessel;
+    cu_synchroZuletzt = jetzt;
+    cu_synchroFragen(eintraege);
+  }
+}
+
+function cu_synchroFragen(eintraege) {
+  cu_synchroFragtGerade = true;
+  const gefragt = eintraege.slice(0, CU_SYNCHRO_HOECHSTENS);
+  fetch(CU_SYNCHRO_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eintraege: gefragt.map((e) => ({ s: e.s, e: e.e, n: e.n })) }),
+  })
+    .then((antwort) => (antwort.ok ? antwort.json() : null))
+    .then((daten) => {
+      const farben = daten && Array.isArray(daten.farben) ? daten.farben : [];
+      gefragt.forEach((eintrag, i) => {
+        const f = farben[i]?.f;
+        if (f === "gruen" || f === "gelb") cu_synchroFarben[eintrag.schluessel] = f;
+      });
+      cu_watchlistFaerben();
+    })
+    // Ohne Antwort bleibt der bisherige Stand stehen — besser als ein falsches Grün.
+    .catch(() => {})
+    .finally(() => {
+      cu_synchroFragtGerade = false;
+    });
+}
+
 function watchListColors() {
   const isOnWatchList = () => location.pathname.includes("watchlist");
   const isInLoadingState = () =>
@@ -6700,40 +6809,7 @@ function watchListColors() {
       "loading",
     );
   function fn() {
-    // Fügt zu Watchlisteinträgen Bubbles hinzu
-    // grün wenn nächste, gelb wenn erneut
-    queryAll('[class*="my-lists-item"]:not(.cu-added-watch-status)').forEach(
-      (card) => {
-        const nameTag = card?.querySelector(
-          '[class*="watchlist-card-subtitle"]',
-        );
-        if (!nameTag) return;
-        const isFortsetzen = [
-          "fortsetzen",
-          "jetzt anschauen",
-          "continue",
-          "als nächstes",
-          "up next",
-          "start watching",
-        ].some((v) => nameTag.textContent.toLowerCase().includes(v));
-        if (isFortsetzen) {
-          nameTag.textContent = "🟢" + nameTag.textContent;
-        }
-        const isErneut =
-          !isFortsetzen &&
-          ["erneut", "again"].some((v) =>
-            nameTag.textContent.toLowerCase().includes(v),
-          );
-        if (isErneut) {
-          nameTag.textContent = "🟡" + nameTag.textContent;
-          // hide new tag if already watched: data-t="info-tag-new"
-          const newTag = card?.querySelector('[data-t="info-tag-new"]');
-          const hideNewTag = false; // TODO: mit user setting verbinden
-          if (newTag) newTag.style.display = hideNewTag ? "none" : "unset";
-        }
-        card.classList.add("cu-added-watch-status");
-      },
-    );
+    cu_watchlistFaerben();
   }
   // the watchlist re-renders/virtualizes cards, which can wipe the cu-added-watch-status marker
   // and briefly show an unmarked card again -- a MutationObserver on the list container reacts
@@ -7443,7 +7519,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.3",
+  version: "1.10.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

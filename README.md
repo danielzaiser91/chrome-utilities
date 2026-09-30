@@ -29,7 +29,7 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 - Custom playback speed (0.2×–5×)
 - Keyboard shortcuts: `+`/`-` to adjust speed, `Alt+P`/`Alt+N` for previous/next episode
 - Highlights dub availability by language in the episode overview
-- Watchlist: green only when the episode is out in German, yellow otherwise (asks the Anime-Kalender API)
+- Watchlist: green only when the episode is out in German and not yet watched
 
 ### Amazon Prime Video
 - Auto-skip intros, recaps and trailer ads

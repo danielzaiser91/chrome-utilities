@@ -6694,119 +6694,81 @@ function removeNotificationBubbleOnClick() {
 }
 
 // ---------------------------------------------------------------------------
-// Crunchyroll-Watchlist: grün nur, wenn es die Folge auf Deutsch gibt
+// Crunchyroll-Watchlist: grün nur, wenn die Folge deutsch UND noch nicht gesehen ist
 //
-// Bis Ende September 2026 war Crunchyrolls eigener Text („Jetzt/Erneut anschauen") ein
-// verlässlicher Stellvertreter für „auf Deutsch verfügbar": bei deutscher Tonspur stand dort
-// „Jetzt anschauen", sonst „Erneut anschauen". Seit einem Update zählt Crunchyroll **jede**
-// Synchro — an Jaadugar: A Witch in Mongolia stand auf der Episodenseite „Synchro English", die
-// Karte trug „Untertitelt | Synchro" und wurde grün (Daniel, 30.09.2026). Der Text sagt damit
-// nichts mehr über deutschen Ton.
+// Bis Ende September 2026 genügte der Kartenuntertitel („Jetzt anschauen" / „Erneut anschauen"):
+// Bei deutscher Tonspur stand dort „Jetzt anschauen", sonst „Erneut anschauen" — der Text trug die
+// deutsche Verfügbarkeit mit. Seit einem Update zählt Crunchyroll **jede** Synchro (an „Jaadugar:
+// A Witch in Mongolia" stand auf der Episodenseite „Synchro English", die Karte wurde trotzdem grün,
+// Daniel 30.09.2026). Der Untertitel sagt damit nichts mehr über deutschen Ton.
 //
-// Die Farbe kommt deshalb vom Anime-Kalender: **ein** POST mit allen sichtbaren Watchlist-Einträgen
-// (Serienkennung aus dem Serienlink, Folgenkennung aus dem Watch-Link, Folgennummer aus dem
-// Untertitel) und **eine** Antwort mit ebenso vielen Farben. Kein Zwischenspeicher: die Liste wird
-// bei jedem Aufbau neu geschickt, damit Hinzufügen und Entfernen sofort stimmen. Crunchyrolls
-// „Erneut" bleibt gelb (schon gesehen), und ohne Antwort gilt der alte Text weiter, damit die
-// Liste nie farblos wird.
-const CU_SYNCHRO_URL = "https://newsletter.animekalender.workers.dev/synchro";
-// Der MutationObserver feuert bei jeder Listenänderung; Anfragen werden gebündelt.
-const CU_SYNCHRO_ABSTAND_MS = 3000;
-// Dieselbe Liste darf nicht ewig mit der alten Antwort stehen bleiben (SPA-Wechsel laden die
-// Erweiterung nicht neu). Kein Zwischenspeicher: es wird nur die Auskunft erneuert.
-const CU_SYNCHRO_WIEDERHOL_MS = 5 * 60 * 1000;
-const CU_SYNCHRO_HOECHSTENS = 500;
-let cu_synchroFarben = {}; // Schlüssel -> "gruen" | "gelb" (nur diese Sitzung, kein Speicher)
-let cu_synchroSchluessel = "";
-let cu_synchroGeholt = 0;
-let cu_synchroFragtGerade = false;
-let cu_synchroZuletzt = 0;
+// Die Sprache steckt aber in der Karte selbst: Der Watch-Link führt auf die **Fassung**, die man
+// tatsächlich bekäme, und ihre Kennung endet mit dem Sprachpaar —
+// `GE00374386JAJP` = Japanisch, `GE00377827DEDE` = Deutsch, `GE00378913KOKR` = Koreanisch.
+// An Daniels Watchlist stimmte das in allen elf Karten mit dem Anime-Kalender-Bestand überein
+// (Jaadugar E8 `JAJP`, deutsch nur bis F7; Clevatess E13 `DEDE`; Skeleton Knight E12 `DEDE`).
+// Deshalb braucht die Farbe **keine** Abfrage, keine Datei und keinen Zwischenspeicher: die Angabe
+// kommt mit der Seite und ist damit immer so frisch wie diese — eine um 19:25 erschienene Folge hat
+// ihren Link sofort.
+//
+// Regel (Daniel): **nur grün, wenn deutsch UND noch nicht gesehen.** „Erneut anschauen" heißt
+// gesehen — also gelb, auch bei deutscher Fassung. Unbekannter Zustand oder fehlende Sprachkennung
+// bleiben gelb; ein falsches Grün ist genau der Fehler, der hier behoben wird.
+const CU_DEUTSCH_ENDUNG = "DEDE";
+/** „Noch nicht gesehen" — deutsche und englische Oberfläche. */
+const CU_UNgesehen = [
+  "fortsetzen",
+  "jetzt anschauen",
+  "weiter anschauen",
+  "als nächstes",
+  "continue",
+  "resume",
+  "up next",
+  "next up",
+  "start watching",
+  "watch now",
+];
+/** „Schon gesehen" — nur zur Klarheit, unbekannt gilt ohnehin als gesehen. */
+const CU_GESEHEN = ["erneut", "nochmal", "noch einmal", "wieder", "again", "rewatch", "watch again"];
 
-/** Die Folgennummer aus „Jetzt anschauen: E13" — ohne sie gibt es keine angekündigte Folge. */
-function cu_watchZahl(text) {
-  const treffer = /\bE\s*(\d+)\b/i.exec(String(text ?? ""));
-  return treffer ? Number(treffer[1]) : undefined;
+/** Die Sprachkennung der Fassung aus dem Watch-Link: `…/watch/GE00377827DEDE/slug` → `DEDE`. */
+function cu_watchSprache(karte) {
+  const href = karte.querySelector('a[href*="/watch/"]')?.getAttribute("href") ?? "";
+  const kennung = /\/watch\/([A-Z0-9]+)/.exec(href)?.[1] ?? "";
+  const endung = /([A-Z]{2})([A-Z]{2})$/.exec(kennung);
+  return endung ? endung[1] + endung[2] : "";
 }
 
-/** Kennung aus dem Link der Karte: `/series/<kennung>/…` bzw. `/watch/<kennung>/…`. */
-function cu_watchKennung(karte, art) {
-  const href = karte.querySelector('a[href*="/' + art + '/"]')?.getAttribute("href") ?? "";
-  const treffer = new RegExp("/" + art + "/([A-Za-z0-9]+)").exec(href);
-  return treffer ? treffer[1] : undefined;
-}
-
-function cu_watchEintraege() {
-  // `queryAll` liefert eine NodeList — ohne Array.from gibt es kein `.map`.
-  return Array.from(queryAll('[class*="my-lists-item"]'))
-    .map((karte) => {
-      const untertitel = karte.querySelector('[class*="watchlist-card-subtitle"]');
-      if (!untertitel) return null;
-      const s = cu_watchKennung(karte, "series");
-      const e = cu_watchKennung(karte, "watch");
-      const n = cu_watchZahl(untertitel.textContent);
-      return { karte, untertitel, s, e, n, schluessel: (e ? "e:" + e : "sn:" + s + ":" + n) };
-    })
-    .filter(Boolean);
-}
-
-function cu_watchIstFortsetzen(text) {
+/** true = noch nicht gesehen, false = schon gesehen, null = unbekannt. */
+function cu_watchZustand(text) {
   const t = String(text ?? "").toLowerCase();
-  return ["fortsetzen", "jetzt anschauen", "continue", "als nächstes", "up next", "start watching"].some((v) => t.includes(v));
+  if (CU_GESEHEN.some((v) => t.includes(v))) return false;
+  if (CU_UNgesehen.some((v) => t.includes(v))) return true;
+  return null;
 }
 
 function cu_watchlistFaerben() {
-  const eintraege = cu_watchEintraege();
-  if (!eintraege.length) return;
+  // `queryAll` liefert eine NodeList — ohne Array.from gibt es kein `.map`.
+  for (const karte of Array.from(queryAll('[class*="my-lists-item"]'))) {
+    const untertitel = karte.querySelector('[class*="watchlist-card-subtitle"]');
+    if (!untertitel) continue;
 
-  for (const eintrag of eintraege) {
-    const alt = eintrag.untertitel.textContent.replace(/^(?:🟢|🟡)\s*/, "");
-    const fortsetzen = cu_watchIstFortsetzen(alt);
-    const auskunft = cu_synchroFarben[eintrag.schluessel];
-    // Ohne Auskunft bleibt es beim alten Verhalten — grün nur, wenn Crunchyroll „fortsetzen" sagt.
-    const gruen = fortsetzen && (auskunft === undefined ? true : auskunft === "gruen");
-    const neu = (gruen ? "🟢" : "🟡") + alt;
-    if (eintrag.untertitel.textContent !== neu) eintrag.untertitel.textContent = neu;
-    if (!fortsetzen) {
+    const deutsch = cu_watchSprache(karte) === CU_DEUTSCH_ENDUNG;
+    /* Der Zustand steht im Untertitel; bei unbekanntem Text hilft der aria-label des Links
+       („Fortsetzen Episode 22 von …") weiter. Unbekannt bleibt gelb. */
+    const aria = karte.querySelector('a[aria-label][href*="/watch/"]')?.getAttribute("aria-label");
+    const ungesehen = cu_watchZustand(untertitel.textContent) ?? cu_watchZustand(aria) ?? false;
+
+    const alt = untertitel.textContent.replace(/^[^\p{L}\p{N}]+/u, "");
+    const neu = (deutsch && ungesehen ? "🟢" : "🟡") + alt;
+    if (untertitel.textContent !== neu) untertitel.textContent = neu;
+    if (!ungesehen) {
       // „neu"-Abzeichen ausblenden, wenn die Folge schon gesehen wurde.
-      const newTag = eintrag.karte.querySelector('[data-t="info-tag-new"]');
+      const newTag = karte.querySelector('[data-t="info-tag-new"]');
       if (newTag) newTag.style.display = "unset";
     }
-    eintrag.karte.classList.add("cu-added-watch-status");
+    karte.classList.add("cu-added-watch-status");
   }
-
-  const schluessel = eintraege.map((e) => e.schluessel).join("|");
-  const jetzt = Date.now();
-  const veraltet = jetzt - cu_synchroGeholt > CU_SYNCHRO_WIEDERHOL_MS;
-  if ((schluessel !== cu_synchroSchluessel || veraltet) && !cu_synchroFragtGerade && jetzt - cu_synchroZuletzt >= CU_SYNCHRO_ABSTAND_MS) {
-    cu_synchroSchluessel = schluessel;
-    cu_synchroZuletzt = jetzt;
-    cu_synchroFragen(eintraege);
-  }
-}
-
-function cu_synchroFragen(eintraege) {
-  cu_synchroFragtGerade = true;
-  const gefragt = eintraege.slice(0, CU_SYNCHRO_HOECHSTENS);
-  fetch(CU_SYNCHRO_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eintraege: gefragt.map((e) => ({ s: e.s, e: e.e, n: e.n })) }),
-  })
-    .then((antwort) => (antwort.ok ? antwort.json() : null))
-    .then((daten) => {
-      const farben = daten && Array.isArray(daten.farben) ? daten.farben : [];
-      gefragt.forEach((eintrag, i) => {
-        const f = farben[i]?.f;
-        if (f === "gruen" || f === "gelb") cu_synchroFarben[eintrag.schluessel] = f;
-      });
-      cu_synchroGeholt = Date.now();
-      cu_watchlistFaerben();
-    })
-    // Ohne Antwort bleibt der bisherige Stand stehen — besser als ein falsches Grün.
-    .catch(() => {})
-    .finally(() => {
-      cu_synchroFragtGerade = false;
-    });
 }
 
 function watchListColors() {
@@ -7526,7 +7488,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.4",
+  version: "1.10.0.5",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -121,25 +121,22 @@ Werkzeug dafür: die Erweiterung echt in Playwright laden (`--load-extension`, h
 `curl` holen und an der Stack-Position lesen: Die Klassennamen von styled-components tragen
 den Komponentennamen (`RangeSlidercss__RangeSliderHandle`) und taugen als Selektor.
 
-### Crunchyroll-Watchlist: die Farbe kommt vom Anime-Kalender (30.09.2026)
+### Crunchyroll-Watchlist: grün nur bei deutscher Fassung und noch nicht gesehen (30.09.2026)
 
-Crunchyrolls eigener Text („Jetzt/Erneut anschauen") war monatelang ein verlässlicher Stellvertreter
-für „auf Deutsch verfügbar": bei deutscher Tonspur stand „Jetzt anschauen", sonst „Erneut
-anschauen". Seit einem Update zählt Crunchyroll **jede** Synchro — an „Jaadugar: A Witch in
-Mongolia" stand „Synchro English", die Karte trug „Untertitelt | Synchro" und wurde grün (Daniel,
-30.09.2026).
+Der Kartenuntertitel („Jetzt anschauen" / „Erneut anschauen") trug früher die deutsche
+Verfügbarkeit mit. Seit einem Update zählt Crunchyroll **jede** Synchro — an „Jaadugar: A Witch in
+Mongolia" stand auf der Episodenseite „Synchro English", die Karte wurde trotzdem grün.
 
-Seitdem entscheidet der Anime-Kalender: `cu_synchroFragen()` schickt **eine** Anfrage mit allen
-sichtbaren Karten (Serienkennung aus dem Serienlink, Folgenkennung aus dem Watch-Link, Folgennummer
-aus dem Untertitel) an `POST https://newsletter.animekalender.workers.dev/synchro` und bekommt je
-Eintrag `gruen`/`gelb`. Kein Zwischenspeicher — die Liste wird bei jedem Aufbau neu geschickt, damit
-Hinzufügen und Entfernen sofort stimmen. Anfragen werden alle 3 Sekunden gebündelt, weil der
-MutationObserver bei jeder Listenänderung feuert. Ohne Antwort bleibt der alte Text (grün nur bei
-„fortsetzen"), also nie ein falsches Grün. „Erneut anschauen" bleibt gelb, auch bei deutscher Folge.
+Die Sprache steckt aber in der Karte selbst: Der Watch-Link führt auf die **Fassung**, die man
+bekäme, und ihre Kennung endet mit dem Sprachpaar — `GE00374386JAJP` (Japanisch),
+`GE00377827DEDE` (Deutsch), `GE00378913KOKR` (Koreanisch). Gemessen an Daniels Watchlist stimmte
+das in allen elf Karten mit dem Anime-Kalender-Bestand überein. `cu_watchSprache()` liest die
+Endung, `cu_watchZustand()` den Untertitel (deutsch und englisch, `aria-label` als Rückfall).
 
-Die Farbe ist nur so frisch wie die Quelle: der Anime-Kalender baut die Tabelle stündlich und nimmt
-**angekündigte** deutsche Folgen samt Uhrzeit mit, damit eine Folge zur richtigen Minute grün wird,
-ohne auf einen neuen Datenlauf zu warten.
+**Regel: nur grün, wenn deutsch UND noch nicht gesehen.** „Erneut anschauen" bleibt gelb, auch bei
+deutscher Fassung. Unbekannter Zustand oder fehlende Sprachkennung bleiben gelb — ein falsches Grün
+ist der Fehler, der behoben wurde. Kein Abruf, keine Datei, kein Zwischenspeicher: die Angabe kommt
+mit der Seite und ist so frisch wie diese (eine um 19:25 erschienene Folge hat ihren Link sofort).
 
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten

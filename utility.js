@@ -6712,9 +6712,13 @@ function removeNotificationBubbleOnClick() {
 const CU_SYNCHRO_URL = "https://newsletter.animekalender.workers.dev/synchro";
 // Der MutationObserver feuert bei jeder Listenänderung; Anfragen werden gebündelt.
 const CU_SYNCHRO_ABSTAND_MS = 3000;
+// Dieselbe Liste darf nicht ewig mit der alten Antwort stehen bleiben (SPA-Wechsel laden die
+// Erweiterung nicht neu). Kein Zwischenspeicher: es wird nur die Auskunft erneuert.
+const CU_SYNCHRO_WIEDERHOL_MS = 5 * 60 * 1000;
 const CU_SYNCHRO_HOECHSTENS = 500;
 let cu_synchroFarben = {}; // Schlüssel -> "gruen" | "gelb" (nur diese Sitzung, kein Speicher)
 let cu_synchroSchluessel = "";
+let cu_synchroGeholt = 0;
 let cu_synchroFragtGerade = false;
 let cu_synchroZuletzt = 0;
 
@@ -6772,7 +6776,8 @@ function cu_watchlistFaerben() {
 
   const schluessel = eintraege.map((e) => e.schluessel).join("|");
   const jetzt = Date.now();
-  if (schluessel !== cu_synchroSchluessel && !cu_synchroFragtGerade && jetzt - cu_synchroZuletzt >= CU_SYNCHRO_ABSTAND_MS) {
+  const veraltet = jetzt - cu_synchroGeholt > CU_SYNCHRO_WIEDERHOL_MS;
+  if ((schluessel !== cu_synchroSchluessel || veraltet) && !cu_synchroFragtGerade && jetzt - cu_synchroZuletzt >= CU_SYNCHRO_ABSTAND_MS) {
     cu_synchroSchluessel = schluessel;
     cu_synchroZuletzt = jetzt;
     cu_synchroFragen(eintraege);
@@ -6794,6 +6799,7 @@ function cu_synchroFragen(eintraege) {
         const f = farben[i]?.f;
         if (f === "gruen" || f === "gelb") cu_synchroFarben[eintrag.schluessel] = f;
       });
+      cu_synchroGeholt = Date.now();
       cu_watchlistFaerben();
     })
     // Ohne Antwort bleibt der bisherige Stand stehen — besser als ein falsches Grün.

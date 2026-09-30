@@ -6732,7 +6732,8 @@ function cu_watchKennung(karte, art) {
 }
 
 function cu_watchEintraege() {
-  return queryAll('[class*="my-lists-item"]')
+  // `queryAll` liefert eine NodeList — ohne Array.from gibt es kein `.map`.
+  return Array.from(queryAll('[class*="my-lists-item"]'))
     .map((karte) => {
       const untertitel = karte.querySelector('[class*="watchlist-card-subtitle"]');
       if (!untertitel) return null;

@@ -545,6 +545,9 @@ function prepareActionBar() {
       width: 100vw;
       height: 100vh;
       background: #0000008a;
+      /* the panel is always light; a page with color-scheme:dark (vidmoly) otherwise draws the
+         native stepper arrows of number inputs dark */
+      color-scheme: light;
       z-index: 9999999;
       transform: translateY(-110%);
       transition: 0.5s;
@@ -7498,7 +7501,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0.6",
+  version: "1.10.0.7",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

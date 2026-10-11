@@ -49,6 +49,10 @@ Parameter ändern sich unter dem laufenden Skript.
 
 ### VOE-Domains: Liste statt Zugriff auf alle Websites
 
+Gleiches Muster bei vidmoly (11.10.2026): Die Seite liegt auf `vidmoly.me`, das Video aber im
+iframe auf `vidmoly.biz` — nur `vidmoly.me` im Manifest hieß: Geschwindigkeit wirkungslos.
+Vor dem Eintragen einer Player-Seite immer die iframe-Domain nachsehen.
+
 VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
 katherineschoolphone.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
 `manifest.json`.

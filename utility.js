@@ -1616,7 +1616,7 @@ function websiteSelector() {
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
     ...VOE_HOSTS.map((host) => new Matcher(host, fixVoe, true, "voe", true)),
-    new Matcher("vidmoly.me", fixVidmoly, true, "vidmoly", true),
+    new Matcher("vidmoly.", fixVidmoly, true, "vidmoly", true),
     new Matcher("toggo.de", fixToggo, true, "toggo"),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
@@ -2112,7 +2112,7 @@ function fixVoe() {
 }
 
 // ----
-// vidmoly.me (Player, meist als iframe eingebettet)
+// vidmoly.me (Seite) und vidmoly.biz (Player-iframe, darin das Video)
 // ---
 function fixVidmoly() {
   _init_set_video_rate_repeater__generic();
@@ -7501,7 +7501,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.0",
+  version: "1.10.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

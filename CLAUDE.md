@@ -64,7 +64,7 @@ Geprüft und verworfen am 17.09.2026: den Player am Inhalt erkennen (`meta[name=
 anfragen. Das wäre die einzige Bauweise, die jede künftige Domain ohne Update abdeckt —
 Chrome lädt ein Content-Skript nur dort, wo eine Host-Berechtigung besteht, ein Merkmal im
 HTML ändert daran nichts. Daniel hat sich für die Liste entschieden. Neu bewerten, wenn die
-Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage.
+Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage. Am 19.10.2026 bestätigt, obwohl die Domain am Vortag zweimal wechselte.
 
 Einstellungen: Alle Seiten speichern seit 19.09.2026 in `chrome.storage.local` unter
 `cu:opts:<site>` (Berechtigung `storage`, ohne Warnhinweis), nicht im `localStorage` der

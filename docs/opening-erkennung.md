@@ -84,6 +84,17 @@ Videoende, das vorhandene `ended` → nächste Folge übernimmt.
 ob nach dem Abschnittsende noch Inhalt kommt (Länge Restvideo, oder Bilder nach dem Ending, die
 keiner Vorschau gleichen), und nur dann bis zum Ende spielen; sonst gleich weiter.
 
+## Prime Video: Bild nicht lesbar (18.10.2026)
+
+Gemessen in Edge, angemeldet, Attack on Titan S1 F1 (Video mit `mediaKeys`, also Widevine):
+`drawImage` auf ein Canvas liefert bei laufendem Video viermal hintereinander Mittel 0,0 und
+Streuung 0,0, ohne Fehler bei `getImageData`. Der Screenshot des Tabs zeigt das Bild dagegen
+normal. Die Bild-Hashes von `skip.js` funktionieren auf Prime also nicht.
+
+Noch ungemessen: ob der Ton lesbar ist (Audio-Fingerabdruck über WebAudio) und ob
+`chrome.tabs.captureVisibleTab` aus dem Service Worker reicht (braucht `activeTab` oder
+`<all_urls>`, und der Tab muss sichtbar sein).
+
 ## Offen
 
 - Kosten im echten Chrome während der Wiedergabe auf einem schwachen Laptop.

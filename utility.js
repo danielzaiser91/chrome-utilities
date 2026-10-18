@@ -755,6 +755,11 @@ function prepareActionBar() {
     .cu-subfeatures .cu-action-row {
       padding-left: 18px;
     }
+    .cu-row-hint {
+      font-size: 12px;
+      padding: 0 0 5px 18px;
+      opacity: 0.65;
+    }
     .cu-action-row.cu-inactive {
       opacity: 0.45;
     }
@@ -1400,6 +1405,13 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
     else row.append(label, input);
   }
   featureRow.appendChild(row);
+  // visible under the row, unlike description, which only shows as a tooltip
+  if (feature.hint) {
+    const hint = document.createElement("div");
+    hint.classList.add("cu-row-hint");
+    hint.textContent = feature.hint;
+    featureRow.appendChild(hint);
+  }
   if (feature.subFeatures) {
     const subEntries = Object.entries(feature.subFeatures);
     // A feature whose only sub-option is a single unnamed value -- the playback speed on every
@@ -7839,7 +7851,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.0.2",
+  version: "1.12.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8153,7 +8165,7 @@ let userOptions = {
         subFeatures: {
           afterEnding: {
             label: "Next episode starts",
-            description: "needs a marked ending (Skip Opening/Ending)",
+            hint: "No ending marked or found in the episode? Then it waits for the video to end.",
             value: "end",
             choices: { end: "when the video ends", start: "when the ending starts" },
           },

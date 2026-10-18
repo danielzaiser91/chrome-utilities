@@ -2125,6 +2125,15 @@ function voe_replaceRateMenu() {
       background: transparent; border: 1px solid #fff; border-radius: 4px; color-scheme: dark; }`,
     "cu-voe-rate",
   );
+  // JW closes the menu on any pointer event it sees, so a click on the input's arrows never
+  // reached the input. Stopped at window capture, ahead of every listener of the player;
+  // the input's own stepping is the browser default and still happens.
+  for (const type of ["pointerdown", "pointerup", "mousedown", "mouseup", "click", "touchstart", "touchend"])
+    window.addEventListener(
+      type,
+      (e) => e.target.classList?.contains("cu-voe-rate") && e.stopPropagation(),
+      true,
+    );
   const getRateItems = () =>
     [...queryAll(".jwplayer [aria-label]")].filter((el) =>
       /^\d+(\.\d+)?x$/.test(el.getAttribute("aria-label")),
@@ -7586,7 +7595,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.3",
+  version: "1.11.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -83,6 +83,9 @@ Erweiterung eingestellt. In die Bedienleiste des Players kommt **kein** eigener 
 Player ein eigenes Geschwindigkeitsmenü, werden dessen feste Stufen ausgeblendet und durch ein
 Zahlenfeld ersetzt, das den gespeicherten Wert liest und schreibt (`voe_replaceRateMenu`). Eine
 Stufe dort zu belassen hieße: Der Repeater dreht die Auswahl nach einer Sekunde zurück.
+JW schließt das Menü bei jedem Zeigerereignis darin. Deshalb werden die Ereignisse des Felds schon in
+der Capture-Phase am `window` gestoppt, sonst schließt ein Klick auf die Pfeile das Menü (belegt
+am echten Player per Playwright, 18.10.2026: `voe-real-test`-Aufbau mit Mausklick auf den Pfeil).
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

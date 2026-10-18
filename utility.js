@@ -6433,6 +6433,18 @@ function cr_syncDayVisibility(dayGroups) {
   });
 }
 
+// every row of up to four cards is its own 12-column grid ("Column-N" > colcontainer), so hiding
+// cards leaves holes that the next row can't fill. Marking the rows lets the CSS dissolve them
+// (display: contents) into one grid on their common parent, where a day's remaining cards flow
+// together. CSS only, no moved nodes: the article is React-managed and would trip over cards
+// that changed parents on SPA navigation. Returns that parent.
+function cr_markLineupRows(cards) {
+  cards.forEach((card) =>
+    card.parentElement.parentElement.classList.add("cu-lineup-row"),
+  );
+  return cards[0].parentElement.parentElement.parentElement;
+}
+
 // filenames seen in the flag images (e.g. "japan-flag.png", "deutschland-flagge.png") map to a
 // language code, so Intl.DisplayNames can render the label in the page's own language
 const CR_FLAG_LANGUAGE_KEYWORDS = [
@@ -6585,6 +6597,7 @@ function cr_renderWeeklyLineupFilter() {
       select.appendChild(create("option", { value: key, textContent: label }));
     });
   const dayGroups = cr_groupCardsByDay(cards);
+  const flow = cr_markLineupRows(cards);
   const applyFilter = (selected) => {
     // decide per card (via its own full set of language keys), not per language bucket -- a card
     // can belong to multiple buckets, and toggling bucket-by-bucket would make the outcome depend
@@ -6593,6 +6606,7 @@ function cr_renderWeeklyLineupFilter() {
       const show = !selected || cardLanguageKeys.get(card).has(selected);
       card.classList.toggle("cu-hide", !show);
     });
+    flow.classList.toggle("cu-lineup-reflow", !!selected);
     cr_syncDayVisibility(dayGroups);
   };
 
@@ -6648,6 +6662,33 @@ function cr_renderWeeklyLineupFilter() {
       border: 1px solid #f47521;
       border-radius: 4px;
       padding: 2px 6px;
+    }
+    /* same 12 columns and gap (10px, 37px from 768px) as Crunchyroll's own row grid, so the
+       cards' span classes keep working. Grid margins don't collapse like the block flow's 30px
+       did, hence margin-top: 0 below */
+    .cu-lineup-reflow {
+      --cu-lineup-gap: 10px;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--cu-lineup-gap);
+    }
+    @media screen and (min-width: 768px) {
+      .cu-lineup-reflow {
+        --cu-lineup-gap: 37px;
+      }
+    }
+    .cu-lineup-reflow > * {
+      grid-column: 1 / -1;
+    }
+    .cu-lineup-reflow > :not(:first-child) {
+      margin-top: 0;
+    }
+    .cu-lineup-reflow > .cu-lineup-row,
+    .cu-lineup-reflow > .cu-lineup-row > * {
+      display: contents;
+    }
+    .cu-lineup-reflow > .cu-lineup-row > * > * {
+      margin-bottom: var(--cu-lineup-gap);
     }
   `,
     "cu-weekly-filter-css",
@@ -7501,7 +7542,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.10.1",
+  version: "1.10.1.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

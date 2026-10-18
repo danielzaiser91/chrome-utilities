@@ -80,8 +80,9 @@ Netflix und WOW setzen sie nur bei einer Bedienung. Fehlt `chrome.storage`, blei
 
 Auf Player-Seiten (VOE, vidmoly, filemoon …) wird die Geschwindigkeit über das Zahnrad der
 Erweiterung eingestellt. In die Bedienleiste des Players kommt **kein** eigener Knopf. Hat der
-Player ein eigenes Geschwindigkeitsmenü, wird es mit dem gespeicherten Wert verbunden
-(`voe_keepPlayerRateChoice`), sonst dreht der Repeater jede Auswahl dort nach einer Sekunde zurück.
+Player ein eigenes Geschwindigkeitsmenü, werden dessen feste Stufen ausgeblendet und durch ein
+Zahlenfeld ersetzt, das den gespeicherten Wert liest und schreibt (`voe_replaceRateMenu`). Eine
+Stufe dort zu belassen hieße: Der Repeater dreht die Auswahl nach einer Sekunde zurück.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

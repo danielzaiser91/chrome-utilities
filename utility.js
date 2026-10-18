@@ -2113,22 +2113,45 @@ const VOE_HOSTS = [
 ];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
-  voe_keepPlayerRateChoice();
+  voe_replaceRateMenu();
 }
 
-// JW Player's own "Playback Rates" menu (items labelled "0.25x" … "4x"): a pick there becomes the
-// stored speed. Otherwise the repeater turns the video back to the old value within a second.
-function voe_keepPlayerRateChoice() {
-  document.addEventListener(
-    "click",
-    (e) => {
-      const label = e.target.closest?.(".jwplayer [aria-label]")?.getAttribute("aria-label");
-      const rate = /^(\d+(?:\.\d+)?)x$/.exec(label ?? "")?.[1];
-      if (!rate) return;
-      getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = +rate;
-      saveUserSettings();
+// JW Player's own "Playback Rates" menu only offers fixed steps (items labelled "0.25x" … "4x"),
+// and the repeater would turn a pick there back within a second. The steps are hidden and a
+// number input takes their place, writing the same stored speed as the gear does.
+function voe_replaceRateMenu() {
+  insertCSS(
+    `.cu-voe-rate { width: 5em; margin: 8px 16px; padding: 2px 6px; font: inherit; color: #fff;
+      background: transparent; border: 1px solid #fff; border-radius: 4px; color-scheme: dark; }`,
+    "cu-voe-rate",
+  );
+  const getRateItems = () =>
+    [...queryAll(".jwplayer [aria-label]")].filter((el) =>
+      /^\d+(\.\d+)?x$/.test(el.getAttribute("aria-label")),
+    );
+  repeatIfCondition(
+    () => {
+      const items = getRateItems();
+      if (items.length === 0) return;
+      items.forEach((el) => el.classList.add("cu-hide"));
+      const menu = items[0].parentElement;
+      let input = menu.querySelector(".cu-voe-rate");
+      if (!input) {
+        input = create("input", { type: "number", step: "0.1", min: "0.2", max: "5", className: "cu-voe-rate" });
+        input.addEventListener("input", (e) => {
+          _adjustVal__generic(e, input);
+          saveUserSettings();
+        });
+        // keep digits, arrows and space away from the player's keyboard shortcuts
+        input.addEventListener("keydown", (e) => e.stopPropagation());
+        menu.prepend(input);
+      }
+      // a change from the gear or another tab shows up here, but never while typing
+      if (document.activeElement !== input)
+        input.value = getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
     },
-    true,
+    undefined,
+    { interval: 1000, pauseInBg: false },
   );
 }
 
@@ -7563,7 +7586,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.2",
+  version: "1.11.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

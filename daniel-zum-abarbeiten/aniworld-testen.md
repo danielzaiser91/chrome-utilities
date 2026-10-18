@@ -1,4 +1,4 @@
-# AniWorld: nächste Folge, N/P, Auto-Next testen (ab Version 1.11.0.6)
+# AniWorld: nächste Folge, N/P, Auto-Next testen (ab Version 1.11.0.7)
 
 Autoplay hast du schon bestätigt. Vorher die Erweiterung unter `chrome://extensions` neu laden.
 
@@ -10,5 +10,8 @@ Autoplay hast du schon bestätigt. Vorher die Erweiterung unter `chrome://extens
    - Falsch, wenn: Ein Buchstabe im Suchfeld der Seite die Folge wechselt.
 4. Ans Ende einer Folge spulen und auslaufen lassen.
    - Erwartet: Die nächste Folge öffnet sich von selbst und startet.
-5. Zahnrad im Player: Dort gibt es AutoPlay, Next Episode und Hotkeys (N/P erklärt), alle drei
-   an. Schaltest du einen davon aus, darf er nicht mehr greifen.
+5. Zahnrad im Player öffnen, ohne vorher in den Player zu klicken.
+   - Erwartet: Unter AutoPlay steht ✅ „Works in your browser.“
+   - Falsch, wenn: ❌ dasteht, obwohl die Folge von selbst lief.
+6. Im Zahnrad sind AutoPlay, Next Episode und Hotkeys (N/P erklärt) an. Schaltest du einen davon
+   aus, darf er nicht mehr greifen.

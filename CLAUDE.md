@@ -117,6 +117,11 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
   Erweiterung, ist aber keiner. Prüfstein: `allow` am iframe muss `autoplay *` tragen. Daniels
   Chrome läuft mit `--autoplay-policy=no-user-gesture-required` (sichtbar in
   `chrome://media-engagement`), also mit diesem Schalter testen und einmal ohne ihn.
+- Ob Autoplay beim Nutzer geht, zeigt das Zahnrad (✅/❌, `voe_checkAutoplay`): Gesperrt bleibt
+  das Video nach unserem Klick pausiert (`src` da, Zeit 0), erlaubt läuft es (gemessen 18.10.2026
+  mit und ohne Policy-Schalter). Hat der Nutzer selbst in den Frame geklickt, beweist ein
+  laufendes Video nichts, dann bleibt die Zeile leer. Chromes Score gilt der obersten Seite
+  (`aniworld.to`), nicht dem Player-Frame.
 - Unser Klick öffnet bei VOE ein Werbe-Popup. Chrome blockiert es, weil kein echter Klick dahinter
   steht; nur Playwright lässt es durch.
 

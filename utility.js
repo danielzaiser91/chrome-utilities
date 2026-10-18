@@ -1080,7 +1080,7 @@ function renderOptions() {
           } catch {
             // a broken info line must never take the settings panel down with it
           }
-          featureContainer.appendChild(infoEl);
+          if (infoEl.textContent) featureContainer.appendChild(infoEl);
         }
 
         restEntries.forEach(([k, v]) => {
@@ -2175,11 +2175,32 @@ function voe_replaceRateMenu() {
 // jw-state-setup although the player is ready and the click works.
 function voe_autoPlay() {
   repeatUntilCondition(
-    () => isAllowed(getSiteOptions().featureAutoPlay.isEnabled) && query(".jw-icon-display")?.click(),
+    () => {
+      if (!isAllowed(getSiteOptions().featureAutoPlay.isEnabled)) return;
+      query(".jw-icon-display")?.click();
+      setTimeout(voe_checkAutoplay, 3000);
+    },
     () => !document.hidden && query(".jw-icon-display") && !query(".jwplayer video")?.currentSrc,
     [],
     false,
   );
+}
+
+// Blocked by Chrome, the video stays paused after our click; allowed, it runs. A user's own click
+// in the frame would also make it run, so that case proves nothing and leaves the state open.
+let voe_autoplayWorks;
+function voe_checkAutoplay() {
+  const video = query(".jwplayer video");
+  if (video?.paused) voe_autoplayWorks = false;
+  else if (video && !navigator.userActivation.hasBeenActive) voe_autoplayWorks = true;
+}
+
+// the score Chrome decides by belongs to the page on top (AniWorld), not to the player's frame
+function voe_describeAutoplay() {
+  if (voe_autoplayWorks === undefined) return "";
+  if (voe_autoplayWorks) return "✅ Works in your browser.";
+  const site = new URL(location.ancestorOrigins?.[0] ?? location.origin).host;
+  return `❌ Chrome doesn't allow it here yet. Watch a few episodes with sound, then it starts by itself. Your score for ${site}: chrome://media-engagement`;
 }
 
 // a hotkey letter is text while typing, and part of a browser shortcut with a modifier
@@ -7719,7 +7740,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.6",
+  version: "1.11.0.7",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8021,6 +8042,7 @@ let userOptions = {
     featureAutoPlay: {
       featureName: "AutoPlay",
       featureDescription: "start playing as soon as the episode is open",
+      featureInfo: voe_describeAutoplay,
       isEnabled: { value: true, label: "Activate" },
     },
     featureAutoNext: {

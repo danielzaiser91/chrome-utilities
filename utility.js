@@ -2113,21 +2113,22 @@ const VOE_HOSTS = [
 ];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
-  // JW Player: the button sits in its control bar, next to play. The bar is a flex row with a
-  // link-blue text color, so label and input get stacked and colored without this
-  insertCSS(
-    `
-    .jw-button-container > .cu-playback-rate { color: #fff; align-self: center; }
-    .jw-button-container > .cu-playback-settings:not(.cu-hide) {
-      display: flex; align-items: center; color: #fff;
-    }
-  `,
-    "cu-voe-playback-rate",
-  );
-  const getContainer = () => query(".jw-controlbar .jw-button-container");
-  addPlaybackRateButton__generic(
-    getContainer,
-    () => getContainer() && !query(".cu-playback-rate"),
+  voe_keepPlayerRateChoice();
+}
+
+// JW Player's own "Playback Rates" menu (items labelled "0.25x" … "4x"): a pick there becomes the
+// stored speed. Otherwise the repeater turns the video back to the old value within a second.
+function voe_keepPlayerRateChoice() {
+  document.addEventListener(
+    "click",
+    (e) => {
+      const label = e.target.closest?.(".jwplayer [aria-label]")?.getAttribute("aria-label");
+      const rate = /^(\d+(?:\.\d+)?)x$/.exec(label ?? "")?.[1];
+      if (!rate) return;
+      getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value = +rate;
+      saveUserSettings();
+    },
+    true,
   );
 }
 
@@ -7562,7 +7563,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.1",
+  version: "1.11.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

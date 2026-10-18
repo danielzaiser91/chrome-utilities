@@ -76,6 +76,13 @@ Netflix und WOW setzen sie nur bei einer Bedienung. Fehlt `chrome.storage`, blei
 `localStorage`. Die einmalige Übernahme aus dem `localStorage` ist befristet, siehe
 `loadUserSettings`.
 
+### Geschwindigkeit in fremden Playern: Zahnrad, kein eigener Knopf (Daniel, 18.10.2026)
+
+Auf Player-Seiten (VOE, vidmoly, filemoon …) wird die Geschwindigkeit über das Zahnrad der
+Erweiterung eingestellt. In die Bedienleiste des Players kommt **kein** eigener Knopf. Hat der
+Player ein eigenes Geschwindigkeitsmenü, wird es mit dem gespeicherten Wert verbunden
+(`voe_keepPlayerRateChoice`), sonst dreht der Repeater jede Auswahl dort nach einer Sekunde zurück.
+
 ### Chromes Fehlerliste zeigt die falsche Zeile
 
 `chrome://extensions` → Fehler nennt die Zeilennummer der Fassung, die beim Auftreten geladen

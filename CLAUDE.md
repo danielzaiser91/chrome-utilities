@@ -236,6 +236,34 @@ Werkzeug dafür: die Erweiterung echt in Playwright laden (`--load-extension`, h
 `curl` holen und an der Stack-Position lesen: Die Klassennamen von styled-components tragen
 den Komponentennamen (`RangeSlidercss__RangeSliderHandle`) und taugen als Selektor.
 
+### YouTube: Position und Lautstärke merken (18.10.2026)
+
+Gemessen mit Playwright, 18.10.2026:
+
+- **Beim SPA-Wechsel zeigt die Adresse schon das neue Video, während noch das alte läuft.** Die
+  Adresse wechselt nach 16 ms, `emptied` kommt nach 200 ms, `loadedmetadata` nach 262 ms,
+  `ytd-watch-flexy[video-id]` erst nach rund 1 s. Es gibt nur ein `<video>`, und auch die Werbung
+  läuft darin (`#movie_player.ad-showing`). Deshalb hält `yt_initPositionMemory` die Kennung beim
+  `loadedmetadata` fest und liefert während der Werbung `null`.
+- **`video.volume` ist nicht der Regler.** YouTube rechnet die Lautheitsnormalisierung hinein
+  (Regler 100, `video.volume` 0,33). Ein direkt gesetzter Wert bleibt am Regler unsichtbar und ist
+  nach dem Neuladen weg. Den Regler stellt nur die Player-API (`#movie_player.setVolume/mute`), und
+  die gibt es nur im Seitenkontext, deshalb `youtube-main-world.js`. `utility.js` schaltet das
+  Skript über `<html data-cu-yt-volume="on|off">` ein und aus.
+- YouTube merkt sich eine Änderung durch den Nutzer selbst (`localStorage["yt-player-volume"]`,
+  gültig 30 Tage ab der letzten Änderung, je Tab eine Kopie im `sessionStorage`). `setVolume()` per
+  API schreibt dort nichts. Gespeichert wird deshalb nur kurz nach einer echten Bedienung (Taste,
+  Maus an `.ytp-volume-area`).
+- **Fortsetzen schon bei `loadedmetadata`** (`sofortFortsetzen`, Daniel 18.10.2026: „reagiert zu
+  spät“). Gewartet wurde auf `playing` und einen 500-ms-Takt, das Video lief also erst von 0 an.
+  Jetzt kommt `seeking` 2–5 ms nach `loadedmetadata`, noch vor dem Abspielen. TOGGO wartet
+  weiterhin auf `playing`. Prüfen: Position vorbelegen, Medien-Ereignisse per Init-Skript am
+  `document` (Capture) mitschreiben und den Abstand zwischen `loadedmetadata` und `seeking` ansehen.
+- Wiedergabetests: Im Playwright-Chromium läuft YouTube nicht an (Zeit bleibt bei 0, auch nach
+  Klick ins Bild). Ereignisse und Lautstärke lassen sich trotzdem prüfen, die Wiedergabe nicht.
+  Werbung für den Test aus den Player-Antworten nehmen (`adPlacements`, `playerAds` und `adSlots`
+  in `/watch` und `youtubei/v1/player` per `ctx.route` umbenennen), sonst hängt sie bei 0,7 s.
+
 ### Crunchyroll-Watchlist: grün nur bei deutscher Fassung und noch nicht gesehen (30.09.2026)
 
 Der Kartenuntertitel („Jetzt anschauen" / „Erneut anschauen") trug früher die deutsche

@@ -3,11 +3,11 @@
 ## Daniel-Todo
 
 ### Jetzt
+- 🟠 [YouTube: springt das Video nach dem Neuladen sofort an die gemerkte Stelle?](file:///C:/code/chrome-utilities/daniel-zum-abarbeiten/yt-fortsetzen-pruefen.md)
 - 🔵 F2 [VOE-Domain zweimal an einem Tag gewechselt: bei der Liste bleiben?](file:///C:/code/chrome-utilities/daniel-zum-abarbeiten/f2-voe-domains.md)
 
 ## In Arbeit
 
-- YouTube: Wiedergabeposition und Lautstärke merken (Daniel, 18.10.2026)
 
 ## Als Nächstes
 

@@ -3802,8 +3802,12 @@ const cu_isRealVideo = (video) =>
 
 /**
  * @param {string} site Schluessel in userOptions, braucht featureRememberPosition
- * @param {{getVideo:()=>HTMLVideoElement|null, getId:()=>string, getUrl:()=>string,
- *   getTitle?:()=>string, getSeries?:()=>string, getEpisode?:()=>number|null}} quelle
+ * @param {{getVideo:()=>HTMLVideoElement|null, getId:()=>string|null, getUrl:()=>string,
+ *   getTitle?:()=>string, getSeries?:()=>string, getEpisode?:()=>number|null,
+ *   hatStartzeit?:()=>boolean, sofortFortsetzen?:boolean}} quelle getId null = gerade keine
+ *   Folge (etwa Werbung); hatStartzeit true = die Adresse bringt eine eigene Startzeit mit, die
+ *   dann gilt (YouTube-Link mit &t=); sofortFortsetzen = schon bei "loadedmetadata" springen.
+ *   Ohne das wartet es aufs Abspielen (so auf TOGGO erprobt).
  */
 function cu_initPositionMemory(site, quelle) {
   const zustand = { id: null, resumeDone: false, savedAt: 0 };
@@ -3811,8 +3815,8 @@ function cu_initPositionMemory(site, quelle) {
     isAllowed(userOptions[site].featureRememberPosition.isEnabled);
 
   const fortsetzen = (video) => {
-    if (zustand.resumeDone) return;
-    if (!aktiv()) {
+    if (zustand.resumeDone || !zustand.id) return;
+    if (!aktiv() || quelle.hatStartzeit?.()) {
       zustand.resumeDone = true;
       return;
     }
@@ -3829,7 +3833,7 @@ function cu_initPositionMemory(site, quelle) {
   };
 
   const merken = (video, sofort) => {
-    if (!aktiv() || !zustand.resumeDone) return;
+    if (!aktiv() || !zustand.resumeDone || !zustand.id) return;
     if (zustand.id !== quelle.getId()) return; // Adresse schon weiter, Wert gehoert der alten Folge
     if (!sofort && Date.now() - zustand.savedAt < CU_POSITION_SAVE_EVERY_MS) return;
     if (!cu_isRealVideo(video)) return;
@@ -3849,10 +3853,26 @@ function cu_initPositionMemory(site, quelle) {
     });
   };
 
+  const idAbgleichen = () => {
+    const id = quelle.getId();
+    if (zustand.id === id) return;
+    zustand.id = id;
+    zustand.resumeDone = false;
+    zustand.savedAt = 0;
+  };
+  // sofortFortsetzen: springen, sobald die Laenge bekannt ist, statt erst beim Abspielen
+  const bereit = (video) =>
+    quelle.sofortFortsetzen ? video.readyState >= 1 : !video.paused && !video.seeking;
+
   const anbinden = (video) => {
     if (video.dataset.cuPositionWatched) return;
     video.dataset.cuPositionWatched = "1";
-    video.addEventListener("playing", () => fortsetzen(video));
+    const start = () => {
+      idAbgleichen();
+      fortsetzen(video);
+    };
+    video.addEventListener("playing", start);
+    if (quelle.sofortFortsetzen) video.addEventListener("loadedmetadata", start);
     const sofort = () => merken(video, true);
     video.addEventListener("seeked", sofort);
     video.addEventListener("pause", sofort);
@@ -3861,17 +3881,12 @@ function cu_initPositionMemory(site, quelle) {
 
   repeatIfCondition(
     () => {
-      const id = quelle.getId();
-      if (zustand.id !== id) {
-        zustand.id = id;
-        zustand.resumeDone = false;
-        zustand.savedAt = 0;
-      }
+      idAbgleichen();
       const video = quelle.getVideo();
       if (!video) return;
       anbinden(video);
-      // Netz, falls "playing" kam, bevor der Listener hing
-      if (!video.paused && !video.seeking) fortsetzen(video);
+      // Netz, falls das Ereignis kam, bevor der Listener hing
+      if (bereit(video)) fortsetzen(video);
       merken(video);
     },
     () => true,
@@ -5800,6 +5815,19 @@ function fixYoutube() {
   noInterestButton();
   ytShortsDate();
   _init_set_video_rate_repeater__generic(); // playbackrate
+  yt_initPositionMemory();
+  // das Merken selbst macht youtube-main-world.js, nur dort gibt es die Player-API
+  repeatIfCondition(
+    () => {
+      document.documentElement.dataset.cuYtVolume = isAllowed(
+        userOptions[YT_SITE].featureRememberVolume.isEnabled,
+      )
+        ? "on"
+        : "off";
+    },
+    () => true,
+    { interval: 1000, pauseInBg: false },
+  );
 
   // disable reload on ad enforcer, because youtube added blocker
   // initListenerForAdEnforcer();
@@ -5809,6 +5837,62 @@ function fixYoutube() {
   -- also need to figure out how to execute video.controls = true, because it violates content policy
   */
   // initShortsControl();
+}
+
+// Position je Video. Die Kennung kommt NICHT live aus der Adresse: Beim Klick auf ein anderes
+// Video wechselt YouTube die Adresse nach 16 ms, das Video-Element laedt das neue aber erst nach
+// 200-260 ms (gemessen 18.10.2026, emptied/loadedmetadata). Dazwischen liefe das alte Video
+// unter der neuen Kennung, gemerkt wuerde also die falsche Stelle. Deshalb gilt die Adresse,
+// die beim loadedmetadata des Elements stand. Werbung laeuft im selben Element
+// (#movie_player.ad-showing) und zaehlt nicht. Im Miniplayer traegt die Adresse kein v= mehr,
+// die festgehaltene Kennung bleibt aber richtig.
+const YT_SITE = "youtube";
+const YT_MAX_POSITIONS = 300;
+
+function yt_initPositionMemory() {
+  if (window !== window.top) return; // Einbettungen auf fremden Seiten nicht
+  let festgehalten = null; // { id, startzeit }
+  const player = () => query("#movie_player");
+  const ausAdresse = () => {
+    const params = new URLSearchParams(location.search);
+    return location.pathname === "/watch" && params.get("v")
+      ? { id: params.get("v"), startzeit: params.has("t") }
+      : null;
+  };
+  // Der Listener haengt, bevor cu_initPositionMemory seinen anbindet: Bei loadedmetadata steht
+  // die neue Kennung also schon, wenn dort gesprungen wird.
+  const getVideo = () => {
+    const video = player()?.querySelector("video") ?? null;
+    if (video && !video.dataset.cuYtIdWatched) {
+      video.dataset.cuYtIdWatched = "1";
+      video.addEventListener("loadedmetadata", () => (festgehalten = ausAdresse()));
+      if (video.readyState >= 1) festgehalten = ausAdresse(); // schon geladen
+    }
+    return video;
+  };
+  const getId = () =>
+    player()?.classList.contains("ad-showing") ? null : festgehalten?.id ?? null;
+
+  yt_prunePositions();
+  cu_initPositionMemory(YT_SITE, {
+    sofortFortsetzen: true,
+    getVideo,
+    getId,
+    getUrl: () => `https://www.youtube.com/watch?v=${festgehalten?.id}`,
+    getTitle: () => query("ytd-watch-metadata h1")?.textContent?.trim() ?? "",
+    getSeries: () =>
+      query("ytd-watch-metadata ytd-channel-name a")?.textContent?.trim() ?? "",
+    hatStartzeit: () => !!festgehalten?.startzeit,
+  });
+}
+
+// Auf YouTube sammeln sich ohne Grenze schnell Hunderte angefangener Videos, und der
+// localStorage von youtube.com (5 MB) gehoert vor allem YouTube selbst. Die aeltesten gehen.
+function yt_prunePositions() {
+  cu_listPositions(YT_SITE)
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .slice(YT_MAX_POSITIONS)
+    .forEach((entry) => cu_deletePosition(YT_SITE, entry.id));
 }
 
 function ytShortsDate() {
@@ -7857,7 +7941,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.1",
+  version: "1.12.1.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8078,6 +8162,32 @@ let userOptions = {
     },
   },
   youtube: {
+    featureRememberPosition: {
+      featureName: "Remember Video Position",
+      featureDescription:
+        "Picks every video up where you stopped. A video you watched to the end starts over " +
+        "instead, and a link with a start time keeps its start time. Everything stays in this " +
+        "browser and is never uploaded.",
+      featureHistory: {
+        list: () => cu_listPositions(YT_SITE),
+        remove: (entry) => cu_deletePosition(YT_SITE, entry.id),
+      },
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "remember where you stopped, per video",
+      },
+    },
+    featureRememberVolume: {
+      featureName: "Remember Volume",
+      featureDescription: "every video starts at the volume you set last",
+      featureInfo: () => cu_describeVolume(YT_SITE),
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        description: "keep the volume between videos",
+      },
+    },
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",

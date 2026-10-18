@@ -19,7 +19,9 @@ function voe_initSkip() {
   if (window === top) return;
   skip_insertCSS();
   window.addEventListener("message", (e) => {
-    if (e.source !== window.parent || e.data?.cu !== "episode" || e.data.type !== "nav") return;
+    if (e.source !== window.parent || e.data?.cu !== "episode") return;
+    if (e.data.type === "copied") skip_toast(e.data.ok ? "Copied to clipboard" : "Couldn't copy, please try again.");
+    if (e.data.type !== "nav") return;
     skip_video = { series: e.data.series, episode: e.data.episode };
     skip_scanner.reset();
   });
@@ -234,12 +236,15 @@ const skip_scanner = {
 function skip_toast(text, onUndo) {
   query(".cu-skip-toast")?.remove();
   const toast = create("div", { className: "cu-skip-toast" });
-  const undo = create("button", { type: "button", textContent: "Undo" });
-  toast.append(create("span", { textContent: text }), undo);
-  undo.addEventListener("click", () => {
-    toast.remove();
-    onUndo();
-  });
+  toast.append(create("span", { textContent: text }));
+  if (onUndo) {
+    const undo = create("button", { type: "button", textContent: "Undo" });
+    toast.append(undo);
+    undo.addEventListener("click", () => {
+      toast.remove();
+      onUndo();
+    });
+  }
   query(".jwplayer")?.append(toast);
   setTimeout(() => toast.remove(), 6000);
 }
@@ -254,7 +259,46 @@ function skip_describe() {
 
 function skip_button() {
   if (!skip_video.series || !query(".jwplayer video")) return null;
-  return { label: "Mark opening / ending", onClick: () => skip_dialog.show() };
+  return [
+    { label: "Mark opening / ending", onClick: () => skip_dialog.show() },
+    skip_scanner.segs.length && { label: "Share", onClick: skip_share },
+  ];
+}
+
+// ---- Teilen: nur die Abschnitte (Bilder und Zeiten), nicht was in den eigenen Folgen gefunden wurde
+
+// Kopiert die AniWorld-Seite: Im Frame verbraucht VOEs Werbe-Popup die Nutzeraktivierung des Klicks,
+// ohne sie verlangt writeText dort eine Berechtigung. Die Seite meldet "copied" zurueck (voe_initSkip).
+async function skip_share() {
+  const { segments } = await skip_load();
+  window.parent.postMessage({ cu: "episode", type: "copy", text: JSON.stringify({ cuSkip: 1, segments }) }, "*");
+}
+
+// gleiche id ersetzt (zweimal importiert), sonst angehaengt; null, wenn der Text nichts Brauchbares traegt
+async function skip_import(text) {
+  let segs;
+  try {
+    segs = JSON.parse(text).segments;
+  } catch {
+    return null;
+  }
+  const valid = (s) => {
+    try {
+      return SKIP_KINDS[s.type] && s.from < s.to && skip_fromBase64(s.hashes).length === s.times.length * 8;
+    } catch {
+      return false;
+    }
+  };
+  segs = Array.isArray(segs) ? segs.filter(valid) : [];
+  if (!segs.length) return null;
+  return skip_update((d) => {
+    for (const { id, type, name, from, to, hashes, times } of segs) {
+      const seg = { id: String(id), type, name: String(name || SKIP_KINDS[type]), from, to, hashes, times };
+      const i = d.segments.findIndex((s) => s.id === seg.id);
+      d.segments.splice(i < 0 ? d.segments.length : i, 1, seg);
+      skip_forgetFinds(d, seg.id);
+    }
+  });
 }
 
 // ---- Dialog: Liste der Abschnitte, Markieren mit Vorschau und Bildauslese
@@ -299,7 +343,8 @@ const skip_dialog = {
         </div>
         <div class="cu-skip-side">
           <div class="cu-skip-list"></div>
-          <button type="button" class="cu-skip-add">+ Add skip</button>
+          <div class="cu-skip-add"><button type="button" class="cu-skip-new">+ Add skip</button>
+            <button type="button" class="cu-skip-import">Import</button></div>
           <div class="cu-skip-editor cu-hide"></div>
         </div>
       </div>`;
@@ -310,7 +355,8 @@ const skip_dialog = {
     for (const type of ["keydown", "pointerdown", "pointerup", "mousedown", "mouseup", "click", "dblclick", "touchstart", "touchend"])
       this.el.addEventListener(type, (e) => e.stopPropagation());
     this.el.querySelector(".cu-skip-close").addEventListener("click", () => this.close());
-    this.el.querySelector(".cu-skip-add").addEventListener("click", () => this.edit());
+    this.el.querySelector(".cu-skip-new").addEventListener("click", () => this.edit());
+    this.el.querySelector(".cu-skip-import").addEventListener("click", () => this.importer());
     this.wirePlayer();
     this.renderList(await skip_load());
   },
@@ -446,8 +492,7 @@ const skip_dialog = {
     }
     ed.querySelector(".cu-skip-cancel").addEventListener("click", () => {
       this.capturing = false;
-      ed.classList.add("cu-hide");
-      this.el.querySelector(".cu-skip-add").classList.remove("cu-hide");
+      this.hideEditor();
     });
     save.addEventListener("click", async () => {
       const seg = { id: old?.id ?? Date.now().toString(36), type: type.value, name: name.value || SKIP_KINDS[type.value], from: at("from"), to: at("to"), ...frames };
@@ -465,6 +510,37 @@ const skip_dialog = {
       ed.querySelector(".cu-skip-cancel").click();
       this.renderList(d);
     });
+  },
+
+  hideEditor() {
+    this.el.querySelector(".cu-skip-editor").classList.add("cu-hide");
+    this.el.querySelector(".cu-skip-add").classList.remove("cu-hide");
+  },
+
+  // Einfuegen per Strg+V ins Feld: navigator.clipboard.readText fragt erst nach einer Berechtigung
+  importer() {
+    const ed = this.el.querySelector(".cu-skip-editor");
+    this.el.querySelector(".cu-skip-add").classList.add("cu-hide");
+    ed.classList.remove("cu-hide");
+    ed.innerHTML = `
+      <textarea class="cu-skip-paste" rows="6" placeholder="Paste a shared opening / ending here"></textarea>
+      <p class="cu-skip-hint cu-hide">That's not a shared opening or ending.</p>
+      <div class="cu-skip-actions"><button type="button" class="cu-skip-cancel">Cancel</button>
+        <button type="button" class="cu-skip-save" disabled>Import</button></div>`;
+    const paste = ed.querySelector(".cu-skip-paste"), save = ed.querySelector(".cu-skip-save");
+    const hint = ed.querySelector(".cu-skip-hint");
+    paste.addEventListener("input", () => {
+      save.disabled = !paste.value.trim();
+      hint.classList.add("cu-hide");
+    });
+    ed.querySelector(".cu-skip-cancel").addEventListener("click", () => this.hideEditor());
+    save.addEventListener("click", async () => {
+      const d = await skip_import(paste.value);
+      if (!d) return hint.classList.remove("cu-hide");
+      this.hideEditor();
+      this.renderList(d);
+    });
+    paste.focus();
   },
 
   // Abschnitt stumm mit Rate 4 abspielen, je Videobild ein Hash (requestVideoFrameCallback liefert
@@ -531,7 +607,7 @@ function skip_insertCSS() {
     `
     .cu-skip-dialog { position: absolute; inset: 0; z-index: 2147483000; display: flex; flex-direction: column;
       background: #111; color: #eee; font: 13px/1.4 system-ui, sans-serif; }
-    .cu-skip-dialog button, .cu-skip-dialog input, .cu-skip-dialog select { font: inherit; color: #eee;
+    .cu-skip-dialog button, .cu-skip-dialog input, .cu-skip-dialog select, .cu-skip-dialog textarea { font: inherit; color: #eee;
       background: #2a2a2a; border: 1px solid #555; border-radius: 4px; padding: 3px 8px; color-scheme: dark; }
     .cu-skip-dialog button:disabled { opacity: 0.4; }
     .cu-skip-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px;
@@ -549,6 +625,9 @@ function skip_insertCSS() {
     .cu-skip-controls { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
     .cu-skip-time { margin-left: auto; font-variant-numeric: tabular-nums; }
     .cu-skip-side { flex: 2; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-width: 260px; }
+    .cu-skip-add { display: flex; gap: 6px; }
+    .cu-skip-add button { flex: 1; }
+    .cu-skip-paste { resize: vertical; word-break: break-all; }
     .cu-skip-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid #333; cursor: pointer; }
     .cu-skip-row:hover { background: #1c1c1c; }
     .cu-skip-kind { font-weight: bold; min-width: 5.5em; }

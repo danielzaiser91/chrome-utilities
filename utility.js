@@ -932,6 +932,9 @@ function prepareActionBar() {
       font-size: 12.5px;
       cursor: pointer;
     }
+    .cu-feature-button + .cu-feature-button {
+      margin-left: 6px;
+    }
     .cu-history-row > * {
       padding: 4px 0;
       border-bottom: 1px solid #f1f3f6;
@@ -1090,9 +1093,8 @@ function renderOptions() {
           }
           if (infoEl.textContent) featureContainer.appendChild(infoEl);
         }
-        // an action of its own (opens a dialog), offered only where it applies
-        const button = featureButton?.();
-        if (button) {
+        // actions of their own (open a dialog, share), offered only where they apply
+        for (const button of [featureButton?.()].flat().filter(Boolean)) {
           const buttonEl = document.createElement("button");
           buttonEl.classList.add("cu-feature-button");
           buttonEl.textContent = button.label;
@@ -2600,6 +2602,12 @@ function aniworld_connectToPlayer() {
       if (document.fullscreenElement) document.exitFullscreen();
       else [...queryAll("iframe")].find((f) => f.contentWindow === e.source)?.requestFullscreen();
     }
+    // the player's own click loses its user activation to VOE's ad popup, so the page copies
+    if (e.data.type === "copy")
+      navigator.clipboard.writeText(e.data.text).then(
+        () => true,
+        () => false,
+      ).then((ok) => e.source.postMessage({ cu: "episode", type: "copied", ok }, "*"));
   });
   window.addEventListener("keydown", (e) => {
     if (player && ["n", "p", "f"].includes(e.key) && !isTypingKey(e))
@@ -7829,7 +7837,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.0",
+  version: "1.12.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

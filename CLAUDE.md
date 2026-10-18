@@ -170,6 +170,17 @@ Erkennung per Bild-Fingerabdruck, Messwerte und Bauweise in `docs/opening-erkenn
   wird zum `<select>` (erstmals `featureAutoNext…afterEnding`).
 - Test am echten Player: Playwright mit echter Erweiterung, Klicks im Dialog per
   `dispatchEvent`, weil AniWorlds Werbe-iframes (`iframe[id^=container-]`) über dem Player liegen.
+- **Teilen (Share im Zahnrad) kopiert über die AniWorld-Seite, nicht im Frame** (18.10.2026). Der
+  Text ist `{"cuSkip":1,"segments":[…]}`, nur die Abschnitte ohne die Fundstellen, etwa 60 KB je
+  90-s-Opening. Im VOE-Frame scheitert `writeText`, weil VOEs Werbe-Popup die Nutzeraktivierung des
+  Klicks verbraucht. Gemessen: Beim `pointerdown` am Knopf ist sie noch da, beim `mousedown` schon
+  weg. Ohne Aktivierung verlangt Chrome im fremden Frame die volle Lese-/Schreib-Berechtigung
+  („ClipboardReadWrite … permissions policy“). `clipboard-write *` am iframe half nicht, ebenso
+  wenig ein Abfangen der Pointer-Ereignisse am `window`. Der Frame schickt deshalb `copy` an die
+  Seite, die Seite meldet `copied` zurück. Importiert wird per Strg+V in ein Textfeld:
+  `clipboard.readText` würde nach einer Berechtigung fragen. Gleiche `id` ersetzt den Eintrag.
+  Zum Testen: Playwright die Leseberechtigung erst **nach** dem Klick erteilen, und einen echten
+  Mausklick verwenden, kein `dispatchEvent`.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

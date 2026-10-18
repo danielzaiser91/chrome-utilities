@@ -2098,7 +2098,8 @@ function fixFilemoon() {
 // VOE-Player (<domain>/e/<id>), eingebettet u. a. auf serienstream.to
 // ---
 // VOE wechselt seine Player-Domains laufend -- johnfullwonder.com am 16.09.2026,
-// katherineschoolphone.com am 17.09.2026, claireguessthousand.com (aniworld.to) am 18.10.2026. Eine Domain dazu heisst: hier eintragen UND als
+// katherineschoolphone.com am 17.09.2026, claireguessthousand.com (aniworld.to) am 18.10.2026, am selben Nachmittag
+// derricknationtop.com. Eine Domain dazu heisst: hier eintragen UND als
 // "*://*.<domain>/*" in manifest.json. Ohne das Manifest-Muster laedt Chrome das Skript im
 // iframe gar nicht erst. Alte Domains bleiben stehen, VOE verteilt Folgen offenbar ueber
 // mehrere gleichzeitig.
@@ -2110,10 +2111,13 @@ const VOE_HOSTS = [
   "johnfullwonder.com",
   "katherineschoolphone.com",
   "claireguessthousand.com",
+  "derricknationtop.com",
 ];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
   voe_replaceRateMenu();
+  voe_autoPlay();
+  voe_connectToEpisodePage();
 }
 
 // JW Player's own "Playback Rates" menu only offers fixed steps (items labelled "0.25x" … "4x"),
@@ -2158,6 +2162,70 @@ function voe_replaceRateMenu() {
       // a change from the gear or another tab shows up here, but never while typing
       if (document.activeElement !== input)
         input.value = getSiteOptions().featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
+    },
+    undefined,
+    { interval: 1000, pauseInBg: false },
+  );
+}
+
+// JW stays idle without a source until its play button is pressed, so video.play() alone does
+// nothing here. A click on that button starts it; with sound only if the page allows autoplay
+// (aniworld_allowAutoplay), otherwise the player stays paused as before.
+function voe_autoPlay() {
+  repeatUntilCondition(
+    () => isAllowed(getSiteOptions().featureAutoPlay.isEnabled) && query(".jw-icon-display")?.click(),
+    () => !document.hidden && query(".jwplayer")?.classList.contains("jw-state-idle"),
+    [],
+    false,
+  );
+}
+
+// a hotkey letter is text while typing, and part of a browser shortcut with a modifier
+function isTypingKey(e) {
+  const el = e.target;
+  return e.ctrlKey || e.altKey || e.metaKey || el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+}
+
+// The player doesn't know which episode it shows; the page around it does (aniworld_connectToPlayer).
+// Both talk via postMessage: the player says hello, the page answers whether there is a next and
+// previous episode, and the player asks the page to switch.
+function voe_connectToEpisodePage() {
+  if (window === top) return;
+  let nav;
+  const go = (dir) => window.parent.postMessage({ cu: "episode", type: "go", dir }, "*");
+  const onKey = (key) => {
+    if (!isAllowed(getSiteOptions().featureHotkeys.isEnabled)) return;
+    if (key === "n" && nav?.hasNext) go("next");
+    if (key === "p" && nav?.hasPrev) go("prev");
+  };
+  window.addEventListener("message", (e) => {
+    if (e.source !== window.parent || e.data?.cu !== "episode") return;
+    if (e.data.type === "nav") nav = e.data;
+    if (e.data.type === "key") onKey(e.data.key);
+  });
+  window.addEventListener("keydown", (e) => !isTypingKey(e) && onKey(e.key));
+  // media events don't bubble, but capture on document still sees them
+  document.addEventListener(
+    "ended",
+    () => nav?.hasNext && isAllowed(getSiteOptions().featureAutoNext.isEnabled) && go("next"),
+    true,
+  );
+  repeatIfCondition(
+    () => {
+      if (!nav) window.parent.postMessage({ cu: "episode", type: "hello" }, "*");
+      // JW's own "next" button (hidden, playlists only) lends its icon and look
+      const jwNext = query(".jw-controlbar .jw-icon-next");
+      if (!jwNext) return;
+      let button = query(".cu-voe-next");
+      if (!button) {
+        button = jwNext.cloneNode(true);
+        button.classList.replace("jw-icon-next", "cu-voe-next");
+        button.setAttribute("aria-label", "Next episode");
+        button.removeAttribute("style");
+        button.addEventListener("click", () => go("next"));
+        jwNext.after(button);
+      }
+      button.classList.toggle("cu-hide", !nav?.hasNext);
     },
     undefined,
     { interval: 1000, pauseInBg: false },
@@ -2427,6 +2495,57 @@ function toggo_slugZuText(slug) {
 // ---
 function fixAniworld() {
   overviewFlagShower();
+  aniworld_allowAutoplay();
+  aniworld_connectToPlayer();
+}
+
+// A player on another domain may only start with sound if the page delegates autoplay to it.
+// The attribute counts from the next load of the frame on, hence the reload. "*" because the frame
+// redirects to VOE's domain; plain "autoplay" only covers the origin of src, aniworld.to itself.
+function aniworld_allowAutoplay() {
+  const frame = query(".inSiteWebStream iframe");
+  if (!frame || frame.allow.includes("autoplay")) return;
+  frame.allow = "autoplay *; fullscreen *";
+  frame.src = frame.src;
+}
+
+// Counterpart of voe_connectToEpisodePage: answers only frames of this page, and passes N and P
+// pressed outside the player on to it, which decides by its hotkey setting.
+function aniworld_connectToPlayer() {
+  let player;
+  window.addEventListener("message", (e) => {
+    if (e.data?.cu !== "episode" || ![...queryAll("iframe")].some((f) => f.contentWindow === e.source)) return;
+    if (e.data.type === "hello") {
+      player = e.source;
+      const nav = { cu: "episode", type: "nav", hasNext: !!aniworld_episodeUrl(1), hasPrev: !!aniworld_episodeUrl(-1) };
+      player.postMessage(nav, "*");
+    }
+    if (e.data.type === "go") {
+      const url = aniworld_episodeUrl(e.data.dir === "next" ? 1 : -1);
+      if (url) location.href = url;
+    }
+  });
+  window.addEventListener("keydown", (e) => {
+    if (player && ["n", "p"].includes(e.key) && !isTypingKey(e))
+      player.postMessage({ cu: "episode", type: "key", key: e.key }, "*");
+  });
+}
+
+// #stream holds two lists, seasons and episodes, each with the current one marked .active.
+// Past the last episode it goes on with episode 1 of the next season; back stops at episode 1,
+// and the movies ("filme") aren't a season to move into.
+function aniworld_episodeUrl(step) {
+  const neighbour = (ul) => {
+    const links = [...(ul?.querySelectorAll("a") ?? [])];
+    const i = links.findIndex((a) => a.classList.contains("active"));
+    return i < 0 ? undefined : links[i + step];
+  };
+  const episodes = query("#stream a[data-episode-id]")?.closest("ul");
+  const nextEpisode = neighbour(episodes);
+  if (nextEpisode || step < 0 || !/\/staffel-\d+\//.test(location.pathname)) return nextEpisode?.href;
+  const seasons = [...queryAll("#stream ul")].find((ul) => ul !== episodes);
+  const nextSeason = neighbour(seasons)?.href;
+  if (/\/staffel-\d+$/.test(nextSeason)) return nextSeason + "/episode-1";
 }
 
 function fetchAndReturnHTML_push(reader, controller) {
@@ -7595,7 +7714,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.4",
+  version: "1.11.0.5",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -7893,6 +8012,21 @@ let userOptions = {
           },
         },
       },
+    },
+    featureAutoPlay: {
+      featureName: "AutoPlay",
+      featureDescription: "start playing as soon as the episode is open",
+      isEnabled: { value: true, label: "Activate" },
+    },
+    featureAutoNext: {
+      featureName: "Next Episode",
+      featureDescription: "go on to the next episode when one ends (AniWorld)",
+      isEnabled: { value: true, label: "Activate" },
+    },
+    featureHotkeys: {
+      featureName: "Hotkeys",
+      featureDescription: "<b>N</b> next episode · <b>P</b> previous episode (AniWorld)",
+      isEnabled: { value: true, label: "Activate" },
     },
   },
 

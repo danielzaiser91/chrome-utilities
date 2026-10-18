@@ -54,8 +54,10 @@ iframe auf `vidmoly.biz` — nur `vidmoly.me` im Manifest hieß: Geschwindigkeit
 Vor dem Eintragen einer Player-Seite immer die iframe-Domain nachsehen.
 
 VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
-katherineschoolphone.com, 18.10.2026 claireguessthousand.com auf aniworld.to). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
-`manifest.json`.
+katherineschoolphone.com, 18.10.2026 claireguessthousand.com auf aniworld.to, am selben
+Nachmittag derricknationtop.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
+`manifest.json`. Die aktuelle Domain zeigt `curl -s https://voe.sx/e/<id>` (Zeile
+`window.location.href = …`).
 
 Geprüft und verworfen am 17.09.2026: den Player am Inhalt erkennen (`meta[name=keywords]`
 = "VOE") und dafür per Schalter auf der Einstellungsseite optional Zugriff auf alle Websites
@@ -86,6 +88,28 @@ Stufe dort zu belassen hieße: Der Repeater dreht die Auswahl nach einer Sekunde
 JW schließt das Menü bei jedem Zeigerereignis darin. Deshalb werden die Ereignisse des Felds schon in
 der Capture-Phase am `window` gestoppt, sonst schließt ein Klick auf die Pfeile das Menü (belegt
 am echten Player per Playwright, 18.10.2026: `voe-real-test`-Aufbau mit Mausklick auf den Pfeil).
+
+Ausnahme: der Knopf „nächste Folge“, den Daniel ausdrücklich verlangt hat. Er ist ein Klon von JWs
+verstecktem `.jw-icon-next` (Optik und Symbol des Players); der Inline-`style="display:none"`
+des Originals muss dabei entfernt werden, sonst bleibt der Klon unsichtbar.
+
+### AniWorld ↔ VOE-Player: Brücke per postMessage (18.10.2026)
+
+Der Player im iframe weiß nicht, welche Folge er zeigt; die Seite drumherum kennt die Folgenliste.
+Beide Content-Skripte reden über `postMessage` mit `{cu: "episode", type}`: Der Player schickt
+`hello`, bis die Seite mit `nav` (`hasNext`/`hasPrev`) antwortet; `go` (`dir: next|prev`) lässt die
+Seite navigieren; `key` reicht N und P weiter, die außerhalb des Players gedrückt wurden. Die
+Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player ausgewertet.
+
+- **Autoplay mit Ton braucht `allow="autoplay *"` am iframe.** Schlichtes `autoplay` gilt nur für
+  den Ursprung von `src` (aniworld.to), das iframe leitet aber auf die VOE-Domain weiter. Das
+  Attribut wirkt erst beim nächsten Laden, daher `frame.src = frame.src`. Prüfen im Frame:
+  `document.featurePolicy.allowsFeature("autoplay")`.
+- **JW steht bis zum Klick auf Play auf `jw-state-idle`, ohne Video-`src`.** `video.play()` bewirkt
+  dann nichts; ein Klick auf `.jw-icon-display` startet das Laden (`voe_autoPlay`).
+- **Headless nicht prüfbar:** Im AniWorld-iframe bleibt JW in Playwright auf `jw-state-setup`,
+  auch ohne Erweiterung und auch nach echtem Mausklick (gemessen 18.10.2026). Autoplay und
+  Auto-Next deshalb im echten Chrome testen; Brücke, Knopf und Tasten ließen sich headless belegen.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

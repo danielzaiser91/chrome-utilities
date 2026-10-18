@@ -1,6 +1,6 @@
 # Opening/Ending teilen und importieren testen
 
-Vorher: Erweiterung neu laden (1.12.0.3), in [chrome://extensions](chrome://extensions).
+Vorher: Erweiterung neu laden (1.12.0.4), in [chrome://extensions](chrome://extensions).
 
 1. Eine Folge einer Serie öffnen, für die du schon ein Opening markiert hast, z. B.
    [Dragon Quest Dai, Folge 8](https://aniworld.to/anime/stream/dragon-quest-the-adventure-of-dai/staffel-1/episode-8).
@@ -15,4 +15,6 @@ Vorher: Erweiterung neu laden (1.12.0.3), in [chrome://extensions](chrome://exte
 4. Im selben Zahnrad die Zeile unter **AutoPlay** lesen.
    - Erwartet: ✅, oder ❌ mit „Start one episode yourself, the next ones start by themselves." Nach Play und N: in der nächsten Folge ✅.
    - Falsch, wenn: ❌ in einer Folge, die ohne deinen Klick von selbst losgelaufen ist.
-5. Im Zahnrad unter **Next Episode** steht unter dem Dropdown der Hinweis „No ending marked or found in the episode? Then it waits for the video to end.“
+5. Im Zahnrad unter **Next Episode** das Dropdown auf „when the ending starts“ stellen.
+   - Erwartet: Darunter erscheint „No ending marked or found in the episode? Then it waits for the video to end.“
+   - Falsch, wenn: der Hinweis auch bei „when the video ends“ zu sehen ist.

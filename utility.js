@@ -1405,11 +1405,17 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
     else row.append(label, input);
   }
   featureRow.appendChild(row);
-  // visible under the row, unlike description, which only shows as a tooltip
-  if (feature.hint) {
+  // visible under the row, unlike description, which only shows as a tooltip; one per choice
+  if (feature.hints) {
     const hint = document.createElement("div");
     hint.classList.add("cu-row-hint");
-    hint.textContent = feature.hint;
+    const showHint = () => {
+      hint.textContent = feature.hints[input.value] ?? "";
+      hint.hidden = !hint.textContent;
+    };
+    showHint();
+    // capture, like changeValEvent: its stopPropagation would skip a bubbling listener here
+    input.addEventListener("change", showHint, true);
     featureRow.appendChild(hint);
   }
   if (feature.subFeatures) {
@@ -7851,7 +7857,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.0.3",
+  version: "1.12.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8165,7 +8171,7 @@ let userOptions = {
         subFeatures: {
           afterEnding: {
             label: "Next episode starts",
-            hint: "No ending marked or found in the episode? Then it waits for the video to end.",
+            hints: { start: "No ending marked or found in the episode? Then it waits for the video to end." },
             value: "end",
             choices: { end: "when the video ends", start: "when the ending starts" },
           },

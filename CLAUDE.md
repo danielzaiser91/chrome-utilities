@@ -105,11 +105,20 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
   den Ursprung von `src` (aniworld.to), das iframe leitet aber auf die VOE-Domain weiter. Das
   Attribut wirkt erst beim nächsten Laden, daher `frame.src = frame.src`. Prüfen im Frame:
   `document.featurePolicy.allowsFeature("autoplay")`.
-- **JW steht bis zum Klick auf Play auf `jw-state-idle`, ohne Video-`src`.** `video.play()` bewirkt
-  dann nichts; ein Klick auf `.jw-icon-display` startet das Laden (`voe_autoPlay`).
-- **Headless nicht prüfbar:** Im AniWorld-iframe bleibt JW in Playwright auf `jw-state-setup`,
-  auch ohne Erweiterung und auch nach echtem Mausklick (gemessen 18.10.2026). Autoplay und
-  Auto-Next deshalb im echten Chrome testen; Brücke, Knopf und Tasten ließen sich headless belegen.
+- **JW hat bis zum Klick auf Play keine Video-`src`.** `video.play()` bewirkt dann nichts; ein
+  Klick auf `.jw-icon-display` startet das Laden (`voe_autoPlay`). **Gewartet wird auf die
+  fehlende `src`, nicht auf eine JW-Klasse:** Im AniWorld-iframe bleibt die Klasse auf
+  `jw-state-setup`, obwohl `jwplayer().getState()` schon `idle` meldet und der Klick wirkt. Die
+  erste Fassung wartete auf `jw-state-idle` und klickte deshalb nie (18.10.2026, Daniel).
+- **Testen mit Fenster, nicht headless:** Headless startet der Player im AniWorld-iframe gar nicht,
+  auch ohne Erweiterung. Mit Fenster (`headless: false`, `--window-position=-3000,0`, unsichtbar)
+  läuft er. Dafür Playwrights `channel: "chromium"` nehmen: Das gebrandete Chrome
+  (`channel: "chrome"`) ignoriert `--load-extension`. Der Lauf sieht dann aus wie einer mit
+  Erweiterung, ist aber keiner. Prüfstein: `allow` am iframe muss `autoplay *` tragen. Daniels
+  Chrome läuft mit `--autoplay-policy=no-user-gesture-required` (sichtbar in
+  `chrome://media-engagement`), also mit diesem Schalter testen und einmal ohne ihn.
+- Unser Klick öffnet bei VOE ein Werbe-Popup. Chrome blockiert es, weil kein echter Klick dahinter
+  steht; nur Playwright lässt es durch.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

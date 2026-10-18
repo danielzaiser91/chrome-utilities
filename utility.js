@@ -2168,13 +2168,15 @@ function voe_replaceRateMenu() {
   );
 }
 
-// JW stays idle without a source until its play button is pressed, so video.play() alone does
-// nothing here. A click on that button starts it; with sound only if the page allows autoplay
-// (aniworld_allowAutoplay), otherwise the player stays paused as before.
+// JW has no source until its play button is pressed, so video.play() alone does nothing here.
+// A click on that button starts it; with sound only if the page allows autoplay
+// (aniworld_allowAutoplay), otherwise the player stays paused as before. Waiting is keyed to the
+// missing source, not to the class jw-state-idle: inside AniWorld's frame the class stays at
+// jw-state-setup although the player is ready and the click works.
 function voe_autoPlay() {
   repeatUntilCondition(
     () => isAllowed(getSiteOptions().featureAutoPlay.isEnabled) && query(".jw-icon-display")?.click(),
-    () => !document.hidden && query(".jwplayer")?.classList.contains("jw-state-idle"),
+    () => !document.hidden && query(".jw-icon-display") && !query(".jwplayer video")?.currentSrc,
     [],
     false,
   );
@@ -2502,11 +2504,14 @@ function fixAniworld() {
 // A player on another domain may only start with sound if the page delegates autoplay to it.
 // The attribute counts from the next load of the frame on, hence the reload. "*" because the frame
 // redirects to VOE's domain; plain "autoplay" only covers the origin of src, aniworld.to itself.
+// Checked repeatedly: the frame is inserted after our start, and replaced when the hoster changes.
 function aniworld_allowAutoplay() {
-  const frame = query(".inSiteWebStream iframe");
-  if (!frame || frame.allow.includes("autoplay")) return;
-  frame.allow = "autoplay *; fullscreen *";
-  frame.src = frame.src;
+  repeatIfCondition(() => {
+    const frame = query(".inSiteWebStream iframe");
+    if (!frame || frame.allow.includes("autoplay")) return;
+    frame.allow = "autoplay *; fullscreen *";
+    frame.src = frame.src;
+  }, undefined, { interval: 500 });
 }
 
 // Counterpart of voe_connectToEpisodePage: answers only frames of this page, and passes N and P
@@ -7714,7 +7719,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.5",
+  version: "1.11.0.6",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -256,9 +256,20 @@ Gemessen mit Playwright, 18.10.2026:
   Maus an `.ytp-volume-area`).
 - **Fortsetzen schon bei `loadedmetadata`** (`sofortFortsetzen`, Daniel 18.10.2026: „reagiert zu
   spät“). Gewartet wurde auf `playing` und einen 500-ms-Takt, das Video lief also erst von 0 an.
-  Jetzt kommt `seeking` 2–5 ms nach `loadedmetadata`, noch vor dem Abspielen. TOGGO wartet
-  weiterhin auf `playing`. Prüfen: Position vorbelegen, Medien-Ereignisse per Init-Skript am
-  `document` (Capture) mitschreiben und den Abstand zwischen `loadedmetadata` und `seeking` ansehen.
+  TOGGO wartet weiterhin auf `playing`.
+- **Und schon zu `document_start`** (`yt_startPositionMemory`, Daniel 19.10.2026: „spielt die erste
+  sek“). Die Erweiterung startet sonst erst 500 ms nach `DOMContentLoaded`; beim Autoplay kommt
+  `loadedmetadata` aber mit `DOMContentLoaded` (gemessen: 2161 ms gegen Start 2954 ms), es griff nur
+  der Takt, 1,9 s zu spät. Die Einstellung lädt der Frühstart selbst aus `chrome.storage`, das
+  Ereignis hört ein Capture-Listener am `document`. Jetzt `seeking` 2 ms nach `loadedmetadata`,
+  auch beim Autoplay.
+- **Messfalle beim Prüfen:** Ohne Autoplay kommt `loadedmetadata` erst nach rund 5,8 s, also lange
+  nach dem Start der Erweiterung, und alles sieht pünktlich aus (so wurde die erste Fassung
+  abgenommen). Immer den Autoplay-Fall messen: gemerkte Stelle per `addInitScript` vor dem ersten
+  Laden setzen, frischen Tab ohne `evaluate` darin, Medien-Ereignisse und
+  `data-cu-injected`/`data-cu-position-watched` mitschreiben. Ein `currentTime` vor
+  `loadedmetadata` wird zur Startposition des nächsten Ladens (HTML-Spez.), der SPA-Test setzt es
+  deshalb erst danach.
 - Wiedergabetests: Im Playwright-Chromium läuft YouTube nicht an (Zeit bleibt bei 0, auch nach
   Klick ins Bild). Ereignisse und Lautstärke lassen sich trotzdem prüfen, die Wiedergabe nicht.
   Werbung für den Test aus den Player-Antworten nehmen (`adPlacements`, `playerAds` und `adSlots`

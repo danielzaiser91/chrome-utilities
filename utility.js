@@ -3872,26 +3872,30 @@ function cu_initPositionMemory(site, quelle) {
       fortsetzen(video);
     };
     video.addEventListener("playing", start);
-    if (quelle.sofortFortsetzen) video.addEventListener("loadedmetadata", start);
     const sofort = () => merken(video, true);
     video.addEventListener("seeked", sofort);
     video.addEventListener("pause", sofort);
     window.addEventListener("pagehide", sofort);
   };
 
-  repeatIfCondition(
-    () => {
-      idAbgleichen();
-      const video = quelle.getVideo();
-      if (!video) return;
-      anbinden(video);
-      // Netz, falls das Ereignis kam, bevor der Listener hing
-      if (bereit(video)) fortsetzen(video);
-      merken(video);
-    },
-    () => true,
-    { interval: 500, pauseInBg: false },
-  );
+  const pruefen = () => {
+    idAbgleichen();
+    const video = quelle.getVideo();
+    if (!video) return;
+    anbinden(video);
+    // Netz, falls das Ereignis kam, bevor der Listener hing
+    if (bereit(video)) fortsetzen(video);
+    merken(video);
+  };
+  // Am document in der Capture-Phase: Das Ereignis kommt auch an, wenn der Takt das Element noch
+  // nicht gefunden hat. Gleich danach beginnt das Abspielen, jede Verzoegerung ist sichtbar.
+  if (quelle.sofortFortsetzen)
+    document.addEventListener(
+      "loadedmetadata",
+      (e) => e.target === quelle.getVideo() && pruefen(),
+      true,
+    );
+  repeatIfCondition(pruefen, () => true, { interval: 500, pauseInBg: false });
 }
 
 // ══ Lautstaerke merken, fuer jede Seite ═════════════════════════════════════════════════════
@@ -5815,7 +5819,7 @@ function fixYoutube() {
   noInterestButton();
   ytShortsDate();
   _init_set_video_rate_repeater__generic(); // playbackrate
-  yt_initPositionMemory();
+  // Position merken startet schon zu document_start (yt_startPositionMemory)
   // das Merken selbst macht youtube-main-world.js, nur dort gibt es die Player-API
   repeatIfCondition(
     () => {
@@ -5849,8 +5853,26 @@ function fixYoutube() {
 const YT_SITE = "youtube";
 const YT_MAX_POSITIONS = 300;
 
-function yt_initPositionMemory() {
+// Laeuft zu document_start, nicht aus fixYoutube: Die Erweiterung startet erst 500 ms nach
+// DOMContentLoaded, beim Autoplay kommt loadedmetadata aber schon mit DOMContentLoaded, und bis
+// zum Sprung lief die erste Sekunde ab 0 (gemessen 19.10.2026: loadedmetadata 2161 ms, Start der
+// Erweiterung 2954 ms). Die Einstellung wird dafuer selbst geladen, loadUserSettings kommt zu spaet.
+function yt_startPositionMemory() {
   if (window !== window.top) return; // Einbettungen auf fremden Seiten nicht
+  // Doppelte Injektion ins selbe Dokument (BIG TODO #1, auf Prime belegt) sprange zweimal
+  if (document.documentElement.dataset.cuYtPosition) return;
+  document.documentElement.dataset.cuYtPosition = "1";
+  const schluessel = "cu:opts:" + YT_SITE;
+  const speicher = _gemeinsamerSpeicher();
+  if (!speicher) return yt_initPositionMemory();
+  speicher.get(schluessel, (daten = {}) => {
+    const { version, ...gespeichert } = daten[schluessel] ?? {};
+    _mergeSiteValues(YT_SITE, gespeichert);
+    yt_initPositionMemory();
+  });
+}
+
+function yt_initPositionMemory() {
   let festgehalten = null; // { id, startzeit }
   const player = () => query("#movie_player");
   const ausAdresse = () => {
@@ -5859,17 +5881,14 @@ function yt_initPositionMemory() {
       ? { id: params.get("v"), startzeit: params.has("t") }
       : null;
   };
-  // Der Listener haengt, bevor cu_initPositionMemory seinen anbindet: Bei loadedmetadata steht
-  // die neue Kennung also schon, wenn dort gesprungen wird.
-  const getVideo = () => {
-    const video = player()?.querySelector("video") ?? null;
-    if (video && !video.dataset.cuYtIdWatched) {
-      video.dataset.cuYtIdWatched = "1";
-      video.addEventListener("loadedmetadata", () => (festgehalten = ausAdresse()));
-      if (video.readyState >= 1) festgehalten = ausAdresse(); // schon geladen
-    }
-    return video;
-  };
+  const getVideo = () => player()?.querySelector("video") ?? null;
+  // Haengt vor dem Listener von cu_initPositionMemory: Bei loadedmetadata steht die neue
+  // Kennung also schon, wenn dort gesprungen wird.
+  document.addEventListener(
+    "loadedmetadata",
+    (e) => e.target === getVideo() && (festgehalten = ausAdresse()),
+    true,
+  );
   const getId = () =>
     player()?.classList.contains("ad-showing") ? null : festgehalten?.id ?? null;
 
@@ -7941,7 +7960,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.1.2",
+  version: "1.12.1.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -9359,3 +9378,6 @@ SCRIPTS TO AUTOPLAY:
 // window.__fp_timer = 48; window.__ignore_stellar_ocean = 0; window.__omniLoop=1;
 
 // ----------------------------------------------------------------------------------------------------------------
+
+// Am Dateiende, damit alle Konstanten oben schon stehen; der Rest wartet auf DOMContentLoaded.
+if (location.hostname.endsWith("youtube.com")) yt_startPositionMemory();

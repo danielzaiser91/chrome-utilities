@@ -2098,7 +2098,7 @@ function fixFilemoon() {
 // VOE-Player (<domain>/e/<id>), eingebettet u. a. auf serienstream.to
 // ---
 // VOE wechselt seine Player-Domains laufend -- johnfullwonder.com am 16.09.2026,
-// katherineschoolphone.com am 17.09.2026. Eine Domain dazu heisst: hier eintragen UND als
+// katherineschoolphone.com am 17.09.2026, claireguessthousand.com (aniworld.to) am 18.10.2026. Eine Domain dazu heisst: hier eintragen UND als
 // "*://*.<domain>/*" in manifest.json. Ohne das Manifest-Muster laedt Chrome das Skript im
 // iframe gar nicht erst. Alte Domains bleiben stehen, VOE verteilt Folgen offenbar ueber
 // mehrere gleichzeitig.
@@ -2106,9 +2106,29 @@ function fixFilemoon() {
 // <meta name="keywords" content="VOE"> und ein JW Player (div.jwplayer). Das hilft aber nur,
 // wenn die Erweiterung auf der Domain ueberhaupt geladen wird -- und das entscheidet Chrome
 // allein am Manifest. Warum die Liste trotzdem bleibt: CLAUDE.md, "VOE-Domains".
-const VOE_HOSTS = ["johnfullwonder.com", "katherineschoolphone.com"];
+const VOE_HOSTS = [
+  "johnfullwonder.com",
+  "katherineschoolphone.com",
+  "claireguessthousand.com",
+];
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
+  // JW Player: the button sits in its control bar, next to play. The bar is a flex row with a
+  // link-blue text color, so label and input get stacked and colored without this
+  insertCSS(
+    `
+    .jw-button-container > .cu-playback-rate { color: #fff; align-self: center; }
+    .jw-button-container > .cu-playback-settings:not(.cu-hide) {
+      display: flex; align-items: center; color: #fff;
+    }
+  `,
+    "cu-voe-playback-rate",
+  );
+  const getContainer = () => query(".jw-controlbar .jw-button-container");
+  addPlaybackRateButton__generic(
+    getContainer,
+    () => getContainer() && !query(".cu-playback-rate"),
+  );
 }
 
 // ----
@@ -7542,7 +7562,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0",
+  version: "1.11.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

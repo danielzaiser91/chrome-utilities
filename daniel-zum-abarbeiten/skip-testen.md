@@ -1,21 +1,24 @@
-# Opening/Ending überspringen testen (1.11.0.8)
+# Skip, F und nächste Folge testen (1.11.0.9)
 
-Vorher: Erweiterung in `chrome://extensions` neu laden.
+Vorher: Erweiterung in `chrome://extensions` neu laden, Fehler mit „Clear all“ leeren.
 
-1. [Dai, Folge 4](https://aniworld.to/anime/stream/dragon-quest-the-adventure-of-dai/staffel-1/episode-4)
-   öffnen, Zahnrad im Player → „Skip Opening/Ending“ → **Mark opening / ending** → **Add skip**.
-   Typ „Opening“, Start 0:00, Ende 1:30 → „Read frames“ → Save. Danach Ending 21:40,2 bis 23:13,1.
-   Erwartet: Vorschaubilder erscheinen, die Liste zeigt „Opening 1“ und „Ending 1“.
-   Falsch, wenn: das Einlesen hängen bleibt oder das Video danach woanders steht als vorher.
-2. [Folge 5](https://aniworld.to/anime/stream/dragon-quest-the-adventure-of-dai/staffel-1/episode-5)
-   von vorn abspielen.
-   Erwartet: nach wenigen Sekunden „Opening skipped · Undo“, das Video steht bei etwa 1:31.
-   Falsch, wenn: kein Sprung, oder er landet mitten in der Handlung.
-3. In Folge 5 auf 21:50 spulen.
-   Erwartet: nach ein, zwei Sekunden Sprung ans Ending-Ende, nach dem Rest der Folge kommt Folge 6.
-   Falsch, wenn: das Ending durchläuft.
-4. Zahnrad → „Next Episode“ → „Next episode starts“ auf **when the ending starts**, dann Schritt 3
-   in Folge 6 wiederholen (etwa 2 min vor Schluss spulen).
-   Erwartet: Folge 7 kommt, sobald das Ending erkannt ist.
-5. Außerhalb des Players (auf der AniWorld-Seite) **F** drücken, dann noch einmal.
+1. [Dai, Folge 8](https://aniworld.to/anime/stream/dragon-quest-the-adventure-of-dai/staffel-1/episode-8)
+   öffnen, Zahnrad → „Skip Opening/Ending“ → **Mark opening / ending**, auf die Zeile „Opening 1“ klicken.
+   Erwartet: Der Editor öffnet sich mit Typ, Name und beiden Zeiten. Name ändern → Save → die Liste zeigt
+   den neuen Namen, das Opening wird in der nächsten Folge weiter übersprungen.
+2. Ins Video klicken, dann **F**, dann noch einmal **F**.
    Erwartet: Vollbild an, Vollbild aus.
+3. Etwas nach unten scrollen, **F** für Vollbild, dann **N**.
+   Erwartet: Folge 9 läuft, Vollbild bleibt an. Nach F (aus) steht die Seite an derselben Scrollposition.
+   Falsch, wenn: die Seite neu lädt und oben steht.
+4. In Folge 9 über JWs eigenen Vollbild-Knopf (unten rechts) ins Vollbild, dann **N**.
+   Erwartet: Folge 10 läuft weiter im Vollbild.
+5. Die Zurück-Taste des Browsers.
+   Erwartet: Folge 9, Player und Seite passen zusammen.
+   Falsch, wenn: die Seite Folge 10 zeigt, der Player aber Folge 9.
+6. In einer Folge auf 21:50 spulen.
+   Erwartet: Sprung ans Ending-Ende, danach kommt die nächste Folge.
+7. Zahnrad → „Next Episode“ → „Next episode starts“ auf **when the ending starts**, Schritt 6 wiederholen.
+   Erwartet: Die nächste Folge kommt, sobald das Ending erkannt ist.
+8. `chrome://extensions` → Fehler.
+   Erwartet: leer, auch keine Warnung „Allow attribute will take precedence over 'allowfullscreen'“.

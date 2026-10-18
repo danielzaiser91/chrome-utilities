@@ -265,6 +265,12 @@ const skip_parse = (s) => {
   return m ? (+m[1] || 0) * 60 + +m[2].replace(",", ".") : NaN;
 };
 
+// was ein Abschnitt in den Folgen gefunden hat (und wo nichts gefunden wurde), gilt nicht mehr
+function skip_forgetFinds(d, id) {
+  for (const ep of Object.values(d.episodes))
+    for (const kind of Object.keys(SKIP_KINDS)) if (ep[kind]?.seg === id || ep[kind] === "none") delete ep[kind];
+}
+
 const skip_dialog = {
   open: false,
   el: null,
@@ -344,7 +350,8 @@ const skip_dialog = {
     const list = this.el.querySelector(".cu-skip-list");
     list.innerHTML = data.segments.length ? "" : `<p class="cu-skip-empty">Nothing marked yet.</p>`;
     for (const seg of data.segments) {
-      const row = create("div", { className: "cu-skip-row" });
+      const row = create("div", { className: "cu-skip-row", title: "Edit" });
+      row.addEventListener("click", (e) => !e.target.closest("button") && !this.capturing && this.edit(seg));
       row.append(
         create("span", { className: "cu-skip-kind", textContent: SKIP_KINDS[seg.type] }),
         create("span", { textContent: seg.name }),
@@ -352,9 +359,7 @@ const skip_dialog = {
         cu_confirmingDeleteButton("Delete", async () => {
           const d = await skip_update((d) => {
             d.segments = d.segments.filter((s) => s.id !== seg.id);
-            // was dieser Abschnitt in den Folgen gefunden hat, gilt nicht mehr
-            for (const ep of Object.values(d.episodes))
-              for (const kind of Object.keys(SKIP_KINDS)) if (ep[kind]?.seg === seg.id || ep[kind] === "none") delete ep[kind];
+            skip_forgetFinds(d, seg.id);
           });
           this.renderList(d);
         }),
@@ -363,7 +368,8 @@ const skip_dialog = {
     }
   },
 
-  edit() {
+  // old: ein vorhandener Abschnitt; ohne neu eingelesene Bilder bleiben seine alten
+  edit(old) {
     const v = this.video;
     const ed = this.el.querySelector(".cu-skip-editor");
     this.el.querySelector(".cu-skip-add").classList.add("cu-hide");
@@ -372,7 +378,8 @@ const skip_dialog = {
       <select class="cu-skip-type"><option value="" selected disabled>Opening or ending?</option>
         <option value="op">Opening</option><option value="ed">Ending</option></select>
       <input class="cu-skip-name" placeholder="Name">
-      <p class="cu-skip-hint">Go to the first frame, then press “Set”. Same for the last frame.</p>
+      <p class="cu-skip-hint">Go to the first frame, then press “Set”. Same for the last frame.
+        “Read frames” learns the part, so it's found in other episodes.</p>
       ${["from", "to"]
         .map(
           (f) => `<div class="cu-skip-mark" data-f="${f}">
@@ -388,7 +395,7 @@ const skip_dialog = {
         <button type="button" class="cu-skip-save" disabled>Save</button></div>`;
     const type = ed.querySelector(".cu-skip-type"), name = ed.querySelector(".cu-skip-name");
     const read = ed.querySelector(".cu-skip-read"), save = ed.querySelector(".cu-skip-save");
-    let frames = null;
+    let frames = null, readHere = false;
     const at = (f) => skip_parse(ed.querySelector(`[data-f=${f}] .cu-skip-at`).value);
     const check = () => {
       const ok = type.value && at("from") < at("to");
@@ -426,21 +433,34 @@ const skip_dialog = {
     }
     read.addEventListener("click", async () => {
       frames = await this.capture(at("from"), Math.min(at("to"), v.duration - 0.5), ed);
+      readHere = !!frames;
       check();
     });
+    if (old) {
+      type.value = old.type;
+      name.value = old.name;
+      ed.querySelector("[data-f=from] .cu-skip-at").value = skip_fmt(old.from);
+      ed.querySelector("[data-f=to] .cu-skip-at").value = skip_fmt(old.to);
+      frames = { hashes: old.hashes, times: old.times };
+      check();
+    }
     ed.querySelector(".cu-skip-cancel").addEventListener("click", () => {
       this.capturing = false;
       ed.classList.add("cu-hide");
       this.el.querySelector(".cu-skip-add").classList.remove("cu-hide");
     });
     save.addEventListener("click", async () => {
-      const seg = { id: Date.now().toString(36), type: type.value, name: name.value || SKIP_KINDS[type.value], from: at("from"), to: at("to"), ...frames };
+      const seg = { id: old?.id ?? Date.now().toString(36), type: type.value, name: name.value || SKIP_KINDS[type.value], from: at("from"), to: at("to"), ...frames };
+      // nur umbenannt: was in den Folgen gefunden wurde, gilt weiter
+      const relearned = !old || readHere || seg.type !== old.type;
       const d = await skip_update((d) => {
-        d.segments.push(seg);
+        const i = d.segments.findIndex((s) => s.id === seg.id);
+        d.segments.splice(i < 0 ? d.segments.length : i, 1, seg);
+        if (old && relearned) skip_forgetFinds(d, seg.id);
         // ein neuer Abschnitt kann in Folgen passen, in denen bisher nichts gefunden wurde
-        for (const ep of Object.values(d.episodes)) if (ep[seg.type] === "none") delete ep[seg.type];
-        // je Folge ein Opening und ein Ending: die markierte Folge ist damit geloest
-        (d.episodes[skip_episodeKey()] ??= {})[seg.type] = { seg: seg.id, from: seg.from, to: seg.to };
+        if (relearned) for (const ep of Object.values(d.episodes)) if (ep[seg.type] === "none") delete ep[seg.type];
+        // je Folge ein Opening und ein Ending: die Folge, in der eingelesen wurde, ist damit geloest
+        if (readHere) (d.episodes[skip_episodeKey()] ??= {})[seg.type] = { seg: seg.id, from: seg.from, to: seg.to };
       });
       ed.querySelector(".cu-skip-cancel").click();
       this.renderList(d);
@@ -519,11 +539,18 @@ function skip_insertCSS() {
     .cu-skip-body { flex: 1; display: flex; gap: 12px; padding: 12px; min-height: 0; }
     .cu-skip-player { flex: 3; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .cu-skip-preview { width: 100%; height: auto; max-height: calc(100% - 70px); object-fit: contain; background: #000; }
-    .cu-skip-seek { width: 100%; }
+    /* the thumb centre runs from edge to edge of the preview: the input sticks out by half a thumb
+       on each side, the track is drawn inset by the same amount (padding and border of the dialog inputs would shift it) */
+    .cu-skip-dialog .cu-skip-seek { -webkit-appearance: none; appearance: none; width: calc(100% + 14px); height: 14px;
+      margin: 4px -7px; padding: 0; border: 0; background: linear-gradient(#666, #666) 7px 50% / calc(100% - 14px) 4px no-repeat;
+      cursor: pointer; }
+    .cu-skip-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: #4a90ff; }
     .cu-skip-controls { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
     .cu-skip-time { margin-left: auto; font-variant-numeric: tabular-nums; }
     .cu-skip-side { flex: 2; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-width: 260px; }
-    .cu-skip-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid #333; }
+    .cu-skip-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid #333; cursor: pointer; }
+    .cu-skip-row:hover { background: #1c1c1c; }
     .cu-skip-kind { font-weight: bold; min-width: 5.5em; }
     .cu-skip-range { margin-left: auto; font-variant-numeric: tabular-nums; opacity: 0.8; }
     .cu-skip-empty, .cu-skip-hint { opacity: 0.7; margin: 0; }

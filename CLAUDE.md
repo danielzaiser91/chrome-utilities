@@ -124,6 +124,34 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
   (`aniworld.to`), nicht dem Player-Frame.
 - Unser Klick öffnet bei VOE ein Werbe-Popup. Chrome blockiert es, weil kein echter Klick dahinter
   steht; nur Playwright lässt es durch.
+- **`allowfullscreen` wird entfernt**, sobald `allow` gesetzt ist: Chrome warnt sonst bei jedem
+  Laden („Allow attribute will take precedence“), und die Warnung landet in Daniels Fehlerliste.
+
+#### Nächste Folge ohne Neuladen, Vollbild immer über die Seite (18.10.2026)
+
+Daniel wollte, dass Scrollposition und Vollbild den Folgenwechsel überstehen. Dafür bleibt das
+iframe-Element stehen (`aniworld_switchEpisode`): Die nächste Seite wird per `fetch` geholt,
+`#stream` und `.hosterSiteTitle` ersetzt, an den Hoster-`li` nur Attribute und Links getauscht —
+AniWorlds Klick-Handler hängen direkt an diesen Elementen (einmal beim Laden gebunden). Weicht die
+Hoster-Liste ab, normales Laden; die Scrollposition wandert dann über `sessionStorage`.
+
+- **AniWorlds Klick auf den Hoster läuft weiter** (zählt die Folge nach 2 min als gesehen), findet
+  aber kein iframe: `.inSiteWebStream` wird für die Dauer des Klicks entfernt. Den Frame navigiert
+  `contentWindow.location.replace`. Setzt AniWorld die `src` selbst, entsteht ein Verlaufseintrag
+  für den Frame, und das erste „Zurück“ zeigt die alte Folge im Player unter der neuen Seite
+  (gemessen: `history.length` +2 statt +1). Weil die `src` dabei stehen bleibt, merkt sich
+  `data-cu-src`, was läuft. `popstate` lädt die Seite neu.
+- **Vollbild gehört dem iframe auf der Seite**, nie dem Player im Frame: Lädt der Frame die nächste
+  Folge, endet ein Vollbild im Frame. F im Player schickt `fullscreen` an die Seite (ein Tastendruck
+  im Frame aktiviert nach User Activation v2 auch die Seite); JWs Vollbild-Knopf und Doppelklick
+  werden in der Capture-Phase abgefangen und genauso umgeleitet, aber nur, wenn die Seite auf
+  `hello` geantwortet hat.
+- **Tasten im Frame in der Capture-Phase hören:** Hat der JW-Player den Fokus (nach jedem Klick ins
+  Bild), schluckt er F für sein eigenes Vollbild, bevor `window` es sieht. Unser erster Test
+  drückte F ohne Klick in den Player und war deshalb grün, Daniel klickt aber zuerst hinein.
+  Testen also immer mit echtem Mausklick ins iframe vor dem Tastendruck.
+- Zwei Playwright-Fenster gleichzeitig nehmen sich den Fokus, `requestFullscreen` scheitert dann
+  mit „not granted“. Vollbild-Tests nacheinander laufen lassen.
 
 ### Opening/Ending überspringen: `skip.js` (18.10.2026)
 

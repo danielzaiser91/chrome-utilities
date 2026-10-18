@@ -2238,21 +2238,32 @@ function voe_connectToEpisodePage() {
   if (window === top) return;
   let nav;
   const go = (dir) => window.parent.postMessage({ cu: "episode", type: "go", dir }, "*");
-  const onKey = (key, fromPage) => {
-    if (!isAllowed(getSiteOptions().featureHotkeys.isEnabled)) return;
+  // true when the key was ours
+  const onKey = (key) => {
+    if (!isAllowed(getSiteOptions().featureHotkeys.isEnabled)) return false;
     if (key === "n" && nav?.hasNext) go("next");
     if (key === "p" && nav?.hasPrev) go("prev");
-    // fullscreen needs the key press as user activation, and a press on the page doesn't reach
-    // into this frame -- so the page switches its frame itself
-    if (key === "f" && fromPage) window.parent.postMessage({ cu: "episode", type: "fullscreen" }, "*");
-    if (key === "f" && !fromPage) query(".jw-icon-fullscreen")?.click();
+    // the page switches its frame: a key press here activates the page too, one there never reaches
+    // in here, and a click on JW's own button from a script doesn't open fullscreen
+    if (key === "f") window.parent.postMessage({ cu: "episode", type: "fullscreen" }, "*");
+    return ["n", "p", "f"].includes(key);
   };
   window.addEventListener("message", (e) => {
     if (e.source !== window.parent || e.data?.cu !== "episode") return;
     if (e.data.type === "nav") nav = e.data;
-    if (e.data.type === "key") onKey(e.data.key, true);
+    if (e.data.type === "key") onKey(e.data.key);
   });
-  window.addEventListener("keydown", (e) => !isTypingKey(e) && onKey(e.key));
+  // capture: once the player has the focus, JW stops the keys it knows itself (F is its own fullscreen)
+  window.addEventListener("keydown", (e) => !isTypingKey(e) && onKey(e.key) && e.stopImmediatePropagation(), true);
+  // JW's own fullscreen ends when the frame loads the next episode, the page's lasts
+  const toPageFullscreen = (e) => {
+    if (!nav) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    window.parent.postMessage({ cu: "episode", type: "fullscreen" }, "*");
+  };
+  document.addEventListener("click", (e) => e.target.closest?.(".jw-icon-fullscreen") && toPageFullscreen(e), true);
+  document.addEventListener("dblclick", (e) => e.target.closest?.(".jw-media") && toPageFullscreen(e), true);
   // media events don't bubble, but capture on document still sees them
   document.addEventListener(
     "ended",
@@ -2556,6 +2567,8 @@ function aniworld_allowAutoplay() {
   repeatIfCondition(() => {
     const frame = query(".inSiteWebStream iframe");
     if (!frame || frame.allow.includes("autoplay")) return;
+    // allow covers fullscreen; next to it the old attribute only earns a warning in Chrome's error list
+    frame.removeAttribute("allowfullscreen");
     frame.allow = "autoplay *; fullscreen *";
     frame.src = frame.src;
   }, undefined, { interval: 500 });
@@ -2565,6 +2578,11 @@ function aniworld_allowAutoplay() {
 // pressed outside the player on to it, which decides by its hotkey setting.
 function aniworld_connectToPlayer() {
   let player;
+  // the episodes switched in place have no page behind them
+  window.addEventListener("popstate", () => location.reload());
+  const y = sessionStorage.getItem("cu:aniworld:scrollY");
+  sessionStorage.removeItem("cu:aniworld:scrollY");
+  if (y) window.addEventListener("load", () => scrollTo(0, +y), { once: true });
   window.addEventListener("message", (e) => {
     if (e.data?.cu !== "episode" || ![...queryAll("iframe")].some((f) => f.contentWindow === e.source)) return;
     if (e.data.type === "hello") {
@@ -2576,7 +2594,7 @@ function aniworld_connectToPlayer() {
     }
     if (e.data.type === "go") {
       const url = aniworld_episodeUrl(e.data.dir === "next" ? 1 : -1);
-      if (url) location.href = url;
+      if (url) aniworld_switchEpisode(url);
     }
     if (e.data.type === "fullscreen") {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -2587,6 +2605,45 @@ function aniworld_connectToPlayer() {
     if (player && ["n", "p", "f"].includes(e.key) && !isTypingKey(e))
       player.postMessage({ cu: "episode", type: "key", key: e.key }, "*");
   });
+}
+
+// In place, so the player frame stays -- and with it fullscreen and the scroll position. The hoster
+// buttons keep AniWorld's click handlers (bound once at load), so only their links change, and a click
+// on the one playing lets AniWorld load it and count the episode as watched. Another set of hosters
+// than here means a normal page load.
+async function aniworld_switchEpisode(url) {
+  const doc = new DOMParser().parseFromString(await (await fetch(url)).text(), "text/html");
+  const hosters = (d) => [...d.querySelectorAll(".hosterSiteVideo li[data-link-target]")];
+  const key = (li) => li.dataset.langKey + li.querySelector("h4")?.textContent;
+  const [now, next] = [hosters(document), hosters(doc)];
+  const title = doc.querySelector(".hosterSiteTitle"), stream = doc.querySelector("#stream");
+  const box = query(".inSiteWebStream"), frame = box?.querySelector("iframe");
+  // after a switch here, src still names the first episode (see below)
+  const src = frame?.dataset.cuSrc ?? frame?.src;
+  const playing = now.find((li) => src?.endsWith(li.dataset.linkTarget));
+  if (!title || !stream || !playing || now.map(key).join() !== next.map(key).join()) {
+    sessionStorage.setItem("cu:aniworld:scrollY", scrollY);
+    return (location.href = url);
+  }
+  now.forEach((li, i) => {
+    li.className = next[i].className;
+    for (const d of ["linkId", "linkTarget", "externalEmbed"]) li.dataset[d] = next[i].dataset[d];
+    li.querySelector("a").href = next[i].querySelector("a").getAttribute("href");
+  });
+  query(".hosterSiteTitle").replaceWith(title);
+  // the page hides it with an inline script, which doesn't run when inserted
+  title.querySelector(".descriptionSpoiler")?.style.setProperty("display", "none");
+  query("#stream").replaceWith(stream);
+  document.title = doc.title;
+  // AniWorld's click counts the episode as watched. Its src change would add a history entry for the
+  // frame, and "back" would undo that first: old episode in the player, new one on the page. Without
+  // the class it finds no frame, and replace() navigates without an entry.
+  box.classList.remove("inSiteWebStream");
+  playing.querySelector(".generateInlinePlayer").click();
+  box.classList.add("inSiteWebStream");
+  frame.dataset.cuSrc = new URL(playing.dataset.linkTarget, location.href).href;
+  frame.contentWindow.location.replace(frame.dataset.cuSrc);
+  history.pushState(null, "", url);
 }
 
 // #stream holds two lists, seasons and episodes, each with the current one marked .active.
@@ -7772,7 +7829,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.8",
+  version: "1.11.0.9",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

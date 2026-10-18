@@ -20,7 +20,6 @@ function voe_initSkip() {
   skip_insertCSS();
   window.addEventListener("message", (e) => {
     if (e.source !== window.parent || e.data?.cu !== "episode") return;
-    if (e.data.type === "copied") skip_toast(e.data.ok ? "Copied to clipboard" : "Couldn't copy, please try again.");
     if (e.data.type !== "nav") return;
     skip_video = { series: e.data.series, episode: e.data.episode };
     skip_scanner.reset();
@@ -267,11 +266,13 @@ function skip_button() {
 
 // ---- Teilen: nur die Abschnitte (Bilder und Zeiten), nicht was in den eigenen Folgen gefunden wurde
 
-// Kopiert die AniWorld-Seite: Im Frame verbraucht VOEs Werbe-Popup die Nutzeraktivierung des Klicks,
-// ohne sie verlangt writeText dort eine Berechtigung. Die Seite meldet "copied" zurueck (voe_initSkip).
+// Als Datei, nicht ueber die Zwischenablage: ein 90-s-Opening sind rund 40 KB Hashes (8 s gemessen
+// 3-4 KB, 18.10.2026), zu viel zum Einfuegen in einen Chat. Speichern
+// laesst die AniWorld-Seite, sie kennt den Serientitel fuer den Dateinamen.
 async function skip_share() {
   const { segments } = await skip_load();
-  window.parent.postMessage({ cu: "episode", type: "copy", text: JSON.stringify({ cuSkip: 1, segments }) }, "*");
+  window.parent.postMessage({ cu: "episode", type: "share", text: JSON.stringify({ cuSkip: 1, segments }) }, "*");
+  skip_toast("File downloaded");
 }
 
 // gleiche id ersetzt (zweimal importiert), sonst angehaengt; null, wenn der Text nichts Brauchbares traegt
@@ -517,30 +518,15 @@ const skip_dialog = {
     this.el.querySelector(".cu-skip-add").classList.remove("cu-hide");
   },
 
-  // Einfuegen per Strg+V ins Feld: navigator.clipboard.readText fragt erst nach einer Berechtigung
   importer() {
-    const ed = this.el.querySelector(".cu-skip-editor");
-    this.el.querySelector(".cu-skip-add").classList.add("cu-hide");
-    ed.classList.remove("cu-hide");
-    ed.innerHTML = `
-      <textarea class="cu-skip-paste" rows="6" placeholder="Paste a shared opening / ending here"></textarea>
-      <p class="cu-skip-hint cu-hide">That's not a shared opening or ending.</p>
-      <div class="cu-skip-actions"><button type="button" class="cu-skip-cancel">Cancel</button>
-        <button type="button" class="cu-skip-save" disabled>Import</button></div>`;
-    const paste = ed.querySelector(".cu-skip-paste"), save = ed.querySelector(".cu-skip-save");
-    const hint = ed.querySelector(".cu-skip-hint");
-    paste.addEventListener("input", () => {
-      save.disabled = !paste.value.trim();
-      hint.classList.add("cu-hide");
-    });
-    ed.querySelector(".cu-skip-cancel").addEventListener("click", () => this.hideEditor());
-    save.addEventListener("click", async () => {
-      const d = await skip_import(paste.value);
-      if (!d) return hint.classList.remove("cu-hide");
-      this.hideEditor();
+    const input = create("input", { type: "file", accept: ".txt,.json" });
+    input.addEventListener("change", async () => {
+      const d = await skip_import(await input.files[0].text());
+      if (!d) return skip_toast("That's not a shared opening or ending.");
       this.renderList(d);
+      skip_toast("Imported");
     });
-    paste.focus();
+    input.click();
   },
 
   // Abschnitt stumm mit Rate 4 abspielen, je Videobild ein Hash (requestVideoFrameCallback liefert
@@ -627,7 +613,6 @@ function skip_insertCSS() {
     .cu-skip-side { flex: 2; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-width: 260px; }
     .cu-skip-add { display: flex; gap: 6px; }
     .cu-skip-add button { flex: 1; }
-    .cu-skip-paste { resize: vertical; word-break: break-all; }
     .cu-skip-row { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid #333; cursor: pointer; }
     .cu-skip-row:hover { background: #1c1c1c; }
     .cu-skip-kind { font-weight: bold; min-width: 5.5em; }

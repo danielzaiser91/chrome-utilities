@@ -122,6 +122,13 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
   mit und ohne Policy-Schalter). Hat der Nutzer selbst in den Frame geklickt, beweist ein
   laufendes Video nichts, dann bleibt die Zeile leer. Chromes Score gilt der obersten Seite
   (`aniworld.to`), nicht dem Player-Frame.
+  ❌ heißt nur „beim Laden gesperrt“: Ein Klick ins Bild hebt die Sperre für alle weiteren Folgen
+  auf (gemessen ohne Policy-Schalter: frisch ❌, nach Klick und N ✅). Der erste Text versprach
+  Autoplay erst „nach ein paar Folgen“, Daniel sah ❌ bei laufendem Video und meldete einen Fehler.
+- **Messfalle: Playwrights `frame.evaluate` gibt dem Frame eine Nutzeraktivierung**
+  (`navigator.userActivation.hasBeenActive` wird true, auch ohne Erweiterung). Danach ist Autoplay
+  immer erlaubt, jede Messung dazu ist wertlos. Zustand vorher per `ctx.addInitScript` und
+  `console.log` erfassen (`page.on("console")`), erst danach in den Frame greifen.
 - Unser Klick öffnet bei VOE ein Werbe-Popup. Chrome blockiert es, weil kein echter Klick dahinter
   steht; nur Playwright lässt es durch.
 - **`allowfullscreen` wird entfernt**, sobald `allow` gesetzt ist: Chrome warnt sonst bei jedem
@@ -170,17 +177,15 @@ Erkennung per Bild-Fingerabdruck, Messwerte und Bauweise in `docs/opening-erkenn
   wird zum `<select>` (erstmals `featureAutoNext…afterEnding`).
 - Test am echten Player: Playwright mit echter Erweiterung, Klicks im Dialog per
   `dispatchEvent`, weil AniWorlds Werbe-iframes (`iframe[id^=container-]`) über dem Player liegen.
-- **Teilen (Share im Zahnrad) kopiert über die AniWorld-Seite, nicht im Frame** (18.10.2026). Der
-  Text ist `{"cuSkip":1,"segments":[…]}`, nur die Abschnitte ohne die Fundstellen, etwa 60 KB je
-  90-s-Opening. Im VOE-Frame scheitert `writeText`, weil VOEs Werbe-Popup die Nutzeraktivierung des
-  Klicks verbraucht. Gemessen: Beim `pointerdown` am Knopf ist sie noch da, beim `mousedown` schon
-  weg. Ohne Aktivierung verlangt Chrome im fremden Frame die volle Lese-/Schreib-Berechtigung
-  („ClipboardReadWrite … permissions policy“). `clipboard-write *` am iframe half nicht, ebenso
-  wenig ein Abfangen der Pointer-Ereignisse am `window`. Der Frame schickt deshalb `copy` an die
-  Seite, die Seite meldet `copied` zurück. Importiert wird per Strg+V in ein Textfeld:
-  `clipboard.readText` würde nach einer Berechtigung fragen. Gleiche `id` ersetzt den Eintrag.
-  Zum Testen: Playwright die Leseberechtigung erst **nach** dem Klick erteilen, und einen echten
-  Mausklick verwenden, kein `dispatchEvent`.
+- **Teilen (Share im Zahnrad) lädt eine Datei herunter, Import öffnet die Dateiauswahl**
+  (Daniel, 18.10.2026: Zwischenablage ist für die Datenmenge der falsche Weg). Inhalt
+  `{"cuSkip":1,"segments":[…]}`, nur die Abschnitte ohne die Fundstellen; 8 s Opening sind 3,5 KB,
+  ein 90-s-Opening also rund 40 KB. Den Download macht die AniWorld-Seite (Nachricht `share`), weil
+  nur sie den Serientitel für den Dateinamen kennt: `<Titel> - skip-share-file -- chrome-utilities.txt`.
+  Gleiche `id` ersetzt den Eintrag. Die Zwischenablage scheiterte im Frame ohnehin: VOEs
+  Werbe-Popup verbraucht die Nutzeraktivierung des Klicks, danach verlangt Chrome im fremden Frame
+  die volle Lese-/Schreib-Berechtigung. Getestet mit echtem Mausklick (`page.mouse.click`), Download
+  per `waitForEvent("download")`, Import per `waitForEvent("filechooser")`.
 
 ### Chromes Fehlerliste zeigt die falsche Zeile
 

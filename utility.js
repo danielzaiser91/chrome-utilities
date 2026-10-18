@@ -2219,12 +2219,12 @@ function voe_checkAutoplay() {
   else if (video && !navigator.userActivation.hasBeenActive) voe_autoplayWorks = true;
 }
 
-// the score Chrome decides by belongs to the page on top (AniWorld), not to the player's frame
+// Blocked means: on this load, before any click. One click on the page lifts it for every later
+// episode (measured 18.10.2026), so the text says that instead of "not yet".
 function voe_describeAutoplay() {
   if (voe_autoplayWorks === undefined) return "";
   if (voe_autoplayWorks) return "✅ Works in your browser.";
-  const site = new URL(location.ancestorOrigins?.[0] ?? location.origin).host;
-  return `❌ Chrome doesn't allow it here yet. Watch a few episodes with sound, then it starts by itself. Your score for ${site}: chrome://media-engagement`;
+  return "❌ Chrome blocked it when the page loaded. Start one episode yourself, the next ones start by themselves.";
 }
 
 // a hotkey letter is text while typing, and part of a browser shortcut with a modifier
@@ -2602,12 +2602,14 @@ function aniworld_connectToPlayer() {
       if (document.fullscreenElement) document.exitFullscreen();
       else [...queryAll("iframe")].find((f) => f.contentWindow === e.source)?.requestFullscreen();
     }
-    // the player's own click loses its user activation to VOE's ad popup, so the page copies
-    if (e.data.type === "copy")
-      navigator.clipboard.writeText(e.data.text).then(
-        () => true,
-        () => false,
-      ).then((ok) => e.source.postMessage({ cu: "episode", type: "copied", ok }, "*"));
+    if (e.data.type === "share") {
+      // Windows forbids these in file names; Chrome would turn them into "_"
+      const title = query(".series-title h1").textContent.trim().replace(/[\\/:*?"<>|]/g, "");
+      const blob = new Blob([e.data.text], { type: "text/plain" });
+      const a = create("a", { href: URL.createObjectURL(blob), download: `${title} - skip-share-file -- chrome-utilities.txt` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
   });
   window.addEventListener("keydown", (e) => {
     if (player && ["n", "p", "f"].includes(e.key) && !isTypingKey(e))
@@ -7837,7 +7839,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.12.0.1",
+  version: "1.12.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -926,6 +926,12 @@ function prepareActionBar() {
       color: #000;
       opacity: 0.75;
     }
+    .cu-feature-button {
+      margin: 6px 0 0 44px;
+      padding: 4px 10px;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
     .cu-history-row > * {
       padding: 4px 0;
       border-bottom: 1px solid #f1f3f6;
@@ -1018,7 +1024,9 @@ function renderOptions() {
         const featureCategory = feature.featureCategory;
         const featureHistory = feature.featureHistory;
         const featureInfo = feature.featureInfo;
+        const featureButton = feature.featureButton;
         delete feature.featureInfo;
+        delete feature.featureButton;
         delete feature.featureName;
         delete feature.featureDescription;
         delete feature.featureCategory;
@@ -1081,6 +1089,15 @@ function renderOptions() {
             // a broken info line must never take the settings panel down with it
           }
           if (infoEl.textContent) featureContainer.appendChild(infoEl);
+        }
+        // an action of its own (opens a dialog), offered only where it applies
+        const button = featureButton?.();
+        if (button) {
+          const buttonEl = document.createElement("button");
+          buttonEl.classList.add("cu-feature-button");
+          buttonEl.textContent = button.label;
+          buttonEl.addEventListener("click", button.onClick);
+          featureContainer.appendChild(buttonEl);
         }
 
         restEntries.forEach(([k, v]) => {
@@ -1302,8 +1319,9 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
   const row = document.createElement("div");
   row.classList.add("cu-action-row");
   if (hideLabel) row.classList.add("cu-inline-row");
-  const input = document.createElement("input");
-  input.setAttribute("type", inputType);
+  // a fixed set of answers ({ value: label }) becomes a dropdown
+  const input = document.createElement(feature.choices ? "select" : "input");
+  if (!feature.choices) input.setAttribute("type", inputType);
   const id = "cu-" + optKeys.join("-");
   input.setAttribute("id", id);
   let tooltip = feature.description ?? "";
@@ -1325,6 +1343,7 @@ function renderFeatureRow(featureRow, key, value, optKeys, options = {}) {
     input.max = feature.max;
     input.step = feature.step;
   } else if (isText) {
+    for (const [v, l] of Object.entries(feature.choices ?? {})) input.append(new Option(l, v));
     input.value = feature.value;
   }
   const changeValEvent = (event) => {
@@ -1876,6 +1895,8 @@ function _init_set_video_rate_repeater__generic() {
   const _interval = repeatIfCondition(
     () => updateVideoPlayrate__generic(getUserRate()),
     () => {
+      // the skip dialog reads frames at rate 4 (skip.js)
+      if (globalThis.cu_rateHold) return false;
       const videoEls = [...queryAll("video")];
       const allowed = isAllowed(
         getSiteOptions().featurePlayBackSpeed.isEnabled,
@@ -2118,6 +2139,7 @@ function fixVoe() {
   voe_replaceRateMenu();
   voe_autoPlay();
   voe_connectToEpisodePage();
+  voe_initSkip();
 }
 
 // JW Player's own "Playback Rates" menu only offers fixed steps (items labelled "0.25x" … "4x"),
@@ -2216,15 +2238,19 @@ function voe_connectToEpisodePage() {
   if (window === top) return;
   let nav;
   const go = (dir) => window.parent.postMessage({ cu: "episode", type: "go", dir }, "*");
-  const onKey = (key) => {
+  const onKey = (key, fromPage) => {
     if (!isAllowed(getSiteOptions().featureHotkeys.isEnabled)) return;
     if (key === "n" && nav?.hasNext) go("next");
     if (key === "p" && nav?.hasPrev) go("prev");
+    // fullscreen needs the key press as user activation, and a press on the page doesn't reach
+    // into this frame -- so the page switches its frame itself
+    if (key === "f" && fromPage) window.parent.postMessage({ cu: "episode", type: "fullscreen" }, "*");
+    if (key === "f" && !fromPage) query(".jw-icon-fullscreen")?.click();
   };
   window.addEventListener("message", (e) => {
     if (e.source !== window.parent || e.data?.cu !== "episode") return;
     if (e.data.type === "nav") nav = e.data;
-    if (e.data.type === "key") onKey(e.data.key);
+    if (e.data.type === "key") onKey(e.data.key, true);
   });
   window.addEventListener("keydown", (e) => !isTypingKey(e) && onKey(e.key));
   // media events don't bubble, but capture on document still sees them
@@ -2535,7 +2561,7 @@ function aniworld_allowAutoplay() {
   }, undefined, { interval: 500 });
 }
 
-// Counterpart of voe_connectToEpisodePage: answers only frames of this page, and passes N and P
+// Counterpart of voe_connectToEpisodePage: answers only frames of this page, and passes N, P and F
 // pressed outside the player on to it, which decides by its hotkey setting.
 function aniworld_connectToPlayer() {
   let player;
@@ -2543,16 +2569,22 @@ function aniworld_connectToPlayer() {
     if (e.data?.cu !== "episode" || ![...queryAll("iframe")].some((f) => f.contentWindow === e.source)) return;
     if (e.data.type === "hello") {
       player = e.source;
-      const nav = { cu: "episode", type: "nav", hasNext: !!aniworld_episodeUrl(1), hasPrev: !!aniworld_episodeUrl(-1) };
+      // series and episode name the stored skip marks (skip.js)
+      const [, series, episode] = location.pathname.match(/\/stream\/([^/]+)\/(.+)/) ?? [];
+      const nav = { cu: "episode", type: "nav", hasNext: !!aniworld_episodeUrl(1), hasPrev: !!aniworld_episodeUrl(-1), series, episode };
       player.postMessage(nav, "*");
     }
     if (e.data.type === "go") {
       const url = aniworld_episodeUrl(e.data.dir === "next" ? 1 : -1);
       if (url) location.href = url;
     }
+    if (e.data.type === "fullscreen") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else [...queryAll("iframe")].find((f) => f.contentWindow === e.source)?.requestFullscreen();
+    }
   });
   window.addEventListener("keydown", (e) => {
-    if (player && ["n", "p"].includes(e.key) && !isTypingKey(e))
+    if (player && ["n", "p", "f"].includes(e.key) && !isTypingKey(e))
       player.postMessage({ cu: "episode", type: "key", key: e.key }, "*");
   });
 }
@@ -7740,7 +7772,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.11.0.7",
+  version: "1.11.0.8",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8048,11 +8080,29 @@ let userOptions = {
     featureAutoNext: {
       featureName: "Next Episode",
       featureDescription: "go on to the next episode when one ends (AniWorld)",
-      isEnabled: { value: true, label: "Activate" },
+      isEnabled: {
+        value: true,
+        label: "Activate",
+        subFeatures: {
+          afterEnding: {
+            label: "Next episode starts",
+            description: "needs a marked ending (Skip Opening/Ending)",
+            value: "end",
+            choices: { end: "when the video ends", start: "when the ending starts" },
+          },
+        },
+      },
     },
     featureHotkeys: {
       featureName: "Hotkeys",
-      featureDescription: "<b>N</b> next episode · <b>P</b> previous episode (AniWorld)",
+      featureDescription: "<b>N</b> next episode · <b>P</b> previous episode (AniWorld) · <b>F</b> fullscreen",
+      isEnabled: { value: true, label: "Activate" },
+    },
+    featureSkip: {
+      featureName: "Skip Opening/Ending",
+      featureDescription: "jumps over openings and endings you marked once (AniWorld)",
+      featureInfo: () => skip_describe(),
+      featureButton: () => skip_button(),
       isEnabled: { value: true, label: "Activate" },
     },
   },

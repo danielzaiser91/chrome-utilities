@@ -125,6 +125,24 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
 - Unser Klick öffnet bei VOE ein Werbe-Popup. Chrome blockiert es, weil kein echter Klick dahinter
   steht; nur Playwright lässt es durch.
 
+### Opening/Ending überspringen: `skip.js` (18.10.2026)
+
+Zweite Datei im `content_scripts`-Eintrag, läuft nur im VOE-Frame (`voe_initSkip` aus `fixVoe`).
+Erkennung per Bild-Fingerabdruck, Messwerte und Bauweise in `docs/opening-erkennung.md`.
+
+- Gespeichert in `chrome.storage.local` unter `cu:skip:<serie>`: die markierten Abschnitte samt
+  Hashes und die erkannte Lage je Folge. Serie und Folge kommen über die `nav`-Nachricht der
+  AniWorld-Seite, der Frame selbst kennt sie nicht.
+- `globalThis.cu_rateHold` hält den Geschwindigkeits-Repeater an, solange der Dialog mit Rate 4
+  einliest; sonst dreht er die Rate nach einer Sekunde zurück.
+- **Vollbild per F geht über die Seite:** Ein Tastendruck auf der AniWorld-Seite ist keine
+  User-Aktivierung im fremden iframe, `requestFullscreen` dort scheitert. Der Frame schickt
+  `{type:"fullscreen"}` hoch, die Seite schaltet ihr iframe selbst.
+- Der Einstellungs-Renderer kann Dropdowns: ein String-Wert mit `choices: { wert: label }`
+  wird zum `<select>` (erstmals `featureAutoNext…afterEnding`).
+- Test am echten Player: Playwright mit echter Erweiterung, Klicks im Dialog per
+  `dispatchEvent`, weil AniWorlds Werbe-iframes (`iframe[id^=container-]`) über dem Player liegen.
+
 ### Chromes Fehlerliste zeigt die falsche Zeile
 
 `chrome://extensions` → Fehler nennt die Zeilennummer der Fassung, die beim Auftreten geladen

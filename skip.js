@@ -1,4 +1,4 @@
-// Skip Opening/Ending im VOE-Player (auf AniWorld). Der Nutzer markiert einen Abschnitt einmal je
+// Skip Opening/Ending in JW-Playern (VOE auf AniWorld, vidmoly). Der Nutzer markiert einen Abschnitt einmal je
 // Serie im Dialog; die Erweiterung spielt ihn dort stumm vierfach ab und merkt sich je Bild einen
 // 256-Bit-dHash. In jeder Folge vergleicht sie danach viermal pro Sekunde das laufende Bild mit
 // diesen Hashes. PoC 18.10.2026 an Dragon Quest (Referenz Folge 4, Proben Folge 5): Opening
@@ -18,7 +18,9 @@ let skip_video = { series: undefined, episode: undefined };
 // Was am Player haengt, gibt der Aufrufer (fixVoe, fixVidmoly) an:
 //   root:  Selektor des Player-Containers (Dialog und Hinweis haengen sich dort ein; das Video darin)
 //   hint:  Satz fuer die Einstellungen, solange Serie und Folge fehlen
-let skip_player = { root: ".jwplayer", hint: "" };
+//   hello: true, wenn skip.js selbst "hello" an die Seite schickt (VOE tut das schon in
+//          voe_connectToEpisodePage, dort nicht doppelt)
+let skip_player = { root: ".jwplayer", hint: "", hello: false };
 
 function skip_videoEl() {
   return query(skip_player.root + " video");
@@ -29,7 +31,7 @@ function skip_rootEl() {
 }
 
 function voe_initSkip() {
-  skip_init({ root: ".jwplayer", hint: "Works when the episode is opened on AniWorld." });
+  skip_init({ root: ".jwplayer", hint: "Works when the episode is opened on AniWorld.", hello: false });
 }
 
 function skip_init(player) {
@@ -42,7 +44,36 @@ function skip_init(player) {
     skip_video = { series: e.data.series, episode: e.data.episode };
     skip_scanner.reset();
   });
+  if (player.hello) skip_askPage();
   skip_scanner.start();
+}
+
+// Die Seite antwortet erst, wenn ihr Skript laeuft: bis zur Antwort alle 1,5 s fragen (hoechstens 20-mal)
+function skip_askPage() {
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (skip_video.series || ++tries > 20) return clearInterval(timer);
+    window.parent.postMessage({ cu: "episode", type: "hello" }, "*");
+  }, 1500);
+}
+
+// Seiten ohne eigene Folgenkennung (vidmoly.me): Serie und Folge stehen im Titel, "<Serie> s01e07 ...".
+// Serie kleingeschrieben, Punkt/Unterstrich als Leerzeichen, damit kleine Schreibunterschiede dieselbe Serie ergeben.
+function skip_fromTitle(title) {
+  const m = title.match(/^(.*?)[\s._-]+s(\d{1,2})e(\d{1,3})(?![0-9])/i);
+  if (!m || !m[1].trim()) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return { series: m[1].trim().toLowerCase().replace(/[\s._]+/g, " "), episode: `s${pad(m[2])}e${pad(m[3])}` };
+}
+
+// Seite (oberste Ebene): antwortet dem Player-iframe auf "hello" mit Serie und Folge aus dem Titel
+function skip_answerFromTitle() {
+  window.addEventListener("message", (e) => {
+    if (e.data?.cu !== "episode" || e.data.type !== "hello") return;
+    if (![...queryAll("iframe")].some((f) => f.contentWindow === e.source)) return;
+    const found = skip_fromTitle(document.title);
+    if (found) e.source.postMessage({ cu: "episode", type: "nav", ...found }, "*");
+  });
 }
 
 // ---- Speicher: cu:skip:<serie> = { segments: [...], episodes: { <folge>: { op, ed } } }
@@ -236,7 +267,7 @@ const skip_scanner = {
     const from = video.currentTime;
     this.skipped[kind] = "jumped";
     // "Next episode starts when the ending starts": ganz ans Ende, dort uebernimmt "Next Episode"
-    const autoNext = getSiteOptions().featureAutoNext.isEnabled;
+    const autoNext = getSiteOptions().featureAutoNext?.isEnabled; // fehlt bei vidmoly: kein "Naechste Folge"
     const toNext = kind === "ed" && isAllowed(autoNext) && autoNext.subFeatures.afterEnding.value === "start";
     // sonst kurz vor dem Ende statt darauf: so endet die Folge normal und "naechste Folge" greift
     video.currentTime = toNext ? video.duration : Math.min(to, video.duration - 0.1);

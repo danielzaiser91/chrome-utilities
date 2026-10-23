@@ -95,9 +95,18 @@ Noch ungemessen: ob der Ton lesbar ist (Audio-Fingerabdruck über WebAudio) und 
 `chrome.tabs.captureVisibleTab` aus dem Service Worker reicht (braucht `activeTab` oder
 `<all_urls>`, und der Tab muss sichtbar sein).
 
+## vidmoly (23.10.2026)
+
+Gemessen mit der echten Erweiterung auf `vidmoly.me/v/kzza5sfrvlrj` (Avatar s01e07, 1393 s): JW Player
+im iframe auf vidmoly.biz, `video.src` ist `blob:` (MSE), `drawImage` + `getImageData` liefern Pixel
+ohne SecurityError (Summe über 17×16 Pixel 92 000–165 000, Maximum 255). Die Bild-Hashes gehen also.
+Am echten Player: Opening 1:40–1:50 eingelesen, nach Neuladen beim Abspielen ab 1:37 bei 1:40 auf 1:50
+gesprungen. Nicht gemessen: ob dieselbe Serie bei VOE und vidmoly dieselben Hashes trifft (kein
+Serienpaar gefunden, das auf beiden läuft; die Schlüssel sind ohnehin verschieden).
+
 ## Offen
 
 - Kosten im echten Chrome während der Wiedergabe auf einem schwachen Laptop.
-- Andere Player (filemoon, vidmoly, Crunchyroll): Ist die Quelle dort auch `blob:`? Sonst ist der
+- Andere Player (filemoon, Crunchyroll): Ist die Quelle dort auch `blob:`? Sonst ist der
   Canvas gesperrt und die Erkennung geht dort nicht.
 - Eine neue Staffel mit geändertem Opening: wird als eigener Abschnitt markiert (Liste), ungetestet.

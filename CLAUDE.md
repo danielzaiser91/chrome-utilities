@@ -163,8 +163,22 @@ Hoster-Liste ab, normales Laden; die Scrollposition wandert dann über `sessionS
 
 ### Opening/Ending überspringen: `skip.js` (18.10.2026)
 
-Zweite Datei im `content_scripts`-Eintrag, läuft nur im VOE-Frame (`voe_initSkip` aus `fixVoe`).
-Erkennung per Bild-Fingerabdruck, Messwerte und Bauweise in `docs/opening-erkennung.md`.
+Zweite Datei im `content_scripts`-Eintrag, läuft in JW-Player-Frames: VOE (`voe_initSkip` aus
+`fixVoe`) und vidmoly (`fixVidmoly`, 23.10.2026). Was am Player hängt, übergibt der Aufrufer an
+`skip_init({ root, hint, hello })`. Erkennung per Bild-Fingerabdruck, Messwerte und Bauweise in
+`docs/opening-erkennung.md`.
+
+- **vidmoly:** Daniel öffnet Folgen von Burning Series; deren Seite verlinkt nur auf
+  `vidmoly.me/w/<id>` (reCAPTCHA davor), das Video läuft dort in einem Tab, Player im iframe auf
+  vidmoly.biz. Es gibt keine Brücke zu BS. Serie und Folge kommen aus dem Titel der vidmoly.me-Seite
+  (`<Serie> s01e07 …`, `skip_fromTitle`); die Seite antwortet dem Frame auf `hello` mit `nav`
+  (`skip_answerFromTitle`), der Frame fragt selbst (`hello: true`, bis zu 30 s). Ohne `sXXeYY` im
+  Titel bleibt die Funktion aus (Hinweis im Zahnrad). Gespeichert wird wie bei VOE unter
+  `cu:skip:<serie>`, die Serie ist der Titelteil klein geschrieben, daher greift eine bei AniWorld
+  markierte Serie (Slug) nicht von selbst. Option `vidmoly.featureSkip`.
+- **Stolperstein:** `jump()` las `featureAutoNext` der aktuellen Seite; auf vidmoly gibt es die nicht,
+  der Sprung brach nach dem Merken „gesprungen“ ab, sichtbar nur als ausbleibender Sprung.
+  Neue Player brauchen jede Option, die `skip.js` liest, oder `?.`.
 
 - Gespeichert in `chrome.storage.local` unter `cu:skip:<serie>`: die markierten Abschnitte samt
   Hashes und die erkannte Lage je Folge. Serie und Folge kommen über die `nav`-Nachricht der

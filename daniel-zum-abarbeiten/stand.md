@@ -6,7 +6,7 @@
 - (nichts offen)
 
 ## In Arbeit
-- Skip Opening/Ending für vidmoly: Fehler aus Daniels Test behoben und gemergt (1.14.0.1, 23.10.2026 19:32): mehrere Openings je Folge, Teilen lädt die Datei, ein Zahnrad, Dialog stellt die Stelle zurück; wartet auf Daniels Test, danach Release
+- (nichts)
 
 ## Als Nächstes
 

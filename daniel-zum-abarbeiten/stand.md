@@ -6,7 +6,7 @@
 - (nichts offen)
 
 ## In Arbeit
-- Skip Opening/Ending für vidmoly (Folgen von Burning Series), skip.js wird dafür playerunabhängig — Bauer läuft (23.10.2026)
+- Skip Opening/Ending für vidmoly gemergt (1.14.0.0, 23.10.2026): Serie/Folge aus dem Seitentitel `s01e07`; unveröffentlicht, wartet auf Daniels Test
 
 
 ## Als Nächstes

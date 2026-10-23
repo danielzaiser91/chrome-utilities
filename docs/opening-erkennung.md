@@ -51,7 +51,9 @@ Ein Ending lässt sich mit demselben Baustein erkennen (dann: nächste Folge sta
 Gebaut wie Ablauf A, mit diesen Änderungen gegenüber dem Vorschlag:
 
 - **Generisch:** Liste je Serie mit beliebig vielen Abschnitten, jeder als Opening oder Ending
-  deklariert (Pflicht-Dropdown im Dialog). Je Folge höchstens ein Opening und ein Ending.
+  deklariert (Pflicht-Dropdown im Dialog). Eine Folge kann mehrere Openings haben (Kurzvorspann
+  und Opening, Avatar: 0:00.7–0:06.4 und 2:21.7–2:51.7); Zustand und Lage gelten je Abschnitt, nicht
+  je Art (bis 23.10.2026 je Art: das zuerst gefundene oder zuletzt eingelesene Opening sperrte die anderen).
 - **Hash 17×16 (256 Bit)** statt 9×8, Treffer bei Abstand ≤ 40. 9×8 trennte nicht sauber
   (Handlung ab 9, Abschnitt bis 17); 256 Bit: Abschnitt fast immer ≤ 40, Handlung ≥ 61.
 - **Referenz beim Abspielen statt Seek:** Der Dialog spielt den Abschnitt mit Rate 4 stumm ab und
@@ -60,7 +62,7 @@ Gebaut wie Ablauf A, mit diesen Änderungen gegenüber dem Vorschlag:
 - **Standbilder:** Ist eine Probe der vorigen fast gleich (≤ 6), zählt die späteste passende
   Referenzzeit. So landet der Sprung höchstens zu früh, nie hinter dem Abschnittsende.
 - **Nach der Erkennung** wird die Lage je Folge gespeichert (`cu:skip:<serie>`, Schlüssel Folge +
-  Video-ID); danach wird in dieser Folge nicht mehr gesucht.
+  Video-ID, darunter die Abschnitts-ID); danach wird nach diesem Abschnitt in dieser Folge nicht mehr gesucht.
 - **Suchfenster** Opening 0–45 %, Ending ab 55 % der Laufzeit; kein Scan bei Pause, verstecktem
   Tab, offenem Dialog oder Videos ≤ 10 min. Ab 90 % gesehener Fenstersekunden ohne Treffer gilt
   der Abschnitt für die Folge als „nicht vorhanden“.

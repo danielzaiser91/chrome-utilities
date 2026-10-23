@@ -74,11 +74,42 @@ function skip_answerFromTitle() {
     const found = skip_fromTitle(document.title);
     if (found) e.source.postMessage({ cu: "episode", type: "nav", ...found }, "*");
   });
+  // Teilen: der Frame schickt die Datei, die Seite laedt sie herunter und meldet es zurueck
+  window.addEventListener("message", (e) => {
+    if (e.data?.cu !== "episode" || e.data.type !== "share") return;
+    if (![...queryAll("iframe")].some((f) => f.contentWindow === e.source)) return;
+    const found = skip_fromTitle(document.title);
+    skip_download(found?.series ?? "series", e.data.text);
+    e.source.postMessage({ cu: "episode", type: "shared" }, "*");
+  });
 }
 
-// ---- Speicher: cu:skip:<serie> = { segments: [...], episodes: { <folge>: { op, ed } } }
+// Datei "<Titel> - skip-share-file -- chrome-utilities.txt"; Seiten, die den Titel kennen (AniWorld, vidmoly.me)
+function skip_download(title, text) {
+  // Windows forbids these in file names; Chrome would turn them into "_"
+  const name = title.trim().replace(/[\\/:*?"<>|]/g, "");
+  const a = create("a", { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: `${name} - skip-share-file -- chrome-utilities.txt` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---- Speicher: cu:skip:<serie> = { segments: [...], episodes: { <folge>: { <abschnitt-id>: ... } } }
 // Ein Abschnitt traegt seine Hashes als base64 (je Bild 32 Byte) und die Zeiten der Referenzfolge.
-// Je Folge steht je Art entweder { seg, from, to } oder "none" (Suchfenster ohne Treffer).
+// Je Folge und Abschnitt steht entweder { from, to } oder "none" (Suchfenster ohne Treffer). Eine Folge
+// kann mehrere Openings haben (Kurzvorspann und Opening), darum keine Lage "je Art".
+
+// Bis v1.13 stand die Lage je Art ({ op: { seg, from, to } | "none" }); alte Eintraege werden beim Lesen
+// auf den Abschnitt umgeschrieben. Entfernen, wenn kein Nutzer mehr v1.13 hat (Stand 23.10.2026: v1.13.1 aktuell).
+function skip_migrate(data) {
+  for (const ep of Object.values(data.episodes)) {
+    for (const kind of Object.keys(SKIP_KINDS)) {
+      if (!(kind in ep)) continue;
+      if (ep[kind]?.seg) ep[ep[kind].seg] ??= { from: ep[kind].from, to: ep[kind].to };
+      delete ep[kind];
+    }
+  }
+  return data;
+}
 
 function skip_key() {
   return skip_video.series && "cu:skip:" + skip_video.series;
@@ -93,7 +124,7 @@ function skip_load() {
   return new Promise((resolve) => {
     const store = _gemeinsamerSpeicher();
     if (!store || !skip_key()) return resolve({ segments: [], episodes: {} });
-    store.get(skip_key(), (r) => resolve(r?.[skip_key()] ?? { segments: [], episodes: {} }));
+    store.get(skip_key(), (r) => resolve(skip_migrate(r?.[skip_key()] ?? { segments: [], episodes: {} })));
   });
 }
 
@@ -178,9 +209,9 @@ const skip_scanner = {
     this.prev = null;
     // zurueckgespult vor einen schon uebersprungenen Abschnitt: dort wieder springen
     const t = skip_videoEl()?.currentTime;
-    for (const kind of Object.keys(SKIP_KINDS)) {
-      const known = this.data?.episodes[skip_episodeKey()]?.[kind];
-      if (known?.from !== undefined && t < known.from && this.skipped[kind] !== "undone") delete this.skipped[kind];
+    for (const { seg } of this.segs) {
+      const known = this.data?.episodes[skip_episodeKey()]?.[seg.id];
+      if (known?.from !== undefined && t < known.from && this.skipped[seg.id] !== "undone") delete this.skipped[seg.id];
     }
   },
 
@@ -191,33 +222,32 @@ const skip_scanner = {
     const t = video.currentTime;
     const known = this.data.episodes[skip_episodeKey()] ?? {};
     const open = [];
-    for (const kind of Object.keys(SKIP_KINDS)) {
-      const k = known[kind];
-      if (k === "none" || this.skipped[kind]) continue;
+    // je Abschnitt, nicht je Art: eine Folge kann mehrere Openings haben, jedes springt fuer sich
+    for (const s of this.segs) {
+      const { id, type } = s.seg;
+      const k = known[id];
+      if (k === "none" || this.skipped[id]) continue;
       if (k) {
-        if (t >= k.from && t < k.to - 1) this.jump(video, kind, k.to);
+        if (t >= k.from && t < k.to - 1) this.jump(video, s.seg, k.to);
         continue;
       }
-      const [lo, hi] = kind === "op" ? [0, video.duration * 0.45] : [video.duration * 0.55, video.duration];
-      if (t >= lo && t < hi && this.segs.some((s) => s.seg.type === kind)) open.push(kind);
-      else if (t >= hi - 2) this.giveUp(kind, lo, hi);
+      const [lo, hi] = type === "op" ? [0, video.duration * 0.45] : [video.duration * 0.55, video.duration];
+      if (t >= lo && t < hi) open.push(s);
+      else if (t >= hi - 2) this.giveUp(s.seg, lo, hi);
     }
     if (!open.length) return;
-    for (const kind of open) this.seen[kind].add(Math.floor(t));
+    for (const s of open) this.seen[s.seg.type].add(Math.floor(t));
     const h = skip_hash(video);
     const isStatic = h && this.prev && skip_ham(this.prev, 0, h) <= SKIP_STATIC;
     this.prev = h;
     if (!h) return;
-    for (const kind of open) {
-      for (const s of this.segs.filter((s) => s.seg.type === kind)) {
-        const off = this.probe(s, t, h, isStatic);
-        if (off === undefined) continue;
-        const from = s.seg.from + off, to = s.seg.to + off;
-        skip_update((d) => ((d.episodes[skip_episodeKey()] ??= {})[kind] = { seg: s.seg.id, from, to }));
-        (this.data.episodes[skip_episodeKey()] ??= {})[kind] = { seg: s.seg.id, from, to };
-        this.jump(video, kind, to);
-        break;
-      }
+    for (const s of open) {
+      const off = this.probe(s, t, h, isStatic);
+      if (off === undefined) continue;
+      const from = s.seg.from + off, to = s.seg.to + off;
+      skip_update((d) => ((d.episodes[skip_episodeKey()] ??= {})[s.seg.id] = { from, to }));
+      (this.data.episodes[skip_episodeKey()] ??= {})[s.seg.id] = { from, to };
+      return this.jump(video, s.seg, to); // ein Sprung je Probe: gleiche Bilder in zwei Abschnitten
     }
   },
 
@@ -257,26 +287,26 @@ const skip_scanner = {
 
   // Suchfenster durchgesehen, nichts gefunden: fuer diese Folge nicht mehr suchen. Nur wenn es
   // wirklich gesehen wurde -- wer mitten in der Folge einsteigt, hat das Opening nie geprueft.
-  giveUp(kind, lo, hi) {
-    if (this.seen[kind].size < (hi - lo) * 0.9) return;
-    this.skipped[kind] = "none";
-    skip_update((d) => ((d.episodes[skip_episodeKey()] ??= {})[kind] ??= "none"));
+  giveUp(seg, lo, hi) {
+    if (this.seen[seg.type].size < (hi - lo) * 0.9) return;
+    this.skipped[seg.id] = "none";
+    skip_update((d) => ((d.episodes[skip_episodeKey()] ??= {})[seg.id] ??= "none"));
   },
 
-  jump(video, kind, to) {
+  jump(video, seg, to) {
     const from = video.currentTime;
-    this.skipped[kind] = "jumped";
+    this.skipped[seg.id] = "jumped";
     // "Next episode starts when the ending starts": ganz ans Ende, dort uebernimmt "Next Episode"
     const autoNext = getSiteOptions().featureAutoNext?.isEnabled; // fehlt bei vidmoly: kein "Naechste Folge"
-    const toNext = kind === "ed" && isAllowed(autoNext) && autoNext.subFeatures.afterEnding.value === "start";
+    const toNext = seg.type === "ed" && isAllowed(autoNext) && autoNext.subFeatures.afterEnding.value === "start";
     // sonst kurz vor dem Ende statt darauf: so endet die Folge normal und "naechste Folge" greift
     video.currentTime = toNext ? video.duration : Math.min(to, video.duration - 0.1);
-    skip_toast(`${SKIP_KINDS[kind]} skipped`, () => {
-      this.skipped[kind] = "undone";
+    skip_toast(`${SKIP_KINDS[seg.type]} skipped`, () => {
+      this.skipped[seg.id] = "undone";
       video.currentTime = from;
       // falsch erkannt oder doch sehen wollen: die Lage nicht behalten, beim naechsten Mal neu suchen
-      skip_update((d) => delete d.episodes[skip_episodeKey()]?.[kind]);
-      delete this.data.episodes[skip_episodeKey()]?.[kind];
+      skip_update((d) => delete d.episodes[skip_episodeKey()]?.[seg.id]);
+      delete this.data.episodes[skip_episodeKey()]?.[seg.id];
     });
   },
 };
@@ -320,8 +350,21 @@ function skip_button() {
 // laesst die AniWorld-Seite, sie kennt den Serientitel fuer den Dateinamen.
 async function skip_share() {
   const { segments } = await skip_load();
+  // der Hinweis erst, wenn die Seite den Download ausgeloest hat; ohne Antwort (Seite kennt "share" nicht) scheitert er
+  const answered = new Promise((resolve) => {
+    const onMessage = (e) => {
+      if (e.source !== window.parent || e.data?.cu !== "episode" || e.data.type !== "shared") return;
+      window.removeEventListener("message", onMessage);
+      resolve(true);
+    };
+    window.addEventListener("message", onMessage);
+    setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      resolve(false);
+    }, 3000);
+  });
   window.parent.postMessage({ cu: "episode", type: "share", text: JSON.stringify({ cuSkip: 1, segments }) }, "*");
-  skip_toast("File downloaded");
+  skip_toast((await answered) ? "File downloaded" : "Couldn't save the file");
 }
 
 // gleiche id ersetzt (zweimal importiert), sonst angehaengt; null, wenn der Text nichts Brauchbares traegt
@@ -361,8 +404,7 @@ const skip_parse = (s) => {
 
 // was ein Abschnitt in den Folgen gefunden hat (und wo nichts gefunden wurde), gilt nicht mehr
 function skip_forgetFinds(d, id) {
-  for (const ep of Object.values(d.episodes))
-    for (const kind of Object.keys(SKIP_KINDS)) if (ep[kind]?.seg === id || ep[kind] === "none") delete ep[kind];
+  for (const ep of Object.values(d.episodes)) delete ep[id];
 }
 
 const skip_dialog = {
@@ -373,6 +415,8 @@ const skip_dialog = {
     query(".cu-settings.cu-slide-in") && query(".cu-actions-container button")?.click();
     skip_insertCSS();
     this.video = skip_videoEl();
+    // wo die Folge stand, bevor der Dialog sie verstellt; ein erneutes Oeffnen behaelt den ersten Stand
+    if (!this.open) this.entry = { t: this.video.currentTime, paused: this.video.paused };
     this.video.pause();
     this.el?.remove();
     this.el = create("div", { className: "cu-skip-dialog" });
@@ -412,11 +456,20 @@ const skip_dialog = {
   },
 
   close() {
+    // beim Einlesen stellt capture() die Folge selbst zurueck, sobald es fertig ist
+    const reading = this.capturing;
     this.capturing = false;
     this.open = false;
     this.abort.abort();
     this.el.remove();
     skip_scanner.reset();
+    if (!reading) this.restoreEntry();
+  },
+
+  restoreEntry() {
+    this.video.currentTime = this.entry.t;
+    if (!this.entry.paused) this.video.play();
+    else this.video.pause();
   },
 
   wirePlayer() {
@@ -552,10 +605,8 @@ const skip_dialog = {
         const i = d.segments.findIndex((s) => s.id === seg.id);
         d.segments.splice(i < 0 ? d.segments.length : i, 1, seg);
         if (old && relearned) skip_forgetFinds(d, seg.id);
-        // ein neuer Abschnitt kann in Folgen passen, in denen bisher nichts gefunden wurde
-        if (relearned) for (const ep of Object.values(d.episodes)) if (ep[seg.type] === "none") delete ep[seg.type];
-        // je Folge ein Opening und ein Ending: die Folge, in der eingelesen wurde, ist damit geloest
-        if (readHere) (d.episodes[skip_episodeKey()] ??= {})[seg.type] = { seg: seg.id, from: seg.from, to: seg.to };
+        // die Folge, in der eingelesen wurde, ist damit geloest
+        if (readHere) (d.episodes[skip_episodeKey()] ??= {})[seg.id] = { from: seg.from, to: seg.to };
       });
       ed.querySelector(".cu-skip-cancel").click();
       this.renderList(d);
@@ -625,8 +676,10 @@ const skip_dialog = {
     globalThis.cu_rateHold = false;
     v.playbackRate = before.rate;
     v.muted = before.muted;
-    v.currentTime = before.t;
-    if (!before.paused) v.play();
+    if (this.open) {
+      v.currentTime = before.t;
+      if (!before.paused) v.play();
+    } else this.restoreEntry(); // Dialog waehrend des Einlesens geschlossen
     bar.classList.add("cu-hide");
     const ok = this.capturing && hashes.length > 10;
     this.capturing = false;

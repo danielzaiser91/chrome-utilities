@@ -176,6 +176,20 @@ Zweite Datei im `content_scripts`-Eintrag, läuft in JW-Player-Frames: VOE (`voe
   Titel bleibt die Funktion aus (Hinweis im Zahnrad). Gespeichert wird wie bei VOE unter
   `cu:skip:<serie>`, die Serie ist der Titelteil klein geschrieben, daher greift eine bei AniWorld
   markierte Serie (Slug) nicht von selbst. Option `vidmoly.featureSkip`.
+- **Ein Zahnrad, im Player (23.10.2026):** Auf vidmoly.me (oberste Seite) gibt es keins
+  (`new Matcher(…, self !== top, …)`); dort wirkt nichts, es zeigte nur „Skip Opening/Ending“ ohne
+  Knöpfe. Teilen: Der Frame schickt `share`, die Seite lädt die Datei herunter (`skip_download`,
+  Name aus dem Serientitel) und antwortet `shared`; der Hinweis „File downloaded“ erscheint nur nach
+  dieser Antwort (3 s, sonst „Couldn't save the file“). Vorher zeigte er ihn unbedingt, und auf vidmoly
+  hörte niemand auf `share`. **Neue Nachricht Frame → Seite braucht Antwort der Seite und einen Test mit
+  echtem Download** (`waitForEvent("download")`), sonst lügt die Bestätigung.
+- **Zustand je Abschnitt, nie je Art (23.10.2026):** Eine Folge kann mehrere Openings haben (Avatar:
+  Kurzvorspann 0:00.7–0:06.4 und Opening 2:21.7). `skipped` und `episodes[folge]` schlüsseln nach
+  Abschnitts-ID; das alte Format je Art (`{ op: { seg, from, to } }`, v1.12–v1.13) liest
+  `skip_migrate` beim Laden um (entfernen, wenn v1.13 nicht mehr im Umlauf ist). Beim Messen gesehen:
+  Das zuerst gefundene oder zuletzt eingelesene Opening besetzte den Platz der Art, die anderen sprangen nie.
+- **Der Dialog stellt die Folge zurück (23.10.2026):** Beim Öffnen merkt `skip_dialog.entry` Zeit und
+  Pause, beim Schließen (X oder nach dem Einlesen) wird beides wiederhergestellt.
 - **Stolperstein:** `jump()` las `featureAutoNext` der aktuellen Seite; auf vidmoly gibt es die nicht,
   der Sprung brach nach dem Merken „gesprungen“ ab, sichtbar nur als ausbleibender Sprung.
   Neue Player brauchen jede Option, die `skip.js` liest, oder `?.`.

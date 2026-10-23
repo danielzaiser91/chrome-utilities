@@ -41,7 +41,8 @@ unter `/gp/video/detail/…`, das Dokument war laut DOM-Auszug aber weiterhin di
 `pushState` lässt sich aus einem Content-Skript **nicht** abfangen: Die Seite ruft es in ihrer
 eigenen JS-Welt auf, unser `history` ist nur eine andere Hülle. Was bleibt, ist der
 ausgetauschte Baum — ein `MutationObserver` auf `document.body`, gebremst auf ein paar hundert
-Millisekunden. **Nachlaufend bremsen, nicht verwerfen:** die Änderung, die den gesuchten
+Millisekunden. Muss die Adresse selbst geändert werden, geht das nur aus einem Skript mit
+`"world": "MAIN"` (`netflix-main-world.js` entfernt so `trackId`/`tctx`, 23.10.2026). **Nachlaufend bremsen, nicht verwerfen:** die Änderung, die den gesuchten
 Zustand bringt, ist oft die letzte einer Serie.
 
 Und: Jede Bedingung wird **in** der Prüfung ausgewertet, nicht einmal beim Start. Pfad und

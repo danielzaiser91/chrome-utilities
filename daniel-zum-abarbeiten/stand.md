@@ -3,7 +3,7 @@
 ## Daniel-Todo
 
 ### Jetzt
-- (nichts offen)
+- 🟠 Netflix ohne `trackId`/`tctx` in der Adresse (1.13.1.0, Branch `netflix-url-kuerzen`): Erweiterung und Netflix-Übersicht neu laden, Folge anklicken. Erwartet: Adresse nur `netflix.com/watch/<id>`; falsch, wenn die Parameter bleiben oder der Player nicht startet.
 
 ## In Arbeit
 

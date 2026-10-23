@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Web Utility Plugin",
   "description": "This extension will fix some anoying things about multiple websites",
-  "version": "1.13.0",
-  "version_name": "1.13.0",
+  "version": "1.13.1.0",
+  "version_name": "1.13.1.0",
   "permissions": ["storage"],
   "icons": {
     "128": "icon.png"
@@ -67,6 +67,12 @@
       "run_at": "document_start",
       "world": "MAIN",
       "js": ["youtube-main-world.js"]
+    },
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": ["netflix-main-world.js"]
     }
   ],
   "options_ui": {

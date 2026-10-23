@@ -6,7 +6,7 @@
 - (nichts offen)
 
 ## In Arbeit
-- Skip Opening/Ending für vidmoly gemergt (1.14.0.0, 23.10.2026): Serie/Folge aus dem Seitentitel `s01e07`; unveröffentlicht, wartet auf Daniels Test
+- Skip Opening/Ending für vidmoly gemergt (1.14.0.0, 23.10.2026); Daniels Test fand vier Punkte (Share lädt nichts, Opening am Folgenanfang wird nicht übersprungen, zwei Zahnräder, Text „title needs s01e07“) — Bauer läuft (23.10.2026 19:10)
 
 
 ## Als Nächstes

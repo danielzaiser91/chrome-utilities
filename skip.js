@@ -15,8 +15,26 @@ const SKIP_KINDS = { op: "Opening", ed: "Ending" };
 
 let skip_video = { series: undefined, episode: undefined };
 
+// Was am Player haengt, gibt der Aufrufer (fixVoe, fixVidmoly) an:
+//   root:  Selektor des Player-Containers (Dialog und Hinweis haengen sich dort ein; das Video darin)
+//   hint:  Satz fuer die Einstellungen, solange Serie und Folge fehlen
+let skip_player = { root: ".jwplayer", hint: "" };
+
+function skip_videoEl() {
+  return query(skip_player.root + " video");
+}
+
+function skip_rootEl() {
+  return query(skip_player.root);
+}
+
 function voe_initSkip() {
+  skip_init({ root: ".jwplayer", hint: "Works when the episode is opened on AniWorld." });
+}
+
+function skip_init(player) {
   if (window === top) return;
+  skip_player = player;
   skip_insertCSS();
   window.addEventListener("message", (e) => {
     if (e.source !== window.parent || e.data?.cu !== "episode") return;
@@ -128,7 +146,7 @@ const skip_scanner = {
     for (const s of this.segs) s.hits = [];
     this.prev = null;
     // zurueckgespult vor einen schon uebersprungenen Abschnitt: dort wieder springen
-    const t = query(".jwplayer video")?.currentTime;
+    const t = skip_videoEl()?.currentTime;
     for (const kind of Object.keys(SKIP_KINDS)) {
       const known = this.data?.episodes[skip_episodeKey()]?.[kind];
       if (known?.from !== undefined && t < known.from && this.skipped[kind] !== "undone") delete this.skipped[kind];
@@ -136,7 +154,7 @@ const skip_scanner = {
   },
 
   tick() {
-    const video = query(".jwplayer video");
+    const video = skip_videoEl();
     if (!this.data || !video || video.paused || document.hidden || skip_dialog.open) return;
     if (!isAllowed(getSiteOptions().featureSkip.isEnabled) || !(video.duration > 600)) return;
     const t = video.currentTime;
@@ -244,20 +262,20 @@ function skip_toast(text, onUndo) {
       onUndo();
     });
   }
-  query(".jwplayer")?.append(toast);
+  skip_rootEl()?.append(toast);
   setTimeout(() => toast.remove(), 6000);
 }
 
 // ---- Settings: eine Zeile Zustand, ein Knopf fuer den Dialog
 
 function skip_describe() {
-  if (!skip_video.series) return "Works when the episode is opened on AniWorld.";
+  if (!skip_video.series) return skip_player.hint;
   const n = skip_scanner.segs.length;
   return n ? `${n} marked for this series.` : "Nothing marked for this series yet.";
 }
 
 function skip_button() {
-  if (!skip_video.series || !query(".jwplayer video")) return null;
+  if (!skip_video.series || !skip_videoEl()) return null;
   return [
     { label: "Mark opening / ending", onClick: () => skip_dialog.show() },
     skip_scanner.segs.length && { label: "Share", onClick: skip_share },
@@ -323,7 +341,7 @@ const skip_dialog = {
   async show() {
     query(".cu-settings.cu-slide-in") && query(".cu-actions-container button")?.click();
     skip_insertCSS();
-    this.video = query(".jwplayer video");
+    this.video = skip_videoEl();
     this.video.pause();
     this.el?.remove();
     this.el = create("div", { className: "cu-skip-dialog" });
@@ -349,7 +367,7 @@ const skip_dialog = {
           <div class="cu-skip-editor cu-hide"></div>
         </div>
       </div>`;
-    query(".jwplayer").append(this.el);
+    skip_rootEl().append(this.el);
     this.open = true;
     this.abort = new AbortController();
     // Tasten (Leertaste, Pfeile) und Klicks gehoeren dem Dialog, nicht dem Player darunter

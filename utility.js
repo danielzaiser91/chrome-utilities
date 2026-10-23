@@ -2317,6 +2317,9 @@ function voe_connectToEpisodePage() {
 // ---
 function fixVidmoly() {
   _init_set_video_rate_repeater__generic();
+  // Seite vidmoly.me: Serie und Folge stehen im Titel; Frame vidmoly.biz: JW-Player mit dem Video
+  if (window === top) return skip_answerFromTitle();
+  skip_init({ root: ".jwplayer", hint: "Works when the page title names season and episode (s01e07).", hello: true });
 }
 
 // ----
@@ -7960,7 +7963,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.13.1",
+  version: "1.14.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8322,6 +8325,13 @@ let userOptions = {
   },
 
   vidmoly: {
+    featureSkip: {
+      featureName: "Skip Opening/Ending",
+      featureDescription: "jumps over openings and endings you marked once (title needs s01e07)",
+      featureInfo: () => skip_describe(),
+      featureButton: () => skip_button(),
+      isEnabled: { value: true, label: "Activate" },
+    },
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",

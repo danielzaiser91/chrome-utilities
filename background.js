@@ -19,7 +19,10 @@ async function register(host) {
       runAt: "document_start",
       persistAcrossSessions: true,
     },
-  ]);
+  ]).catch((e) => {
+    // two tabs reporting the same new host at once
+    if (!/Duplicate script ID/i.test(e.message)) throw e;
+  });
   const hosts = (await chrome.storage.local.get(HOSTS_KEY))[HOSTS_KEY] ?? [];
   if (!hosts.includes(host)) await chrome.storage.local.set({ [HOSTS_KEY]: [...hosts, host] });
 }
@@ -50,12 +53,31 @@ async function reconcile() {
 const tell = (tabId, state, host) =>
   chrome.tabs.sendMessage(tabId, { cu: "voe", state, host }, { frameId: 0 }).catch(() => {});
 
+// Only hosts voe.sx itself redirected to may be granted: voe-ask.html is reachable from any
+// aniworld.to page and takes the host from its URL.
+const SEEN_KEY = "cu:voeSeen";
+async function markSeen(host) {
+  const seen = (await chrome.storage.session.get(SEEN_KEY))[SEEN_KEY] ?? [];
+  if (!seen.includes(host)) await chrome.storage.session.set({ [SEEN_KEY]: [...seen, host] });
+}
+const wasSeen = async (host) =>
+  ((await chrome.storage.session.get(SEEN_KEY))[SEEN_KEY] ?? []).includes(host);
+
 chrome.runtime.onMessage.addListener((msg, sender) => {
   const tabId = sender.tab?.id;
   if (tabId === undefined) return;
-  if (msg.type === "voe-seen") voeState(msg.host).then((state) => tell(tabId, state, msg.host));
+  if (msg.type === "voe-seen" && new URL(sender.url).hostname.endsWith("voe.sx"))
+    markSeen(msg.host)
+      .then(() => voeState(msg.host))
+      .then((state) => tell(tabId, state, msg.host));
   if (msg.type === "voe-granted")
-    voeState(msg.host).then((state) => tell(tabId, state === "need" ? "need" : "activated", msg.host));
+    wasSeen(msg.host).then(
+      (seen) =>
+        seen &&
+        voeState(msg.host).then((state) =>
+          tell(tabId, state === "need" ? "need" : "activated", msg.host),
+        ),
+    );
 });
 
 chrome.runtime.onInstalled.addListener(reconcile);

@@ -75,7 +75,7 @@ Berechtigung je Domain (`optional_host_permissions: *://*/*` löst bei der Insta
 3. „need“: AniWorld zeigt über dem Player einen eingebetteten Extension-Frame (`voe-ask.html`, in
    `web_accessible_resources`) mit dem Knopf. Der Klick dort ist eine gültige Nutzergeste für
    `chrome.permissions.request` (gemessen: echter Mausklick lässt den Aufruf offen; derselbe Aufruf
-   nach Ablauf der Geste lehnt mit „must be called during a user gesture“ ab). Ein Fenster ist nicht nötig.
+   nach Ablauf der Geste lehnt mit „must be called during a user gesture“ ab). Ein Fenster ist nicht nötig. Freigegeben wird nur, was `voe.sx` selbst als Ziel gemeldet hat (`cu:voeSeen` in `storage.session`), denn `voe-ask.html` nimmt den Host aus seiner URL.
 4. Nach der Freigabe registriert `background.js` `voe-dynamic.js` + `utility.js` + `skip.js`
    (`persistAcrossSessions`, `allFrames`, `document_start`) und merkt die Domain in
    `chrome.storage.local` (`cu:voeHosts`); AniWorld lädt den Player-Frame neu. `reconcile` bei

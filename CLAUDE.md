@@ -56,7 +56,7 @@ Vor dem Eintragen einer Player-Seite immer die iframe-Domain nachsehen.
 
 VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
 katherineschoolphone.com, 18.10.2026 claireguessthousand.com auf aniworld.to, am selben
-Nachmittag derricknationtop.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
+Nachmittag derricknationtop.com, 25.10.2026 jamespatterncamera.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
 `manifest.json`. Die aktuelle Domain zeigt `curl -s https://voe.sx/e/<id>` (Zeile
 `window.location.href = …`).
 

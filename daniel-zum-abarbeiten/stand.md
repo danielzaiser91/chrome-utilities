@@ -3,7 +3,7 @@
 ## Daniel-Todo
 
 ### Jetzt
-- 🔴 E1 Erweiterung neu laden, AniWorld-Folge mit VOE neu laden: oben erscheint „Player controls are off on this video server. Allow“ → Allow, Chrome-Dialog bestätigen → Zahnrad im Player da? Falsch, wenn kein Hinweis kommt oder das Zahnrad danach fehlt (1.14.0.3; Chromes Dialog ließ sich nicht automatisiert testen)
+- (nichts offen)
 
 ## In Arbeit
 - (nichts)

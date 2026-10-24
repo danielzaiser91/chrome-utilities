@@ -84,7 +84,7 @@ Berechtigung je Domain (`optional_host_permissions: *://*/*` löst bei der Insta
    stehende, so geladene Domain als VOE. Das ist einfacher als `meta[name=keywords]` = „VOE“, das zu
    `document_start` noch fehlt.
 
-**Nicht automatisiert prüfbar:** Chromes Berechtigungsdialog selbst. Im Test hat die Kopie die Domain
+**Nicht automatisiert prüfbar:** Chromes Berechtigungsdialog selbst (von Daniel am 25.10.2026 echt geprüft: Hinweis, Allow, Dialog, Zahnrad). Im Test hat die Kopie die Domain
 als `host_permissions` (simulierter Klick auf „Allow“); echt geprüft sind Hinweis, Nutzergeste,
 Registrierung, Neuladen des Frames, Zahnrad und Neustart mit demselben Profil.
 

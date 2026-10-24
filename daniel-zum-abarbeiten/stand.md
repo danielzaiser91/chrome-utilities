@@ -3,10 +3,11 @@
 ## Daniel-Todo
 
 ### Jetzt
-- 🔴 E1 Erweiterung neu laden, dann die AniWorld-Folge neu laden: Zahnrad im VOE-Player wieder da? (neue VOE-Domain jamespatterncamera.com, 1.14.0.1)
+- 🔴 E1 Erweiterung neu laden, dann die AniWorld-Folge neu laden: Zahnrad im VOE-Player wieder da? (1.14.0.2)
+- ⏳ E2 Beim nächsten VOE-Domainwechsel: oben auf AniWorld erscheint „Player controls are off on this video server. Allow“ → Allow, Chrome-Dialog bestätigen → Zahnrad im Player da? (Chromes Dialog ließ sich nicht automatisiert testen)
 
 ## In Arbeit
-- VOE-Domains dynamisch: AniWorld-Seite erkennt eine neue Player-Domain selbst, einmal „Allow“ je Domain (Bauer läuft seit 25.10.2026)
+- (nichts)
 
 ## Als Nächstes
 

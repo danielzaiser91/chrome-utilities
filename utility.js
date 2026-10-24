@@ -1685,7 +1685,10 @@ function websiteSelector() {
     new Matcher("animationdigitalnetwork.com", fixADN, true, "adn"),
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
-  const match = websiteMatcher.find((v) => location.href.includes(v.match));
+  // voe-dynamic.js marks a player domain registered at runtime (background.js)
+  const match =
+    websiteMatcher.find((v) => location.href.includes(v.match)) ??
+    (globalThis.cuDynamicVoe && new Matcher(location.hostname, fixVoe, true, "voe", true));
   if (!match && location.ancestorOrigins?.length === 0)
     return console.info(yellow(`no utility fix for this website found`));
   matcher = match;
@@ -2138,16 +2141,9 @@ function fixFilemoon() {
 // ----
 // VOE-Player (<domain>/e/<id>), eingebettet u. a. auf serienstream.to
 // ---
-// VOE wechselt seine Player-Domains laufend -- johnfullwonder.com am 16.09.2026,
-// katherineschoolphone.com am 17.09.2026, claireguessthousand.com (aniworld.to) am 18.10.2026, am selben Nachmittag
-// derricknationtop.com. Eine Domain dazu heisst: hier eintragen UND als
-// "*://*.<domain>/*" in manifest.json. Ohne das Manifest-Muster laedt Chrome das Skript im
-// iframe gar nicht erst. Alte Domains bleiben stehen, VOE verteilt Folgen offenbar ueber
-// mehrere gleichzeitig.
-// Domainunabhaengig erkennbar waere der Player am Inhalt (gemessen 17.09.2026):
-// <meta name="keywords" content="VOE"> und ein JW Player (div.jwplayer). Das hilft aber nur,
-// wenn die Erweiterung auf der Domain ueberhaupt geladen wird -- und das entscheidet Chrome
-// allein am Manifest. Warum die Liste trotzdem bleibt: CLAUDE.md, "VOE-Domains".
+// Bekannte Player-Domains von VOE; eine neue Domain eintragen UND als "*://*.<domain>/*" in
+// manifest.json (sonst laedt Chrome das Skript im iframe nicht). Unbekannte Domains uebernimmt
+// background.js nach einer Freigabe des Nutzers: CLAUDE.md, "VOE-Domains".
 const VOE_HOSTS = [
   "johnfullwonder.com",
   "katherineschoolphone.com",
@@ -2596,6 +2592,37 @@ function aniworld_allowAutoplay() {
     frame.allow = "autoplay *; fullscreen *";
     frame.src = frame.src;
   }, undefined, { interval: 500 });
+}
+
+// A new VOE player domain: background.js says via "voe" messages whether the extension runs there
+// already ("active"), has just started to ("activated": reload the frame), or needs the user's OK
+// ("need": a notice with a button, which has to live on an extension page to ask Chrome).
+// Started at document_start from the end of the file: the player frame can report before fixAniworld runs.
+function aniworld_listenForNewVoeHost() {
+  if (document.documentElement.dataset.cuVoeListener) return;
+  document.documentElement.dataset.cuVoeListener = "1";
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.cu !== "voe") return;
+    if (msg.state === "need") aniworld_showVoeNotice(msg.host);
+    if (msg.state === "activated") {
+      document.getElementById("cu-voe-notice")?.remove();
+      const frame = query(".inSiteWebStream iframe");
+      if (frame) frame.src = frame.src;
+    }
+  });
+}
+
+function aniworld_showVoeNotice(host) {
+  if (document.getElementById("cu-voe-notice")) return;
+  const notice = document.createElement("iframe");
+  notice.id = "cu-voe-notice";
+  notice.src = `${chrome.runtime.getURL("voe-ask.html")}?host=${encodeURIComponent(host)}`;
+  notice.style.cssText =
+    "position:fixed;top:8px;left:50%;transform:translateX(-50%);width:min(440px,96vw);height:44px;border:0;z-index:2147483647;";
+  window.addEventListener("message", (e) => {
+    if (e.source === notice.contentWindow && e.data?.cu === "voe-ask") notice.remove();
+  });
+  document.documentElement.append(notice);
 }
 
 // Counterpart of voe_connectToEpisodePage: answers only frames of this page, and passes N, P and F
@@ -7960,7 +7987,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.14.0.1",
+  version: "1.14.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -9388,3 +9415,4 @@ SCRIPTS TO AUTOPLAY:
 
 // Am Dateiende, damit alle Konstanten oben schon stehen; der Rest wartet auf DOMContentLoaded.
 if (location.hostname.endsWith("youtube.com")) yt_startPositionMemory();
+if (location.hostname.endsWith("aniworld.to") && self === top) aniworld_listenForNewVoeHost();

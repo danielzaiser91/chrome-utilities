@@ -55,17 +55,43 @@ iframe auf `vidmoly.biz` — nur `vidmoly.me` im Manifest hieß: Geschwindigkeit
 Vor dem Eintragen einer Player-Seite immer die iframe-Domain nachsehen.
 
 VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
-katherineschoolphone.com, 18.10.2026 claireguessthousand.com auf aniworld.to, am selben
-Nachmittag derricknationtop.com, 25.10.2026 jamespatterncamera.com). Neue Domain = Eintrag in `VOE_HOSTS` **und** Muster in
-`manifest.json`. Die aktuelle Domain zeigt `curl -s https://voe.sx/e/<id>` (Zeile
-`window.location.href = …`).
+katherineschoolphone.com, 18.10.2026 claireguessthousand.com und derricknationtop.com, 25.10.2026
+jamespatterncamera.com). Seit 1.14.0.2 übernimmt die Erweiterung eine neue Domain selbst, nach einem
+Klick des Nutzers; die statische Liste (`VOE_HOSTS` und `manifest.json`) bleibt für die bekannten.
 
-Geprüft und verworfen am 17.09.2026: den Player am Inhalt erkennen (`meta[name=keywords]`
-= "VOE") und dafür per Schalter auf der Einstellungsseite optional Zugriff auf alle Websites
-anfragen. Das wäre die einzige Bauweise, die jede künftige Domain ohne Update abdeckt —
-Chrome lädt ein Content-Skript nur dort, wo eine Host-Berechtigung besteht, ein Merkmal im
-HTML ändert daran nichts. Daniel hat sich für die Liste entschieden. Neu bewerten, wenn die
-Domain so oft wechselt, dass das Nachtragen lästiger wird als die Berechtigungsabfrage. Am 19.10.2026 bestätigt, obwohl die Domain am Vortag zweimal wechselte.
+**Grenze:** Chrome injiziert nur dort, wo eine Host-Berechtigung besteht, und die lässt sich nur per
+Klick geben. „Zugriff auf alle Websites“ lehnte Daniel am 17.09. und 19.10.2026 ab, also gilt die
+Berechtigung je Domain (`optional_host_permissions: *://*/*` löst bei der Installation keine Warnung aus).
+
+**Ablauf (belegt 25.10.2026, Playwright mit echter Erweiterung, `jamespatterncamera.com` aus der Liste genommen):**
+1. aniworld.to/redirect/<id> leitet per 301 auf `voe.sx/e/<code>`; diese 755-Byte-Seite springt per
+   `window.location.href = 'https://<domain>/e/<code>'` weiter. `voe-redirect.js` (Content-Skript auf
+   `voe.sx`) liest das Ziel und meldet es `background.js`. **Ein `MutationObserver`, nicht
+   `DOMContentLoaded`:** Die Seite navigiert noch während des Parsens, das Ereignis kam nie (gemessen).
+2. `background.js` (`voeState`): „active“ (steht im Manifest oder ist registriert), „activated“
+   (Berechtigung da, aber nicht registriert, etwa nach einem Update: ohne Nachfrage registrieren) oder
+   „need“. Es antwortet dem Tab per `tabs.sendMessage`; `aniworld_listenForNewVoeHost` hört ab
+   `document_start`, weil der Frame früher melden kann als `fixAniworld` läuft.
+3. „need“: AniWorld zeigt über dem Player einen eingebetteten Extension-Frame (`voe-ask.html`, in
+   `web_accessible_resources`) mit dem Knopf. Der Klick dort ist eine gültige Nutzergeste für
+   `chrome.permissions.request` (gemessen: echter Mausklick lässt den Aufruf offen; derselbe Aufruf
+   nach Ablauf der Geste lehnt mit „must be called during a user gesture“ ab). Ein Fenster ist nicht nötig. Freigegeben wird nur, was `voe.sx` selbst als Ziel gemeldet hat (`cu:voeSeen` in `storage.session`), denn `voe-ask.html` nimmt den Host aus seiner URL.
+4. Nach der Freigabe registriert `background.js` `voe-dynamic.js` + `utility.js` + `skip.js`
+   (`persistAcrossSessions`, `allFrames`, `document_start`) und merkt die Domain in
+   `chrome.storage.local` (`cu:voeHosts`); AniWorld lädt den Player-Frame neu. `reconcile` bei
+   Start und Update stellt Registrierungen wieder her und entfernt Domains ohne Berechtigung.
+5. `voe-dynamic.js` setzt `globalThis.cuDynamicVoe`; `websiteSelector` behandelt eine nicht in der Liste
+   stehende, so geladene Domain als VOE. Das ist einfacher als `meta[name=keywords]` = „VOE“, das zu
+   `document_start` noch fehlt.
+
+**Nicht automatisiert prüfbar:** Chromes Berechtigungsdialog selbst. Im Test hat die Kopie die Domain
+als `host_permissions` (simulierter Klick auf „Allow“); echt geprüft sind Hinweis, Nutzergeste,
+Registrierung, Neuladen des Frames, Zahnrad und Neustart mit demselben Profil.
+
+**Verworfen (Begründung, nicht gemessen):** Abruf der Weiterleitung über den Service Worker (bräuchte Host-Recht auf aniworld.to und voe.sx;
+aus dem Content-Skript blockt CORS); ein postMessage an AniWorld statt des Umwegs über den
+Worker (der Frame meldet nur einmal, AniWorlds Listener könnte noch fehlen). Neu bewerten, wenn VOE den
+Weiterleitungsweg ändert.
 
 Einstellungen: Alle Seiten speichern seit 19.09.2026 in `chrome.storage.local` unter
 `cu:opts:<site>` (Berechtigung `storage`, ohne Warnhinweis), nicht im `localStorage` der

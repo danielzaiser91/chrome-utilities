@@ -4,10 +4,9 @@
 
 ### Jetzt
 - 🔴 E1 Erweiterung neu laden, dann die AniWorld-Folge neu laden: Zahnrad im VOE-Player wieder da? (neue VOE-Domain jamespatterncamera.com, 1.14.0.1)
-- 🔵 [F1 VOE-Domains weiter von Hand nachtragen?](file:///C:/code/chrome-utilities/daniel-zum-abarbeiten/f1-voe-domains.md) — „B“ im Chat genügt
 
 ## In Arbeit
-- (nichts)
+- VOE-Domains dynamisch: AniWorld-Seite erkennt eine neue Player-Domain selbst, einmal „Allow“ je Domain (Bauer läuft seit 25.10.2026)
 
 ## Als Nächstes
 

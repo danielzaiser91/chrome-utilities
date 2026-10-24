@@ -1654,7 +1654,6 @@ function websiteSelector() {
     new Matcher("google.com/", fixGoogle),
     new Matcher("luluvdo.com", fixLuluvdo, true, "Luluvdo"),
     new Matcher("aniworld.to", fixAniworld, true),
-    ...VOE_HOSTS.map((host) => new Matcher(host, fixVoe, true, "voe", true)),
     new Matcher("vidmoly.", fixVidmoly, self !== top, "vidmoly", true),
     new Matcher("toggo.de", fixToggo, true, "toggo"),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
@@ -1685,7 +1684,7 @@ function websiteSelector() {
     new Matcher("animationdigitalnetwork.com", fixADN, true, "adn"),
     new Matcher("store.steampowered.com/app", fixSteam, false),
   ];
-  // voe-dynamic.js marks a player domain registered at runtime (background.js)
+  // VOE changes its player domain weekly; voe-dynamic.js marks the ones the user granted (background.js)
   const match =
     websiteMatcher.find((v) => location.href.includes(v.match)) ??
     (globalThis.cuDynamicVoe && new Matcher(location.hostname, fixVoe, true, "voe", true));
@@ -2141,16 +2140,8 @@ function fixFilemoon() {
 // ----
 // VOE-Player (<domain>/e/<id>), eingebettet u. a. auf serienstream.to
 // ---
-// Bekannte Player-Domains von VOE; eine neue Domain eintragen UND als "*://*.<domain>/*" in
-// manifest.json (sonst laedt Chrome das Skript im iframe nicht). Unbekannte Domains uebernimmt
-// background.js nach einer Freigabe des Nutzers: CLAUDE.md, "VOE-Domains".
-const VOE_HOSTS = [
-  "johnfullwonder.com",
-  "katherineschoolphone.com",
-  "claireguessthousand.com",
-  "derricknationtop.com",
-  "jamespatterncamera.com",
-];
+// Keine feste Domainliste: background.js uebernimmt jede Player-Domain nach einer Freigabe des
+// Nutzers (CLAUDE.md, "VOE-Domains").
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
   voe_replaceRateMenu();
@@ -7987,7 +7978,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.14.0.2",
+  version: "1.14.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

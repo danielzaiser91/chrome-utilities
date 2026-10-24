@@ -1,13 +1,11 @@
-// Player domains of VOE found at runtime (CLAUDE.md, "VOE-Domains"). The static list covers the
-// known ones; for a new one the user grants access once, and the content scripts are registered
+// Player domains of VOE found at runtime (CLAUDE.md, "VOE-Domains"). For each one the
+// user grants access once, and the content scripts are registered
 // here because only an extension page may call chrome.scripting.
 const HOSTS_KEY = "cu:voeHosts";
 const SCRIPTS = ["voe-dynamic.js", "utility.js", "skip.js"];
 
 const pattern = (host) => `*://*.${host}/*`;
 const scriptId = (host) => `voe-${host}`;
-const isStatic = (host) =>
-  chrome.runtime.getManifest().content_scripts.some((cs) => cs.matches.includes(pattern(host)));
 
 async function register(host) {
   await chrome.scripting.registerContentScripts([
@@ -30,7 +28,6 @@ async function register(host) {
 // "active": runs there already; "activated": registered just now, so the frame needs a reload;
 // "need": the user has to grant access first.
 async function voeState(host) {
-  if (isStatic(host)) return "active";
   if (!(await chrome.permissions.contains({ origins: [pattern(host)] }))) return "need";
   const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [scriptId(host)] });
   if (registered.length) return "active";

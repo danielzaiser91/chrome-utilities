@@ -3,8 +3,7 @@
 ## Daniel-Todo
 
 ### Jetzt
-- 🔴 E1 Erweiterung neu laden, dann die AniWorld-Folge neu laden: Zahnrad im VOE-Player wieder da? (1.14.0.2)
-- ⏳ E2 Beim nächsten VOE-Domainwechsel: oben auf AniWorld erscheint „Player controls are off on this video server. Allow“ → Allow, Chrome-Dialog bestätigen → Zahnrad im Player da? (Chromes Dialog ließ sich nicht automatisiert testen)
+- 🔴 E1 Erweiterung neu laden, AniWorld-Folge mit VOE neu laden: oben erscheint „Player controls are off on this video server. Allow“ → Allow, Chrome-Dialog bestätigen → Zahnrad im Player da? Falsch, wenn kein Hinweis kommt oder das Zahnrad danach fehlt (1.14.0.3; Chromes Dialog ließ sich nicht automatisiert testen)
 
 ## In Arbeit
 - (nichts)

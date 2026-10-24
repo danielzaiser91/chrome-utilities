@@ -48,7 +48,7 @@ Zustand bringt, ist oft die letzte einer Serie.
 Und: Jede Bedingung wird **in** der Prüfung ausgewertet, nicht einmal beim Start. Pfad und
 Parameter ändern sich unter dem laufenden Skript.
 
-### VOE-Domains: Liste statt Zugriff auf alle Websites
+### VOE-Domains: Freigabe je Domain statt Liste
 
 Gleiches Muster bei vidmoly (11.10.2026): Die Seite liegt auf `vidmoly.me`, das Video aber im
 iframe auf `vidmoly.biz` — nur `vidmoly.me` im Manifest hieß: Geschwindigkeit wirkungslos.
@@ -57,7 +57,7 @@ Vor dem Eintragen einer Player-Seite immer die iframe-Domain nachsehen.
 VOE wechselt die Player-Domain laufend (16.09.2026 johnfullwonder.com, 17.09.2026
 katherineschoolphone.com, 18.10.2026 claireguessthousand.com und derricknationtop.com, 25.10.2026
 jamespatterncamera.com). Seit 1.14.0.2 übernimmt die Erweiterung eine neue Domain selbst, nach einem
-Klick des Nutzers; die statische Liste (`VOE_HOSTS` und `manifest.json`) bleibt für die bekannten.
+Klick des Nutzers. Seit 1.14.0.3 gibt es keine feste Liste mehr (Daniel, 25.10.2026): jede Domain läuft über die Freigabe, auch die aktuelle, und der echte Chrome-Dialog bleibt so testbar. Folge: VOE direkt im eigenen Tab bekommt das Zahnrad nur auf einer schon freigegebenen Domain.
 
 **Grenze:** Chrome injiziert nur dort, wo eine Host-Berechtigung besteht, und die lässt sich nur per
 Klick geben. „Zugriff auf alle Websites“ lehnte Daniel am 17.09. und 19.10.2026 ab, also gilt die
@@ -68,7 +68,7 @@ Berechtigung je Domain (`optional_host_permissions: *://*/*` löst bei der Insta
    `window.location.href = 'https://<domain>/e/<code>'` weiter. `voe-redirect.js` (Content-Skript auf
    `voe.sx`) liest das Ziel und meldet es `background.js`. **Ein `MutationObserver`, nicht
    `DOMContentLoaded`:** Die Seite navigiert noch während des Parsens, das Ereignis kam nie (gemessen).
-2. `background.js` (`voeState`): „active“ (steht im Manifest oder ist registriert), „activated“
+2. `background.js` (`voeState`): „active“ (registriert), „activated“
    (Berechtigung da, aber nicht registriert, etwa nach einem Update: ohne Nachfrage registrieren) oder
    „need“. Es antwortet dem Tab per `tabs.sendMessage`; `aniworld_listenForNewVoeHost` hört ab
    `document_start`, weil der Frame früher melden kann als `fixAniworld` läuft.

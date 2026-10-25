@@ -160,6 +160,11 @@ Einstellungen (Autoplay, Auto-Next, Hotkeys) liegen bei VOE und werden im Player
   steht; nur Playwright lässt es durch.
 - **`allowfullscreen` wird entfernt**, sobald `allow` gesetzt ist: Chrome warnt sonst bei jedem
   Laden („Allow attribute will take precedence“), und die Warnung landet in Daniels Fehlerliste.
+- **Abspielfehler nach langem Leerlauf** („This video file cannot be played“, Code 232011; Daniel,
+  25.10.2026): JW setzt `jw-state-error` an `.jwplayer`. `voe_reloadOnError` lädt dann die
+  Player-Seite neu (frischer Stream-Link), Stelle und „lief gerade“ wandern über `sessionStorage`
+  (`cu:voeResume`, nur für dieselbe Adresse), höchstens ein Neuladen pro Minute. „Lief gerade“ heißt:
+  Zeit lief oder Play kam in den letzten 3 s, denn JW pausiert das Video beim Fehler selbst.
 
 #### Nächste Folge ohne Neuladen, Vollbild immer über die Seite (18.10.2026)
 

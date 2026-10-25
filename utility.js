@@ -2145,7 +2145,7 @@ function fixFilemoon() {
 function fixVoe() {
   _init_set_video_rate_repeater__generic();
   voe_replaceRateMenu();
-  voe_autoPlay();
+  voe_autoPlay(voe_reloadOnError());
   voe_connectToEpisodePage();
   voe_initSkip();
 }
@@ -2203,10 +2203,10 @@ function voe_replaceRateMenu() {
 // (aniworld_allowAutoplay), otherwise the player stays paused as before. Waiting is keyed to the
 // missing source, not to the class jw-state-idle: inside AniWorld's frame the class stays at
 // jw-state-setup although the player is ready and the click works.
-function voe_autoPlay() {
+function voe_autoPlay(force) {
   repeatUntilCondition(
     () => {
-      if (!isAllowed(getSiteOptions().featureAutoPlay.isEnabled)) return;
+      if (!force && !isAllowed(getSiteOptions().featureAutoPlay.isEnabled)) return;
       query(".jw-icon-display")?.click();
       setTimeout(voe_checkAutoplay, 3000);
     },
@@ -2214,6 +2214,47 @@ function voe_autoPlay() {
     [],
     false,
   );
+}
+
+// After a long pause VOE's stream link expires and JW stops with "This video file cannot be played"
+// (232011). Reloading the player page fetches a fresh link; position and play state survive in
+// sessionStorage. At most once a minute, so a file that is really broken doesn't loop.
+// Returns true when the reload interrupted playback, so the caller starts it again.
+const VOE_RESUME_KEY = "cu:voeResume";
+function voe_reloadOnError() {
+  const saved = JSON.parse(sessionStorage.getItem(VOE_RESUME_KEY) ?? "null");
+  sessionStorage.removeItem(VOE_RESUME_KEY);
+  const resume = saved?.href === location.href ? saved : null;
+  if (resume) {
+    const seek = (e) => {
+      if (!e.target.matches?.(".jwplayer video")) return;
+      document.removeEventListener("loadedmetadata", seek, true);
+      e.target.currentTime = resume.time;
+    };
+    document.addEventListener("loadedmetadata", seek, true);
+  }
+  // JW pauses the video on the error itself, so "was playing" means: it ran or was started just now
+  let time = 0;
+  let activeAt = 0;
+  const track = (e) => {
+    if (!e.target.matches?.(".jwplayer video")) return;
+    time = e.target.currentTime || time;
+    if (e.type === "play" || !e.target.paused) activeAt = Date.now();
+  };
+  document.addEventListener("timeupdate", track, true);
+  document.addEventListener("play", track, true);
+  repeatUntilCondition(
+    () => {
+      if (Date.now() - (resume?.at ?? 0) < 60000) return;
+      const playing = Date.now() - activeAt < 3000;
+      sessionStorage.setItem(VOE_RESUME_KEY, JSON.stringify({ href: location.href, time, playing, at: Date.now() }));
+      location.reload();
+    },
+    () => query(".jwplayer.jw-state-error"),
+    [],
+    false,
+  );
+  return !!resume?.playing;
 }
 
 // Blocked by Chrome, the video stays paused after our click; allowed, it runs. A user's own click
@@ -7978,7 +8019,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.15.0",
+  version: "1.15.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -6,7 +6,7 @@
 - (nichts offen)
 
 ## In Arbeit
-- (nichts)
+- VOE: Player lädt bei „This video file cannot be played“ (232011) selbst neu und springt an die Stelle (1.15.0.1, bei Daniel zum Testen)
 
 ## Als Nächstes
 

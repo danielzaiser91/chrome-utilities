@@ -335,6 +335,21 @@ Gemessen mit Playwright, 18.10.2026:
   Werbung für den Test aus den Player-Antworten nehmen (`adPlacements`, `playerAds` und `adSlots`
   in `/watch` und `youtubei/v1/player` per `ctx.route` umbenennen), sonst hängt sie bei 0,7 s.
 
+### joyn.de: Video im Shadow DOM (06.11.2026)
+
+joyn nutzt den generischen Geschwindigkeits-Repeater, aber das Video liegt in offenen Shadow Roots
+(`joyn-integration >> turbo-video.video >> video`), wo `queryAll("video")` nichts findet.
+`videos__generic()` holt es deshalb auf joyn über `joyn_videos()`. Das Werbe-Video
+(`turbo-ad-player >> turbo-video#adVideo`) bleibt bei 1. Live-TV ist ausgenommen: Der Player regelt
+die Rate dort selbst (0,95) und dreht unseren Wert zurück.
+
+- **Playwright-Chromium spielt joyn nicht ab** (kein Widevine, „Fehler aufgetreten, CODE: GENERIC“),
+  das `<video>` entsteht trotzdem. Die Rate lässt sich so prüfen, die Wiedergabe nicht. Dass die
+  DRM-Folge die Rate wirklich übernimmt, zeigt Edge (Skill `edge-browser`): Rate 1,7 →
+  1,69 Sekunden Video je Sekunde (Monk 8x01).
+- Der Consent-Dialog (Usercentrics) liegt im Shadow DOM: `page.getByRole("button", …)` trifft ihn,
+  `button:has-text(…)` nicht.
+
 ### Crunchyroll-Watchlist: grün nur bei deutscher Fassung und noch nicht gesehen (30.09.2026)
 
 Der Kartenuntertitel („Jetzt anschauen" / „Erneut anschauen") trug früher die deutsche

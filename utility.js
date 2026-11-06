@@ -400,6 +400,7 @@ const siteDisplayNames = {
   adn: "ADN",
   voe: "VOE",
   toggo: "TOGGO",
+  joyn: "Joyn",
 };
 function getSiteDisplayName(site) {
   return siteDisplayNames[site] ?? site;
@@ -1656,6 +1657,7 @@ function websiteSelector() {
     new Matcher("aniworld.to", fixAniworld, true),
     new Matcher("vidmoly.", fixVidmoly, self !== top, "vidmoly", true),
     new Matcher("toggo.de", fixToggo, true, "toggo"),
+    new Matcher("joyn.de", fixJoyn, true, "joyn"),
     new Matcher("https://zpjid.com/bkg/", fixFilemoon, true, "filemoon", true),
     new Matcher("www.keyforsteam.", fixKeyForSteam),
     new Matcher("new-fmovies.cam", fixFmoviesCam),
@@ -1919,7 +1921,7 @@ function _init_set_video_rate_repeater__generic() {
     () => {
       // the skip dialog reads frames at rate 4 (skip.js)
       if (globalThis.cu_rateHold) return false;
-      const videoEls = [...queryAll("video")];
+      const videoEls = [...videos__generic()];
       const allowed = isAllowed(
         getSiteOptions().featurePlayBackSpeed.isEnabled,
       );
@@ -1957,9 +1959,14 @@ function _adjustVal__generic(e, playBackInput) {
   const newValue = +(+e.srcElement.value)?.toFixed(2);
   _setPlayerValue__generic(newValue, playBackInput);
 }
+// joyn legt sein Video in offene Shadow Roots, dort findet queryAll nichts
+function videos__generic() {
+  return getSiteName() === "joyn" ? joyn_videos() : queryAll("video");
+}
+
 function updateVideoPlayrate__generic(val) {
   /** @type {HTMLVideoElement} */
-  const videos = queryAll("video");
+  const videos = videos__generic();
   const allowed = isAllowed(getSiteOptions().featurePlayBackSpeed.isEnabled);
   const speed =
     val ||
@@ -2600,6 +2607,25 @@ function toggo_slugZuText(slug) {
     .split("-")
     .map((wort) => wort.charAt(0).toUpperCase() + wort.slice(1))
     .join(" ");
+}
+
+// ----
+// joyn.de
+// ---
+function fixJoyn() {
+  _init_set_video_rate_repeater__generic();
+}
+
+// Pfad belegt 06.11.2026 (Folge und Live-TV): joyn-integration >> turbo-video.video >> video.
+// Das Werbe-Video liegt eine Ebene tiefer (turbo-ad-player >> turbo-video#adVideo) und bleibt
+// aussen vor. Live-TV regelt die Rate selbst (0,95 zum Aufholen des Live-Abstands) und dreht
+// unseren Wert nach Sekunden zurueck; schneller als live geht dort ohnehin nicht.
+function joyn_videos() {
+  if (location.pathname.startsWith("/play/live-tv")) return [];
+  return [...document.querySelectorAll("joyn-integration")]
+    .flatMap((host) => [...(host.shadowRoot?.querySelectorAll("turbo-video.video") ?? [])])
+    .map((turbo) => turbo.shadowRoot?.querySelector("video"))
+    .filter(Boolean);
 }
 
 // ----
@@ -8019,7 +8045,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.15.0.1",
+  version: "1.15.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",
@@ -8388,6 +8414,27 @@ let userOptions = {
       featureButton: () => skip_button(),
       isEnabled: { value: true, label: "Activate" },
     },
+    featurePlayBackSpeed: {
+      featureName: "PlayBackSpeed",
+      featureDescription: "this feature will set the speed for video playback",
+      isEnabled: {
+        value: true,
+        label: "PlayBackSpeed",
+        description: "set your desired PlayBackSpeed",
+        toggle: enable_playback_option__generic,
+        subFeatures: {
+          playBackSpeed: {
+            value: 1,
+            min: 0.2,
+            max: 5,
+            step: 0.1,
+            toggle: (e, input) => _adjustVal__generic(e, input),
+          },
+        },
+      },
+    },
+  },
+  joyn: {
     featurePlayBackSpeed: {
       featureName: "PlayBackSpeed",
       featureDescription: "this feature will set the speed for video playback",

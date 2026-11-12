@@ -367,6 +367,22 @@ deutscher Fassung. Unbekannter Zustand oder fehlende Sprachkennung bleiben gelb 
 ist der Fehler, der behoben wurde. Kein Abruf, keine Datei, kein Zwischenspeicher: die Angabe kommt
 mit der Seite und ist so frisch wie diese (eine um 19:25 erschienene Folge hat ihren Link sofort).
 
+### PayPal: Zahlungszähler neben dem Kontaktnamen (12.11.2026)
+
+Auf `www.paypal.com/myaccount/transfer/*` steht neben einem Kontakt ein grünes „✓ <Anzahl>“
+(`paymentSentCount` ≥ 1), damit zwei gleichnamige Kontakte unterscheidbar sind. Quelle ist das
+Kontakt-JSON, das die Seite in Inline-Skripten mitbringt (`pp_kontakteLesen`); kein Abruf, nichts
+gespeichert, kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht darin und bekommen nichts.
+
+- **Ein falsches Grün ist der schlimmste Fehler.** Zuordnung nur über `payerId` im Eintrag/Dialog/
+  Adresse, sonst per Name nur, wenn der Name im JSON eindeutig ist, kein Dialog offen ist und kein
+  Eingabefeld Text hat. Der Dialog übernimmt nur den zuletzt angeklickten Listeneintrag.
+- **Nie bei PayPal einloggen oder PayPal abrufen.** Test: `node tests/paypal/test.mjs` (echte
+  Erweiterung, nachgebaute Seite `tests/paypal/seite.html`, erfundene Kontakte, alle Anfragen
+  lokal abgefangen, ohne Proxy und Namensauflösung). Der Aufbau der Testseite ist geraten, nicht
+  von PayPal abgeschaut; ob Selektor-freie Erkennung (Text = Name, Kopfzeile „Sie senden Geld an“)
+  am echten DOM greift, prüft nur Daniel.
+
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten
 - GitHub Actions Workflow (`.github/workflows/discord-release.yml`) postet automatisch beim Publishen eines Releases auf Discord (#news)

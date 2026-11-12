@@ -1647,6 +1647,7 @@ let matcher;
 function websiteSelector() {
   const websiteMatcher = [
     new Matcher("www.geoguessr.com", fixGeoguessr),
+    new Matcher("www.paypal.com/myaccount/transfer/", fixPayPal),
     new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
     // Abgeschaltet 18.09.2026 (Daniel: Probleme gefunden, sollen nicht behoben werden).
@@ -6454,6 +6455,335 @@ function addCustomCrunchyCss() {
   );
 }
 
+// www.paypal.com/myaccount/transfer -- Zahlungszaehler neben dem Kontaktnamen (12.11.2026)
+//
+// PayPal zeigt in der Kontaktliste und im Senden-Dialog ("Sie senden Geld an <Name>") nur Name
+// und Initialen. Bei zwei gleichnamigen Kontakten sieht man nicht, an wen man zahlt. Die Seite
+// bringt die Kontakte aber als JSON in einem Inline-<script> mit (contacts.topContacts,
+// topSendContacts ...), je Kontakt payerId, Namen und paymentSentCount. Das lesen wir und setzen
+// ein gruenes "✓ <Anzahl>" neben den Namen, nur bei paymentSentCount >= 1. Die E-Mail liefert
+// PayPal dort nicht.
+//
+// Gelesen wird nur, was schon im DOM steht: der Text der Inline-Skripte (auch aus dem isolierten
+// Kontext lesbar). Kein eigener Abruf, nichts gespeichert, kein Skript in der Seitenwelt. Kontakte
+// aus der Suche kommen per fetch und stehen nicht im JSON -- sie bekommen absichtlich kein Zeichen.
+//
+// Zuordnung, sicherste zuerst (ein falsches Gruen ist der Fehler, den die Funktion verhindern soll):
+// 1. payerId im Eintrag selbst (Attribut irgendwo im Element: href, data-*, src ...) bzw. in der
+//    Adresse oder im Dialog.
+// 2. Nur Liste: Name ohne ID, aber nur wenn genau ein Kontakt im JSON so heisst, kein Dialog offen
+//    ist und kein Eingabefeld Text hat (sonst koennte es ein gleichnamiger Suchtreffer sein).
+// 3. Nur Dialog: der zuletzt angeklickte Listeneintrag, wenn er so heisst wie die Kopfzeile. Jeder
+//    Klick ausserhalb eines erkannten Eintrags vergisst ihn; ein Suchtreffer setzt also nichts.
+// Gleichnamige Kontakte ohne ID im DOM bekommen kein Zeichen.
+const PP_PRUEF_TAKT_MS = 300;
+const PP_DIALOG_KOPF =
+  /^(?:sie senden geld an|du sendest geld an|you(?:'|’| a)re sending money to)\s+(.+?)[.!:]?$/i;
+/** payerId -> { payerId, namen: Set<normalisiert>, anzeige, anzahl } */
+const pp_kontakte = new Map();
+const pp_gelesen = new WeakSet();
+/** zuletzt angeklickter Listeneintrag: { name, kontakt|null } */
+let pp_klick = null;
+/** Dialog-Kopfzeile -> { name, kontakt|null }, fest ab dem ersten Sehen */
+const pp_dialogBindung = new WeakMap();
+/** Eintrag (Element) -> { name, kontakt|null }, bei jeder Pruefung neu */
+let pp_eintraege = new WeakMap();
+
+function fixPayPal() {
+  insertCSS(
+    `
+    .cu-pp-zaehler {
+      display: inline-block;
+      margin-left: 0.4em;
+      padding: 0 0.4em;
+      border-radius: 0.7em;
+      background: #e6f4ea;
+      color: #137333;
+      font-size: 0.85em;
+      font-weight: 600;
+      line-height: 1.5;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+  `,
+    "cu-paypal",
+  );
+  document.addEventListener("click", pp_merkeKlick, true);
+  pp_pruefen();
+  // SPA: Liste und Dialog werden ohne Neuladen ausgetauscht, also nachlaufend gebremst neu pruefen
+  let geplant = null;
+  let letzte = 0;
+  new MutationObserver(() => {
+    if (geplant) return;
+    geplant = setTimeout(
+      () => {
+        geplant = null;
+        letzte = Date.now();
+        pp_pruefen();
+      },
+      Math.max(0, PP_PRUEF_TAKT_MS - (Date.now() - letzte)),
+    );
+  }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+}
+
+const pp_norm = (s) =>
+  String(s ?? "").normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Liest die Kontakte aus allen noch nicht gelesenen Inline-Skripten. */
+function pp_kontakteLesen() {
+  for (const skript of document.querySelectorAll("script:not([src])")) {
+    const text = skript.textContent;
+    if (pp_gelesen.has(skript) || !text.includes("paymentSentCount")) continue;
+    pp_gelesen.add(skript);
+    for (const k of pp_kontakteAus(text)) {
+      const alt = pp_kontakte.get(k.payerId);
+      if (alt) {
+        alt.anzahl = Math.max(alt.anzahl, k.anzahl);
+        for (const n of k.namen) alt.namen.add(n);
+      } else pp_kontakte.set(k.payerId, k);
+    }
+  }
+}
+
+/** Alle Kontakte in einem Skripttext: als JSON, als JS-Literal oder als JSON in einem String. */
+function pp_kontakteAus(text) {
+  return pp_objekteMit(text).map(pp_kontaktAus).filter(Boolean);
+}
+
+/**
+ * Die innersten Objekte (Text von "{" bis "}"), die payerId und paymentSentCount enthalten --
+ * das ist je ein Kontakt, egal wie tief und unter welchem Schluessel die Liste steckt. Steckt das
+ * JSON in einem String (JSON.parse("...")), wird der String entschluesselt und ebenso durchsucht.
+ */
+function pp_objekteMit(text, tiefe = 0) {
+  const stellen = (wort) => {
+    const r = [];
+    for (let i = text.indexOf(wort); i !== -1; i = text.indexOf(wort, i + 1)) r.push(i);
+    return r;
+  };
+  const ids = stellen("payerId");
+  const zahlen = stellen("paymentSentCount");
+  const liegtIn = (liste, a, b) => {
+    let lo = 0;
+    let hi = liste.length;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (liste[m] < a) lo = m + 1;
+      else hi = m;
+    }
+    return lo < liste.length && liste[lo] < b;
+  };
+  const funde = [];
+  const stapel = [];
+  const strings = [];
+  let inString = null;
+  let stringStart = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === inString) {
+        inString = null;
+        if (liegtIn(zahlen, stringStart, i)) strings.push(text.slice(stringStart, i + 1));
+      }
+    } else if (c === '"' || c === "'" || c === "`") {
+      inString = c;
+      stringStart = i;
+    }
+    else if (c === "{") stapel.push({ start: i, innen: false });
+    else if (c === "}") {
+      const f = stapel.pop();
+      if (!f) continue;
+      if (!f.innen && liegtIn(ids, f.start, i) && liegtIn(zahlen, f.start, i)) {
+        funde.push(text.slice(f.start, i + 1));
+        f.innen = true;
+      }
+      if (f.innen && stapel.length) stapel.at(-1).innen = true;
+    }
+  }
+  if (tiefe < 2)
+    for (const lit of strings) {
+      let inhalt;
+      try {
+        inhalt = JSON.parse(lit[0] === '"' ? lit : `"${lit.slice(1, -1).replace(/"/g, '\\"')}"`);
+      } catch {
+        inhalt = lit.slice(1, -1).replace(/\\(["'\\/])/g, "$1");
+      }
+      funde.push(...pp_objekteMit(inhalt, tiefe + 1));
+    }
+  return funde;
+}
+
+function pp_kontaktAus(stueck) {
+  const feld = (name) => {
+    const m = stueck.match(
+      new RegExp(`(?<![\\w$])["']?${name}["']?\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`),
+    );
+    if (!m) return "";
+    try {
+      return JSON.parse(`"${m[1]}"`);
+    } catch {
+      return m[1];
+    }
+  };
+  const payerId = feld("payerId");
+  const anzahl = Number(
+    stueck.match(/(?<![\w$])["']?paymentSentCount["']?\s*:\s*"?(\d+)/)?.[1],
+  );
+  if (!payerId || !Number.isFinite(anzahl)) return null;
+  const vorname = feld("firstName");
+  const nachname = feld("lastName");
+  const voll = feld("fullName");
+  const anzeigeName = feld("displayName");
+  const namen = new Set(
+    [voll, anzeigeName, `${vorname} ${nachname}`].map(pp_norm).filter(Boolean),
+  );
+  if (!namen.size) return null;
+  const anzeige = `${vorname} ${nachname}`.trim() || voll || anzeigeName;
+  return { payerId, namen, anzeige, anzahl };
+}
+
+/** Text eines Elements ohne unser eigenes Zeichen. */
+function pp_eigenText(el) {
+  let t = el.textContent;
+  for (const z of el.querySelectorAll(".cu-pp-zaehler")) t = t.replace(z.textContent, "");
+  return t;
+}
+
+/** Bekannte payerIds in Attributen von el und allem darin, plus optional in weiterem Text. */
+function pp_idsIn(el, idMuster, zusatz = "") {
+  const funde = new Set();
+  const pruefe = (s) => {
+    for (const m of String(s).matchAll(idMuster)) funde.add(m[1]);
+  };
+  pruefe(zusatz);
+  for (const e of el ? [el, ...el.querySelectorAll("*")] : [])
+    for (const a of e.attributes) pruefe(a.value);
+  return funde;
+}
+
+function pp_pruefen() {
+  pp_kontakteLesen();
+  const nachName = new Map();
+  for (const k of pp_kontakte.values())
+    for (const n of k.namen) nachName.set(n, [...(nachName.get(n) ?? []), k]);
+  const idMuster = pp_kontakte.size
+    ? new RegExp(
+        `(?<![A-Za-z0-9])(${[...pp_kontakte.keys()]
+          .map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join("|")})(?![A-Za-z0-9])`,
+        "g",
+      )
+    : null;
+
+  // Kandidaten: kleinstes Element, dessen Text genau ein Kontaktname ist, und Dialog-Kopfzeilen
+  const namensElemente = new Set();
+  const koepfe = new Map(); // Kopf-Element -> Name (normalisiert)
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+    if (!t.data.trim() || t.data.length > 150) continue;
+    const el = t.parentElement;
+    if (!el || el.closest("script, style, noscript, template, textarea, .cu-pp-zaehler")) continue;
+    for (let a = el, d = 0; a && a !== document.body && d < 3; a = a.parentElement, d++) {
+      const text = pp_norm(pp_eigenText(a));
+      if (text.length > 150) break;
+      const kopf = text.match(PP_DIALOG_KOPF);
+      if (kopf) {
+        koepfe.set(a, pp_norm(kopf[1]));
+        break;
+      }
+      if (nachName.has(text)) {
+        namensElemente.add(a);
+        break;
+      }
+    }
+  }
+
+  const ziele = new Map(); // Element, das das Zeichen bekommt -> Kontakt
+  const dialogOffen = koepfe.size > 0;
+  const sucheAktiv = [
+    ...document.querySelectorAll(
+      "input:not([type]), input[type=text], input[type=search], input[type=email], input[type=tel], input[type=number]",
+    ),
+  ].some((i) => i.value.trim() && i.getClientRects().length);
+  const neueEintraege = new WeakMap();
+
+  // Senden-Dialog
+  for (const [kopf, name] of koepfe) {
+    const namensEl = [...namensElemente].find((n) => kopf.contains(n));
+    if (namensEl) namensElemente.delete(namensEl);
+    let bindung = pp_dialogBindung.get(kopf);
+    if (bindung?.name !== name) {
+      const dialog =
+        kopf.closest('[role=dialog], dialog, [aria-modal="true"]') ?? kopf.parentElement;
+      const ids = idMuster ? pp_idsIn(dialog, idMuster, location.href) : new Set();
+      const passend = [...ids].map((id) => pp_kontakte.get(id)).filter((k) => k.namen.has(name));
+      let kontakt = null;
+      if (ids.size) kontakt = ids.size === 1 && passend.length === 1 ? passend[0] : null;
+      else if (pp_klick?.name === name) kontakt = pp_klick.kontakt;
+      bindung = { name, kontakt };
+      pp_dialogBindung.set(kopf, bindung);
+    }
+    ziele.set(namensEl ?? kopf, bindung.kontakt);
+  }
+
+  // Kontaktliste (und alles andere mit einem bekannten Namen)
+  const alle = [...namensElemente];
+  for (const el of alle) {
+    const name = pp_norm(pp_eigenText(el));
+    // Eintrag = groesster Vorfahre, der nur diesen einen Namen enthaelt
+    let eintrag = el;
+    for (let tiefe = 0; tiefe < 8; tiefe++) {
+      const p = eintrag.parentElement;
+      if (!p || p === document.body || alle.some((o) => o !== el && p.contains(o))) break;
+      eintrag = p;
+    }
+    const ids = idMuster ? pp_idsIn(eintrag, idMuster) : new Set();
+    let kontakt = null;
+    if (ids.size) {
+      const k = ids.size === 1 ? pp_kontakte.get([...ids][0]) : null;
+      kontakt = k?.namen.has(name) ? k : null;
+    } else if (!dialogOffen && !sucheAktiv && nachName.get(name).length === 1) {
+      kontakt = nachName.get(name)[0];
+    }
+    neueEintraege.set(eintrag, { name, kontakt });
+    ziele.set(el, kontakt);
+  }
+  pp_eintraege = neueEintraege;
+
+  // Zeichen setzen, aendern, entfernen -- nur anfassen, was sich aendert (sonst Beobachter-Schleife)
+  for (const [el, kontakt] of ziele) {
+    const alt = [...el.children].find((c) => c.classList.contains("cu-pp-zaehler"));
+    if (!kontakt || kontakt.anzahl < 1) {
+      alt?.remove();
+      continue;
+    }
+    const text = `✓ ${kontakt.anzahl}`;
+    const titel = `Du hast schon ${kontakt.anzahl}× Geld an ${kontakt.anzeige} gesendet`;
+    if (alt?.textContent === text && alt.title === titel) continue;
+    const z = alt ?? document.createElement("span");
+    z.className = "cu-pp-zaehler";
+    z.textContent = text;
+    z.title = titel;
+    z.dataset.cuPayerId = kontakt.payerId;
+    if (!alt) el.append(z);
+  }
+  for (const z of document.querySelectorAll(".cu-pp-zaehler"))
+    if (!ziele.has(z.parentElement)) z.remove();
+}
+
+/** Merkt den angeklickten Listeneintrag fuer den Dialog; jeder andere Klick vergisst ihn. */
+function pp_merkeKlick(e) {
+  for (let el = e.target; el && el !== document; el = el.parentElement) {
+    const eintrag = pp_eintraege.get(el);
+    if (eintrag) {
+      pp_klick = eintrag;
+      return;
+    }
+  }
+  pp_klick = null;
+}
+
 // www.geoguessr.com
 function fixGeoguessr() {
   fixGeoguessrScrollbar();
@@ -8045,7 +8375,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.15.0.2",
+  version: "1.16.0.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

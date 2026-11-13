@@ -371,8 +371,8 @@ mit der Seite und ist so frisch wie diese (eine um 19:25 erschienene Folge hat i
 
 Auf `www.paypal.com/myaccount/transfer/*` steht neben einem Kontakt ein grünes „✓ <Anzahl>“
 (`paymentSentCount` ≥ 1), damit zwei gleichnamige Kontakte unterscheidbar sind. Quelle ist das
-Kontakt-JSON, das die Seite in Inline-Skripten mitbringt (`pp_kontakteLesen`); kein Abruf, nichts
-gespeichert, kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht darin und bekommen nichts.
+Kontakt-JSON, das die Seite in Inline-Skripten mitbringt (`pp_kontakteLesen`); kein Abruf, nur die
+Namenskarte für die Startseite gespeichert (unten), kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht darin und bekommen nichts.
 
 - **Ein falsches Grün ist der schlimmste Fehler.** Zuordnung nur über `payerId` im Eintrag/Dialog/
   Adresse, sonst per Name nur, wenn der Name im JSON eindeutig ist, kein Dialog offen ist und kein
@@ -387,9 +387,16 @@ gespeichert, kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht dari
   Leerzeichen und ohne payerId im Eintrag; kein Element trug je den ganzen Namen (`pp_mehrteiligerName`
   liest jetzt Geschwister-Reihen, längste zuerst, Zeichen hinter den Nachnamen). Der erste Bau hatte
   den Aufbau vermutet und nur gegen die eigene geratene Testseite geprüft.
-- **Startseite (`/myaccount/summary`, „Erneut senden“) bekommt kein Zeichen:** die Kacheln tragen
-  nur Namen und ein undurchsichtiges `flowContextData`, keine payerId; Zuordnung wäre nur über den
-  Namen möglich (gemessen 13.11.2026, offen als Entscheidung).
+- **Vorschau (`/transfer/homepage/preview`, 1.16.0.3):** Name nur im `h3[data-testid=recipient-title]`,
+  keine ID. Das Zeichen fehlte, weil das Betragsfeld (`input` mit Text) die Suchsperre auslöste;
+  auf der Vorschau gibt es keine Suche (`PP_VORSCHAU`), der eindeutige Name genügt.
+- **Startseite (`/myaccount/summary`, „Erneut senden“, 1.16.0.3):** die Seite hat weder payerId noch
+  `paymentSentCount`. Jede Transfer-Seite legt darum eine Namenskarte in `chrome.storage.local`
+  (`cu:pp:namen`: normalisierter Name → `{i, a, n, t}` mit Sichtung `t`; Namen mit je zwei IDs bleiben als Grabstein `{x, t}`; Verfall 90 Tage, höchstens 500 Einträge; Tooltip nennt den Stand), nur für Namen
+  mit genau einem Kontakt und Anzahl ≥ 1; ein Name, der später mit anderer ID auftaucht, wird
+  gelöscht (`pp_karteAktualisieren`). Die Startseite liest sie (`pp_karteLaden`) und setzt das ✓
+  nur an Kreise, nie neben einen Namen. Ohne Karte nichts. Die Karte kann veraltet sein (Anzahl
+  stammt vom letzten Besuch einer Transfer-Seite).
 - **Regel für jede Fix-Seite mit fremdem DOM:** Vor dem ersten Test den echten DOM messen (Daniel
   speichert die Seite oder liefert einen `outerHTML`-Auszug), die Testvorlage daraus nachbauen und
   zuerst gegen den alten Code rot sehen; eine geratene Vorlage beweist nur die Annahme (13.11.2026).

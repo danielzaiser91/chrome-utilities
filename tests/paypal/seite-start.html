@@ -1,0 +1,34 @@
+<!doctype html>
+<!--
+  Nachbau der Startseite (/myaccount/summary), Bereich "Erneut senden", Aufbau gemessen am 13.11.2026
+  an einer gespeicherten Seite; Namen sind erfunden:
+  - Kein Kontakt-JSON, keine payerId, keine paymentSentCount in der ganzen Seite.
+  - Je Kontakt ein Link mit Kreis (span, 64 px, position relative, darin ein zweiter Kreis ohne
+    Text) und darunter der Name in einem eigenen div.
+  Die Zahlen kommen nur aus der Namenskarte, die Transfer-Seiten im Speicher der Erweiterung ablegen.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Startseite (Testseite)</title>
+<style>
+  ul { display: flex; gap: 16px; list-style: none; padding: 0; }
+  .aussen, .innen { display: block; position: relative; width: 64px; height: 64px; border-radius: 50%; background: #bde; }
+  .caption { text-align: center; width: 80px; }
+</style>
+</head>
+<body>
+<section>
+  <h2>Erneut senden</h2>
+  <ul>
+    <li><a href="#a"><span class="aussen"><span class="innen"></span></span><div class="caption">Anna Beispiel</div></a></li>
+    <li><a href="#b"><span class="aussen"><span class="innen"></span></span><div class="caption">Carlos Doppel</div></a></li>
+    <li><a href="#c"><span class="aussen"><span class="innen"></span></span><div class="caption">Dora Null</div></a></li>
+    <li><a href="#d"><span class="aussen"><span class="innen"></span></span><div class="caption">Emil Fremd</div></a></li>
+    <li><a href="#e"><span class="aussen"><span class="innen"></span></span><div class="caption">Jürgen Möller</div></a></li>
+    <li><a href="#f"><span class="aussen"><span class="innen"></span></span><div class="caption">Wiebke Zweifach</div></a></li>
+  </ul>
+  <p>Zuletzt: Anna Beispiel</p>
+</section>
+</body>
+</html>

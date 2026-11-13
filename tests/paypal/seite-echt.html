@@ -1,0 +1,66 @@
+<!doctype html>
+<!--
+  Nachbau von "Geld senden" mit dem Aufbau der ECHTEN Seite (gemessen am 13.11.2026 an einer von
+  Daniel gespeicherten Seite; Namen, IDs und Zahlen hier sind erfunden):
+  - Kontakt-JSON in <script type="application/json" id="server-props"> unter contacts.<liste>[],
+    je Kontakt id, payerId, firstName, lastName, fullName, paymentSentCount ...
+  - Kontaktkachel: <button data-testid="contact-bubble"> mit drei Kindern: <div> Initialen,
+    <p title=Vorname> Vorname, <p> Nachname. Kein Leerzeichen dazwischen, KEINE payerId im Eintrag.
+  - Dialog-Kopfzeile laut Textbaustein der Seite: "Sie senden Geld an <span>{displayName}</span>"
+    (Aufbau des Dialogs selbst nicht gemessen, nur dieser Baustein).
+  Frueher war die Testseite geraten (Name in einem Element, Leerzeichen dazwischen) und blieb gruen,
+  obwohl die echte Seite nie ein Zeichen bekam.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Geld senden (Testseite, echter Aufbau)</title>
+<script nonce="" id="server-props" type="application/json">
+{"contacts":{
+ "topContacts":[
+  {"id":"TESTID-0001","payerId":"TESTPAYERA1","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"Beispiel","fullName":"Anna Beispiel","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":2,"paymentReceivedCount":0},
+  {"id":"TESTID-0002","payerId":"TESTPAYERA2","email":"","emails":{},"phones":{},"firstName":"Carlos","lastName":"Doppel","fullName":"Carlos Doppel","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":5,"paymentReceivedCount":0},
+  {"id":"TESTID-0003","payerId":"TESTPAYERA3","email":"","emails":{},"phones":{},"firstName":"Carlos","lastName":"Doppel","fullName":"Carlos Doppel","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":1,"paymentReceivedCount":0},
+  {"id":"TESTID-0004","payerId":"TESTPAYERA4","email":"","emails":{},"phones":{},"firstName":"Dora","lastName":"Null","fullName":"Dora Null","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":0,"paymentReceivedCount":3},
+  {"id":"TESTID-0005","payerId":"TESTPAYERA5","email":"","emails":{},"phones":{},"firstName":"Jürgen","lastName":"Möller","fullName":"Jürgen Möller","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":7,"paymentReceivedCount":0}
+ ],
+ "otherContacts":[
+  {"id":"TESTID-0006","payerId":"TESTPAYERA6","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"","fullName":"Anna","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":9,"paymentReceivedCount":0}
+ ],
+ "topSendContacts":[
+  {"id":"TESTID-0001","payerId":"TESTPAYERA1","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"Beispiel","fullName":"Anna Beispiel","paymentSentCount":2,"paymentReceivedCount":0}
+ ]
+}}
+</script>
+<style>
+  body { font-family: sans-serif; }
+  menu { display: flex; gap: 12px; list-style: none; padding: 0; }
+  button[data-testid=contact-bubble] { width: 90px; border: 0; background: none; text-align: center; }
+  button p { margin: 0; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+<form id="app"></form>
+<script>
+  // Mini-SPA: Kacheln <-> Dialog. Nichts davon geht ins Netz.
+  const KACHELN = [
+    ["Anna", "Beispiel"], // Vorname allein ist auch ein Kontakt (fullName "Anna"): Kachel gehoert zu "Anna Beispiel"
+    ["Carlos", "Doppel"], // zwei Kontakte gleichen Namens, keine ID in der Kachel: kein Zeichen
+    ["Dora", "Null"], // 0 Zahlungen: kein Zeichen
+    ["Emil", "Fremd"], // nicht im JSON: kein Zeichen
+    ["Jürgen", "Möller"], // Umlaute
+  ];
+  const app = document.getElementById("app");
+  function kacheln() {
+    app.innerHTML = "<menu>" + KACHELN.map(([v, n]) =>
+      `<li><button type="button" data-testid="contact-bubble" data-nemo="contact-circle-item" tabindex="0"><div>${v[0]}${n[0]}</div><p title="${v}">${v}</p><p>${n}</p></button></li>`).join("") + "</menu>";
+    app.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", () => dialog(KACHELN[i])));
+  }
+  function dialog([v, n]) {
+    app.innerHTML = `<div role="dialog"><h2>Sie senden Geld an <span class="ppvx_text--xl">${v} ${n}</span></h2><button type="button" id="zurueck">Zurück</button></div>`;
+    app.querySelector("#zurueck").addEventListener("click", kacheln);
+  }
+  kacheln();
+</script>
+</body>
+</html>

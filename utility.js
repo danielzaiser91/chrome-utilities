@@ -6676,17 +6676,48 @@ function pp_nachName() {
 }
 
 /**
- * Kandidaten: kleinstes Element, dessen Text genau ein Kontaktname ist (namensElemente), und
- * Dialog-Kopfzeilen (koepfe: Element -> normalisierter Name).
+ * Name auf mehreren Geschwister-Elementen (echte Kontaktkachel: Initialen-Kreis, dann Vorname und
+ * Nachname je in einem <p>, ohne Leerzeichen dazwischen). Laengste Reihe ab el zuerst, damit ein
+ * Vorname, der allein auch ein Kontakt waere, die Kachel nicht an sich reisst.
+ * Ergebnis: { name, el: letztes Element der Reihe } oder null (auch wenn das Elternelement allein
+ * schon der ganze Name ist: dann nimmt pp_kandidaten dieses).
+ */
+function pp_mehrteiligerName(el, nachName) {
+  const teile = [];
+  const folge = [];
+  for (let e = el; e && folge.length < 3; e = e.nextElementSibling) {
+    const text = pp_norm(pp_eigenText(e));
+    if (!text || text.length > 60 || e.matches("script, style, svg, .cu-pp-zaehler")) break;
+    teile.push(text);
+    folge.push(e);
+  }
+  for (let n = folge.length; n >= 2; n--) {
+    const name = teile.slice(0, n).join(" ");
+    // Umschliesst ein Element die Reihe schon als ganzen Namen, gilt das (Ancestor-Schleife)
+    if (nachName.has(name) && pp_norm(pp_eigenText(el.parentElement)) !== name)
+      return { name, el: folge[n - 1] };
+  }
+  return null;
+}
+
+/**
+ * Kandidaten: kleinstes Element, dessen Text genau ein Kontaktname ist (namensElemente: Element ->
+ * normalisierter Name; bei zwei Zeilen das Element der letzten), und Dialog-Kopfzeilen
+ * (koepfe: Element -> normalisierter Name).
  */
 function pp_kandidaten(nachName) {
-  const namensElemente = new Set();
+  const namensElemente = new Map();
   const koepfe = new Map();
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let t = walker.nextNode(); t; t = walker.nextNode()) {
     if (!t.data.trim() || t.data.length > 150) continue;
     const el = t.parentElement;
     if (!el || el.closest("script, style, noscript, template, textarea, .cu-pp-zaehler")) continue;
+    const mehr = pp_mehrteiligerName(el, nachName);
+    if (mehr) {
+      namensElemente.set(mehr.el, mehr.name);
+      continue;
+    }
     for (let a = el, d = 0; a && a !== document.body && d < 3; a = a.parentElement, d++) {
       const text = pp_norm(pp_eigenText(a));
       if (text.length > 150) break;
@@ -6696,7 +6727,7 @@ function pp_kandidaten(nachName) {
         break;
       }
       if (nachName.has(text)) {
-        namensElemente.add(a);
+        namensElemente.set(a, text);
         break;
       }
     }
@@ -6771,15 +6802,14 @@ function pp_pruefen() {
 
   // Senden-Dialog
   for (const [kopf, name] of koepfe) {
-    const namensEl = [...namensElemente].find((n) => kopf.contains(n));
+    const namensEl = [...namensElemente.keys()].find((n) => kopf.contains(n));
     if (namensEl) namensElemente.delete(namensEl);
     ziele.set(namensEl ?? kopf, pp_dialogBinden(kopf, name, idMuster).kontakt);
   }
 
   // Kontaktliste (und alles andere mit einem bekannten Namen)
-  const alle = [...namensElemente];
-  for (const el of alle) {
-    const name = pp_norm(pp_eigenText(el));
+  const alle = [...namensElemente.keys()];
+  for (const [el, name] of namensElemente) {
     // Eintrag = groesster Vorfahre, der nur diesen einen Namen enthaelt
     let eintrag = el;
     for (let tiefe = 0; tiefe < 8; tiefe++) {
@@ -8399,7 +8429,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0.0",
+  version: "1.16.0.1",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

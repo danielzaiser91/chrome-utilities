@@ -379,9 +379,20 @@ gespeichert, kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht dari
   Eingabefeld Text hat. Der Dialog übernimmt nur den zuletzt angeklickten Listeneintrag.
 - **Nie bei PayPal einloggen oder PayPal abrufen.** Test: `node tests/paypal/test.mjs` (echte
   Erweiterung, nachgebaute Seite `tests/paypal/seite.html`, erfundene Kontakte, alle Anfragen
-  lokal abgefangen, ohne Proxy und Namensauflösung). Der Aufbau der Testseite ist geraten, nicht
-  von PayPal abgeschaut; ob Selektor-freie Erkennung (Text = Name, Kopfzeile „Sie senden Geld an“)
-  am echten DOM greift, prüft nur Daniel.
+  lokal abgefangen, ohne Proxy und Namensauflösung). `seite.html`/`seite-zwei.html` sind geraten;
+  `seite-echt.html` bildet den echten Aufbau nach (13.11.2026, Struktur aus einer von Daniel
+  gespeicherten Seite, Inhalte erfunden).
+- **Fehler 13.11.2026: auf der echten Seite fehlte das ✓ überall.** Kontaktkachel ist
+  `button[data-testid=contact-bubble]` mit Initialen-`div`, Vorname-`p`, Nachname-`p`, ohne
+  Leerzeichen und ohne payerId im Eintrag; kein Element trug je den ganzen Namen (`pp_mehrteiligerName`
+  liest jetzt Geschwister-Reihen, längste zuerst, Zeichen hinter den Nachnamen). Der erste Bau hatte
+  den Aufbau vermutet und nur gegen die eigene geratene Testseite geprüft.
+- **Startseite (`/myaccount/summary`, „Erneut senden“) bekommt kein Zeichen:** die Kacheln tragen
+  nur Namen und ein undurchsichtiges `flowContextData`, keine payerId; Zuordnung wäre nur über den
+  Namen möglich (gemessen 13.11.2026, offen als Entscheidung).
+- **Regel für jede Fix-Seite mit fremdem DOM:** Vor dem ersten Test den echten DOM messen (Daniel
+  speichert die Seite oder liefert einen `outerHTML`-Auszug), die Testvorlage daraus nachbauen und
+  zuerst gegen den alten Code rot sehen; eine geratene Vorlage beweist nur die Annahme (13.11.2026).
 
 ### Releases & Discord
 - Bei neuem Release: GitHub Release erstellen mit Release-Notes nach dem Format unten

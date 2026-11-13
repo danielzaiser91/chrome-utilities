@@ -1,4 +1,5 @@
 // Test des PayPal-Zaehlers mit der echten Erweiterung und einer nachgebauten Seite.
+// Playwright steht nicht im Repo: NODE_PATH=C:/code/ai/anime-kalender-de/node_modules setzen.
 // Kein Abruf bei PayPal: Jede Anfrage wird abgefangen, die Transfer-Adresse bekommt seite.html,
 // alles andere wird abgebrochen. Alle Kontakte sind erfunden.
 //
@@ -15,6 +16,7 @@ const hier = dirname(fileURLToPath(import.meta.url));
 const erweiterung = join(hier, "..", "..");
 const html = readFileSync(join(hier, "seite.html"), "utf8");
 const htmlZwei = readFileSync(join(hier, "seite-zwei.html"), "utf8");
+const htmlEcht = readFileSync(join(hier, "seite-echt.html"), "utf8");
 const BASIS = "https://www.paypal.com/myaccount/transfer/homepage";
 
 const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), "cu-pp-")), {
@@ -37,7 +39,7 @@ await ctx.route("**/*", (route) => {
     return route.fulfill({
       status: 200,
       contentType: "text/html; charset=utf-8",
-      body: url.includes("/zwei") ? htmlZwei : html,
+      body: url.includes("/zwei") ? htmlZwei : url.includes("/echt") ? htmlEcht : html,
     });
   return route.abort();
 });
@@ -157,6 +159,41 @@ for (const [i, name] of [[2, "Eva Doppel"], [3, "Frank Anders"], [6, "Hans Ander
   await warte(page);
   // zwei IDs im Dialog / ID mit fremdem Namen / Klick-Eintrag mit anderem Namen als die Kopfzeile
   pruefe(`Grenzfall Dialog ${name}`, await zeichen(page, "#dialog h2"), [[name, null]]);
+  await page.click("#zurueck");
+  await warte(page);
+}
+
+// Echter Aufbau (seite-echt.html): Kachel = Initialen + Vorname-<p> + Nachname-<p>, keine ID im Eintrag.
+// Das war der Fehler vom 13.11.2026: der Name stand nie in einem Element, also kein Zeichen.
+const kacheln = (p) =>
+  p.$$eval("[data-testid=contact-bubble]", (bs) =>
+    bs.map((b) => {
+      const z = b.querySelector(".cu-pp-zaehler");
+      const teile = [...b.querySelectorAll("p")].flatMap((p) =>
+        [...p.childNodes].filter((n) => n !== z).map((n) => n.textContent),
+      );
+      return [teile.join(" "), z ? z.textContent : null];
+    }),
+  );
+const dialogZeichen = (p) =>
+  p.$eval("[role=dialog] h2", (h) => [
+    h.querySelector(".ppvx_text--xl").firstChild.textContent,
+    h.querySelector(".cu-pp-zaehler")?.textContent ?? null,
+  ]);
+await page.goto(BASIS.replace("homepage", "echt"));
+await warte(page);
+pruefe("Echter Aufbau: Kacheln", await kacheln(page), [
+  ["Anna Beispiel", "✓ 2"], // nicht die 9 von "Anna" allein, nicht die 3 von "Anna Beispiel Junior" (nur exakter Name)
+  ["Carlos Doppel", null], // zwei Kontakte, keine ID in der Kachel
+  ["Dora Null", null],
+  ["Emil Fremd", null],
+  ["Jürgen Möller", "✓ 7"],
+  ["Anna Maria Beispiel", "✓ 4"], // längste Reihe gewinnt, nicht "Anna Maria" (6) oder "Anna" (9)
+]);
+for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"], [5, "✓ 4"]]) {
+  await page.click(`[data-testid=contact-bubble] >> nth=${i}`);
+  await warte(page);
+  pruefe(`Echter Aufbau: Dialog nach Kachel ${i}`, (await dialogZeichen(page))[1], soll);
   await page.click("#zurueck");
   await warte(page);
 }

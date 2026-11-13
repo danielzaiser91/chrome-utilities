@@ -6603,13 +6603,11 @@ function pp_objekteMit(text, tiefe = 0) {
   }
   if (tiefe < 2)
     for (const lit of strings) {
-      let inhalt;
       try {
-        inhalt = JSON.parse(lit[0] === '"' ? lit : `"${lit.slice(1, -1).replace(/"/g, '\\"')}"`);
+        funde.push(...pp_objekteMit(JSON.parse(lit), tiefe + 1));
       } catch {
-        inhalt = lit.slice(1, -1).replace(/\\(["'\\/])/g, "$1");
+        // kein gueltiges String-Literal: nichts lesen
       }
-      funde.push(...pp_objekteMit(inhalt, tiefe + 1));
     }
   return funde;
 }
@@ -6623,7 +6621,7 @@ function pp_kontaktAus(stueck) {
     try {
       return JSON.parse(`"${m[1]}"`);
     } catch {
-      return m[1];
+      return ""; // nicht lesbar: Feld gilt als leer, nie ein halber Wert
     }
   };
   const payerId = feld("payerId");
@@ -6723,7 +6721,7 @@ function pp_dialogBinden(kopf, name, idMuster) {
   const ids = idMuster ? pp_idsIn(dialog, idMuster, location.href) : new Set();
   const passend = [...ids].map((id) => pp_kontakte.get(id)).filter((k) => k.namen.has(name));
   let kontakt = null;
-  if (ids.size) kontakt = ids.size === 1 && passend.length === 1 ? passend[0] : null;
+  if (ids.size) kontakt = ids.size === 1 ? passend[0] : null;
   else if (pp_klick?.name === name) kontakt = pp_klick.kontakt;
   bindung = { name, kontakt };
   pp_dialogBindung.set(kopf, bindung);

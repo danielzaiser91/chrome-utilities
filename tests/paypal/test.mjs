@@ -149,6 +149,8 @@ pruefe("Grenzfaelle Liste", await zeichen(page, "#liste .kontakt"), [
   ["Karl Sieben", "✓ 7", "Du hast schon 7× Geld an Karl Sieben gesendet"], // gleiche payerId in zwei Skripten: 7 und 4
   ["Lena Sechs", "✓ 6", "Du hast schon 6× Geld an Lena Sechs gesendet"], // 2 und 6
   ["Gina Klick", "✓ 3", "Du hast schon 3× Geld an Gina Klick gesendet"],
+  ["Olga Einfach", null], // JSON in '...' wird nicht gelesen (und Name ist ohnehin nicht bekannt)
+  ["Paul Kaputt", null], // ungueltiges String-Literal wird uebergangen
 ]);
 for (const [i, name] of [[2, "Eva Doppel"], [3, "Frank Anders"], [6, "Hans Anders"]]) {
   await page.click(`#liste .kontakt >> nth=${i}`);

@@ -8,9 +8,16 @@
 <head>
 <meta charset="utf-8">
 <title>Geld senden (Testseite 2)</title>
+<!-- Nicht gelesen: JSON in einfachem Anfuehrungszeichen; ungueltiges String-Literal (\x). Das
+     zweite steht vor den gueltigen Skripten und darf deren Lesen nicht abbrechen. -->
+<script>
+  window.__EINFACH__ = '{"payerId":"TESTPAYER21","fullName":"Olga Einfach","paymentSentCount":5}';
+  window.__KAPUTT__ = "{\x41 \"payerId\":\"TESTPAYER22\",\"fullName\":\"Paul Kaputt\",\"paymentSentCount\":2}";
+</script>
 <!-- Skript 1 und 2 nennen dieselbe payerId mit verschiedener Zahl (hoeher zuerst bzw. zuletzt) -->
 <script type="application/json">
 {"contacts":{"topContacts":[
+  {"payerId":"TESTPAYER23","fullName":"Quirin Seltsam","displayName":"Q\x","paymentSentCount":1},
   {"payerId":"TESTPAYER11","fullName":"Dana Gleich","paymentSentCount":4},
   {"payerId":"TESTPAYER12","fullName":"Dana Gleich","paymentSentCount":9},
   {"payerId":"TESTPAYER13","fullName":"Eva Doppel","paymentSentCount":5},
@@ -46,6 +53,8 @@
     { name: "Karl Sieben", attr: ["TESTPAYER17"] },
     { name: "Lena Sechs", attr: ["TESTPAYER18"] },
     { name: "Gina Klick", oeffnet: "Hans Anders" }, // Dialog zeigt anderen Namen als der Eintrag
+    { name: "Olga Einfach", attr: ["TESTPAYER21"] },
+    { name: "Paul Kaputt", attr: ["TESTPAYER22"] },
   ];
   const app = document.getElementById("app");
   function liste() {

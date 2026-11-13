@@ -397,6 +397,12 @@ Namenskarte für die Startseite gespeichert (unten), kein MAIN-World-Skript. Suc
   gelöscht (`pp_karteAktualisieren`). Die Startseite liest sie (`pp_karteLaden`) und setzt das ✓
   nur an Kreise, nie neben einen Namen. Ohne Karte nichts. Die Karte kann veraltet sein (Anzahl
   stammt vom letzten Besuch einer Transfer-Seite).
+- **Diagnose (1.16.0.4):** fehlt ein ✓, in der Konsole der Seite
+  `document.documentElement.dataset.cuPpDiag` ausgeben: nur Zahlen (`pfad` 1 Vorschau/2 Start,
+  `kontakte` bekannt, `json` Skripte mit Kontaktdaten im DOM, `kand` Namenstreffer, `suche`/`sicher`,
+  `eind`/`mehrd`, `anz0` eindeutig ohne Zahlung, `ziele`, `mitKontakt`, `kreis`, `z` gesetzt). `undefined`
+  heißt: das Skript lief auf dieser Seite nie (z. B. SPA-Einstieg von einer nicht passenden Adresse).
+  Live-Anlass 13.11.2026: Vorschau nach Klick auf einen Kontakt ohne ✓, Ursache noch ungeklärt.
 - **Regel für jede Fix-Seite mit fremdem DOM:** Vor dem ersten Test den echten DOM messen (Daniel
   speichert die Seite oder liefert einen `outerHTML`-Auszug), die Testvorlage daraus nachbauen und
   zuerst gegen den alten Code rot sehen; eine geratene Vorlage beweist nur die Annahme (13.11.2026).

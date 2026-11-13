@@ -6968,6 +6968,41 @@ function pp_pruefen() {
   }
   pp_eintraege = neueEintraege;
   pp_zeichenSetzen(ziele);
+  pp_diagnose(namensElemente, koepfe, nachName, sicher, ziele);
+}
+
+/**
+ * Diagnose ohne Namen: document.documentElement.dataset.cuPpDiag (data-cu-pp-diag) nennt nur Zahlen
+ * und Gruende, damit man am echten Fall sieht, warum ein Zeichen fehlt. Konsole:
+ *   document.documentElement.dataset.cuPpDiag
+ * pfad: 1 Vorschau, 2 Startseite, 0 anderes; kontakte: bekannte Kontakte; json: Skripte mit
+ * Kontaktdaten im DOM; kand: Namenskandidaten; koepfe: Dialog-Kopfzeilen; suche/sicher: 0|1;
+ * eind/mehrd: Kandidaten mit einem/mehreren Kontakten dieses Namens; anz0: eindeutige ohne Zahlung;
+ * ziele: Stellen fuer ein Zeichen; mitKontakt: davon mit Kontakt; kreis: davon am Kreis; z: gesetzt.
+ */
+function pp_diagnose(namensElemente, koepfe, nachName, sicher, ziele) {
+  const kandidaten = [...namensElemente.values()];
+  const eindeutig = kandidaten.filter((n) => nachName.get(n).length === 1);
+  const werte = {
+    pfad: PP_VORSCHAU.test(location.pathname) ? 1 : PP_STARTSEITE.test(location.pathname) ? 2 : 0,
+    kontakte: pp_kontakte.size,
+    json: [...document.querySelectorAll("script:not([src])")].filter((s) =>
+      s.textContent.includes("paymentSentCount"),
+    ).length,
+    kand: kandidaten.length,
+    koepfe: koepfe.size,
+    suche: pp_sucheAktiv() ? 1 : 0,
+    sicher: sicher ? 1 : 0,
+    eind: eindeutig.length,
+    mehrd: kandidaten.length - eindeutig.length,
+    anz0: eindeutig.filter((n) => nachName.get(n)[0].anzahl < 1).length,
+    ziele: ziele.size,
+    mitKontakt: [...ziele.values()].filter((z) => z.kontakt).length,
+    kreis: [...ziele.values()].filter((z) => z.kreis).length,
+    z: document.querySelectorAll(".cu-pp-zaehler").length,
+  };
+  const text = Object.entries(werte).map(([k, v]) => `${k}=${v}`).join(" ");
+  if (document.documentElement.dataset.cuPpDiag !== text) document.documentElement.dataset.cuPpDiag = text;
 }
 
 /** Merkt den angeklickten Listeneintrag fuer den Dialog; jeder andere Klick vergisst ihn. */
@@ -8573,7 +8608,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0.3",
+  version: "1.16.0.4",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

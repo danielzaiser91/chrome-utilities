@@ -241,6 +241,7 @@ for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"], [5, "✓ 4"]]) {
   await warte(page);
 }
 
+const diag = (p) => p.evaluate(() => document.documentElement.dataset.cuPpDiag ?? null);
 // Vorschau vor dem Senden: Name nur im <h3>, keine ID, Betragsfeld mit Text (13.11.2026: kein Zeichen)
 const vorschau = (p) =>
   p.$$eval("[data-testid=recipient-title]", (hs) =>
@@ -252,14 +253,17 @@ const vorschau = (p) =>
 await page.goto(`${BASIS}/preview`);
 await warte(page);
 pruefe("Vorschau: Zeichen am Kreis", await vorschau(page), [["✓ 4", "kr", 6]]);
+pruefe("Diagnose Vorschau (nur Zahlen)", await diag(page), "pfad=1 kontakte=3 json=1 kand=1 koepfe=0 suche=1 sicher=1 eind=1 mehrd=0 anz0=0 ziele=1 mitKontakt=1 kreis=1 z=1");
 await page.goto("https://www.paypal.com/myaccount/transfer/mehrdeutig/preview");
 await warte(page);
 pruefe("Vorschau: Name mit zwei IDs, kein Zeichen", await vorschau(page), [[null, null, null]]);
+pruefe("Diagnose mehrdeutig", await diag(page), "pfad=1 kontakte=3 json=1 kand=1 koepfe=0 suche=1 sicher=1 eind=0 mehrd=1 anz0=0 ziele=1 mitKontakt=0 kreis=1 z=0");
 
 // Suchfeld mit Text auf einer anderen Transfer-Seite behaelt die Suchsperre (gleiche Seite, nicht /preview)
 await page.goto("https://www.paypal.com/myaccount/transfer/suche/start");
 await warte(page);
 pruefe("Textfeld ausserhalb der Vorschau: Suchsperre, kein Zeichen", await vorschau(page), [[null, null, null]]);
+pruefe("Diagnose Suchsperre", await diag(page), "pfad=0 kontakte=3 json=1 kand=1 koepfe=0 suche=1 sicher=0 eind=1 mehrd=0 anz0=0 ziele=1 mitKontakt=0 kreis=1 z=0");
 
 // Grabstein: der Name hatte zwei IDs (Seite oben); eine spaetere Seite mit nur einer davon macht ihn nicht eindeutig
 await page.goto("https://www.paypal.com/myaccount/transfer/einzeln/start");

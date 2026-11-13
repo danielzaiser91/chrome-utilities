@@ -68,7 +68,7 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 - Play button for episodes opened by reload or link, which otherwise never start
 
 ### PayPal
-- Send money: a green ✓ with the number of payments next to each contact you have paid before, so two people with the same name can be told apart (1.16.0.1: shows again on the real page, where the name is split over two lines; 1.16.0.2: sits at the bottom right of the contact circle in the list, the contact list and the send dialog; 1.16.0.3: also on the review page before sending and, for names remembered from earlier visits, under "Send again" on the home page)
+- Send money: a green ✓ with the number of payments next to each contact you have paid before, so two people with the same name can be told apart (1.16.0.1: shows again on the real page, where the name is split over two lines; 1.16.0.2: sits at the bottom right of the contact circle in the list, the contact list and the send dialog; 1.16.0.3: also on the review page before sending and, for names remembered from earlier visits, under "Send again" on the home page; 1.16.0.4: the page now records why a ✓ is missing, as numbers only, in a diagnostic attribute)
 
 ### luluvdo / Filemoon / VOE
 - Custom playback speed (0.2×–5×), also when the player is embedded on another site (e.g. VOE on serienstream.to)

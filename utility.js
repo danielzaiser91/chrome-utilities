@@ -6526,7 +6526,6 @@ function fixPayPal() {
   );
   document.addEventListener("click", pp_merkeKlick, true);
   pp_pruefen();
-  if (PP_STARTSEITE.test(location.pathname)) pp_karteLaden();
   // SPA: Liste und Dialog werden ohne Neuladen ausgetauscht, also nachlaufend gebremst neu pruefen
   let geplant = null;
   let letzte = 0;
@@ -6927,8 +6926,18 @@ function pp_zeichenSetzen(ziele) {
     if (!ziele.has(z.parentElement)) z.remove();
 }
 
+let pp_karteAngefragt = false;
+/** Karte einmal je Dokument holen: Startseite immer, Vorschau ohne Kontakte (Direktaufruf, SPA-Wechsel). */
+function pp_karteNoetig(pfad, kontakteAnzahl) {
+  return PP_STARTSEITE.test(pfad) || (PP_VORSCHAU.test(pfad) && kontakteAnzahl === 0);
+}
+
 function pp_pruefen() {
   pp_kontakteLesen();
+  if (!pp_karteAngefragt && pp_karteNoetig(location.pathname, pp_kontakte.size)) {
+    pp_karteAngefragt = true;
+    pp_karteLaden();
+  }
   const nachName = pp_nachName();
   const idMuster = pp_idMuster();
   const { namensElemente, koepfe } = pp_kandidaten(nachName);

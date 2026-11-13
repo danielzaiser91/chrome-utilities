@@ -42,6 +42,13 @@
   menu { display: flex; gap: 12px; list-style: none; padding: 0; }
   button[data-testid=contact-bubble] { width: 90px; border: 0; background: none; text-align: center; }
   button p { margin: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Kreis wie gemessen (13.11.2026): Rahmen-div 64x64 static, darin der Kreis relative, 50 %, Initialen als Text */
+  .rahmen { width: 64px; height: 64px; margin: 0 auto; }
+  .kreis { position: relative; width: 64px; height: 64px; border-radius: 50%; background: #dbe; line-height: 64px; }
+  /* Dialog geraten (nicht gemessen): Kreis, der abschneidet, in einem eng anliegenden Rahmen;
+     die Kacheln bleiben dahinter stehen */
+  .rahmen48 { width: 48px; height: 48px; }
+  .bildkreis { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: #bde; }
 </style>
 </head>
 <body>
@@ -59,11 +66,11 @@
   const app = document.getElementById("app");
   function kacheln() {
     app.innerHTML = "<menu>" + KACHELN.map(([v, ...rest]) =>
-      `<li><button type="button" data-testid="contact-bubble" data-nemo="contact-circle-item" tabindex="0"><div>${v[0]}${rest[0][0]}</div><p title="${v}">${v}</p>${rest.map((n) => `<p>${n}</p>`).join("")}</button></li>`).join("") + "</menu>";
+      `<li><button type="button" data-testid="contact-bubble" data-nemo="contact-circle-item" tabindex="0"><div class="rahmen"><div class="kreis">${v[0]}${rest[0][0]}</div></div><p title="${v}">${v}</p>${rest.map((n) => `<p>${n}</p>`).join("")}</button></li>`).join("") + "</menu>";
     app.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", () => dialog(KACHELN[i])));
   }
   function dialog(teile) {
-    app.innerHTML = `<div role="dialog"><h2>Sie senden Geld an <span class="ppvx_text--xl">${teile.join(" ")}</span></h2><button type="button" id="zurueck">Zurück</button></div>`;
+    app.insertAdjacentHTML("beforeend", `<div role="dialog"><div class="rahmen48"><div class="bildkreis">${teile[0][0]}</div></div><h2>Sie senden Geld an <span class="ppvx_text--xl">${teile.join(" ")}</span></h2><button type="button" id="zurueck">Zurück</button></div>`);
     app.querySelector("#zurueck").addEventListener("click", kacheln);
   }
   kacheln();

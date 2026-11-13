@@ -6662,23 +6662,28 @@ function pp_idsIn(el, idMuster, zusatz = "") {
   return funde;
 }
 
-function pp_pruefen() {
-  pp_kontakteLesen();
+/** Regex ueber alle bekannten payerIds (ohne Nachbarzeichen aus Buchstaben/Ziffern), sonst null. */
+function pp_idMuster() {
+  if (!pp_kontakte.size) return null;
+  const ids = [...pp_kontakte.keys()].map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`(?<![A-Za-z0-9])(${ids.join("|")})(?![A-Za-z0-9])`, "g");
+}
+
+/** normalisierter Name -> alle Kontakte, die so heissen */
+function pp_nachName() {
   const nachName = new Map();
   for (const k of pp_kontakte.values())
     for (const n of k.namen) nachName.set(n, [...(nachName.get(n) ?? []), k]);
-  const idMuster = pp_kontakte.size
-    ? new RegExp(
-        `(?<![A-Za-z0-9])(${[...pp_kontakte.keys()]
-          .map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .join("|")})(?![A-Za-z0-9])`,
-        "g",
-      )
-    : null;
+  return nachName;
+}
 
-  // Kandidaten: kleinstes Element, dessen Text genau ein Kontaktname ist, und Dialog-Kopfzeilen
+/**
+ * Kandidaten: kleinstes Element, dessen Text genau ein Kontaktname ist (namensElemente), und
+ * Dialog-Kopfzeilen (koepfe: Element -> normalisierter Name).
+ */
+function pp_kandidaten(nachName) {
   const namensElemente = new Set();
-  const koepfe = new Map(); // Kopf-Element -> Name (normalisiert)
+  const koepfe = new Map();
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let t = walker.nextNode(); t; t = walker.nextNode()) {
     if (!t.data.trim() || t.data.length > 150) continue;
@@ -6698,60 +6703,45 @@ function pp_pruefen() {
       }
     }
   }
+  return { namensElemente, koepfe };
+}
 
-  const ziele = new Map(); // Element, das das Zeichen bekommt -> Kontakt
-  const dialogOffen = koepfe.size > 0;
-  const sucheAktiv = [
+/** Steht in einem sichtbaren Eingabefeld Text (Suche)? Dann koennten Treffer fremde Kontakte sein. */
+function pp_sucheAktiv() {
+  return [
     ...document.querySelectorAll(
       "input:not([type]), input[type=text], input[type=search], input[type=email], input[type=tel], input[type=number]",
     ),
   ].some((i) => i.value.trim() && i.getClientRects().length);
-  const neueEintraege = new WeakMap();
+}
 
-  // Senden-Dialog
-  for (const [kopf, name] of koepfe) {
-    const namensEl = [...namensElemente].find((n) => kopf.contains(n));
-    if (namensEl) namensElemente.delete(namensEl);
-    let bindung = pp_dialogBindung.get(kopf);
-    if (bindung?.name !== name) {
-      const dialog =
-        kopf.closest('[role=dialog], dialog, [aria-modal="true"]') ?? kopf.parentElement;
-      const ids = idMuster ? pp_idsIn(dialog, idMuster, location.href) : new Set();
-      const passend = [...ids].map((id) => pp_kontakte.get(id)).filter((k) => k.namen.has(name));
-      let kontakt = null;
-      if (ids.size) kontakt = ids.size === 1 && passend.length === 1 ? passend[0] : null;
-      else if (pp_klick?.name === name) kontakt = pp_klick.kontakt;
-      bindung = { name, kontakt };
-      pp_dialogBindung.set(kopf, bindung);
-    }
-    ziele.set(namensEl ?? kopf, bindung.kontakt);
+/** Kontakt zur Dialog-Kopfzeile, fest ab dem ersten Sehen: { name, kontakt|null } */
+function pp_dialogBinden(kopf, name, idMuster) {
+  let bindung = pp_dialogBindung.get(kopf);
+  if (bindung?.name === name) return bindung;
+  const dialog = kopf.closest('[role=dialog], dialog, [aria-modal="true"]') ?? kopf.parentElement;
+  const ids = idMuster ? pp_idsIn(dialog, idMuster, location.href) : new Set();
+  const passend = [...ids].map((id) => pp_kontakte.get(id)).filter((k) => k.namen.has(name));
+  let kontakt = null;
+  if (ids.size) kontakt = ids.size === 1 && passend.length === 1 ? passend[0] : null;
+  else if (pp_klick?.name === name) kontakt = pp_klick.kontakt;
+  bindung = { name, kontakt };
+  pp_dialogBindung.set(kopf, bindung);
+  return bindung;
+}
+
+/** Kontakt zu einem Namen in der Liste: ueber die ID im Eintrag, sonst nur ueber einen eindeutigen Namen. */
+function pp_listenKontakt(ids, name, nachName, sicher) {
+  if (ids.size) {
+    const k = ids.size === 1 ? pp_kontakte.get([...ids][0]) : null;
+    return k?.namen.has(name) ? k : null;
   }
+  if (sicher && nachName.get(name).length === 1) return nachName.get(name)[0];
+  return null;
+}
 
-  // Kontaktliste (und alles andere mit einem bekannten Namen)
-  const alle = [...namensElemente];
-  for (const el of alle) {
-    const name = pp_norm(pp_eigenText(el));
-    // Eintrag = groesster Vorfahre, der nur diesen einen Namen enthaelt
-    let eintrag = el;
-    for (let tiefe = 0; tiefe < 8; tiefe++) {
-      const p = eintrag.parentElement;
-      if (!p || p === document.body || alle.some((o) => o !== el && p.contains(o))) break;
-      eintrag = p;
-    }
-    const ids = idMuster ? pp_idsIn(eintrag, idMuster) : new Set();
-    let kontakt = null;
-    if (ids.size) {
-      const k = ids.size === 1 ? pp_kontakte.get([...ids][0]) : null;
-      kontakt = k?.namen.has(name) ? k : null;
-    } else if (!dialogOffen && !sucheAktiv && nachName.get(name).length === 1) {
-      kontakt = nachName.get(name)[0];
-    }
-    neueEintraege.set(eintrag, { name, kontakt });
-    ziele.set(el, kontakt);
-  }
-  pp_eintraege = neueEintraege;
-
-  // Zeichen setzen, aendern, entfernen -- nur anfassen, was sich aendert (sonst Beobachter-Schleife)
+/** Zeichen setzen, aendern, entfernen -- nur anfassen, was sich aendert (sonst Beobachter-Schleife). */
+function pp_zeichenSetzen(ziele) {
   for (const [el, kontakt] of ziele) {
     const alt = [...el.children].find((c) => c.classList.contains("cu-pp-zaehler"));
     if (!kontakt || kontakt.anzahl < 1) {
@@ -6770,6 +6760,42 @@ function pp_pruefen() {
   }
   for (const z of document.querySelectorAll(".cu-pp-zaehler"))
     if (!ziele.has(z.parentElement)) z.remove();
+}
+
+function pp_pruefen() {
+  pp_kontakteLesen();
+  const nachName = pp_nachName();
+  const idMuster = pp_idMuster();
+  const { namensElemente, koepfe } = pp_kandidaten(nachName);
+  const ziele = new Map(); // Element, das das Zeichen bekommt -> Kontakt
+  const sicher = koepfe.size === 0 && !pp_sucheAktiv(); // kein Dialog offen, keine Suche
+  const neueEintraege = new WeakMap();
+
+  // Senden-Dialog
+  for (const [kopf, name] of koepfe) {
+    const namensEl = [...namensElemente].find((n) => kopf.contains(n));
+    if (namensEl) namensElemente.delete(namensEl);
+    ziele.set(namensEl ?? kopf, pp_dialogBinden(kopf, name, idMuster).kontakt);
+  }
+
+  // Kontaktliste (und alles andere mit einem bekannten Namen)
+  const alle = [...namensElemente];
+  for (const el of alle) {
+    const name = pp_norm(pp_eigenText(el));
+    // Eintrag = groesster Vorfahre, der nur diesen einen Namen enthaelt
+    let eintrag = el;
+    for (let tiefe = 0; tiefe < 8; tiefe++) {
+      const p = eintrag.parentElement;
+      if (!p || p === document.body || alle.some((o) => o !== el && p.contains(o))) break;
+      eintrag = p;
+    }
+    const ids = idMuster ? pp_idsIn(eintrag, idMuster) : new Set();
+    const kontakt = pp_listenKontakt(ids, name, nachName, sicher);
+    neueEintraege.set(eintrag, { name, kontakt });
+    ziele.set(el, kontakt);
+  }
+  pp_eintraege = neueEintraege;
+  pp_zeichenSetzen(ziele);
 }
 
 /** Merkt den angeklickten Listeneintrag fuer den Dialog; jeder andere Klick vergisst ihn. */

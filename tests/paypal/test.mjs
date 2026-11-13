@@ -17,7 +17,21 @@ const erweiterung = join(hier, "..", "..");
 const html = readFileSync(join(hier, "seite.html"), "utf8");
 const htmlZwei = readFileSync(join(hier, "seite-zwei.html"), "utf8");
 const htmlEcht = readFileSync(join(hier, "seite-echt.html"), "utf8");
+const htmlVorschau = readFileSync(join(hier, "seite-vorschau.html"), "utf8");
+const htmlStart = readFileSync(join(hier, "seite-start.html"), "utf8");
 const BASIS = "https://www.paypal.com/myaccount/transfer/homepage";
+const START = "https://www.paypal.com/myaccount/summary";
+const ERLAUBT = ["https://www.paypal.com/myaccount/transfer/", START];
+const seiteFuer = (url) =>
+  url.startsWith(START)
+    ? htmlStart
+    : url.includes("/preview")
+      ? htmlVorschau
+      : url.includes("/zwei")
+        ? htmlZwei
+        : url.includes("/echt")
+          ? htmlEcht
+          : html;
 
 const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), "cu-pp-")), {
   channel: "chromium",
@@ -35,12 +49,8 @@ const anfragen = [];
 await ctx.route("**/*", (route) => {
   const url = route.request().url();
   anfragen.push(url);
-  if (url.startsWith("https://www.paypal.com/myaccount/transfer/"))
-    return route.fulfill({
-      status: 200,
-      contentType: "text/html; charset=utf-8",
-      body: url.includes("/zwei") ? htmlZwei : url.includes("/echt") ? htmlEcht : html,
-    });
+  if (ERLAUBT.some((e) => url.startsWith(e)))
+    return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: seiteFuer(url) });
   return route.abort();
 });
 
@@ -69,6 +79,15 @@ const page = await ctx.newPage();
 const fehlerSeite = [];
 page.on("pageerror", (e) => fehlerSeite.push(e.message));
 page.on("console", (m) => m.type() === "error" && fehlerSeite.push(m.text()));
+
+// Startseite ohne gespeicherte Namenskarte (frisches Profil): nichts anzeigen
+const startZeichen = (p) =>
+  p.$$eval(".caption", (cs) =>
+    cs.map((c) => [c.textContent.length, c.closest("a").querySelector(".cu-pp-zaehler")?.textContent ?? null]),
+  );
+await page.goto(START);
+await warte(page);
+pruefe("Startseite ohne Karte", (await startZeichen(page)).map((z) => z[1]), [null, null, null, null, null]);
 
 await page.goto(BASIS);
 await page.waitForFunction(() => document.documentElement.dataset.cuInjected, null, { timeout: 5000 });
@@ -219,8 +238,38 @@ for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"], [5, "✓ 4"]]) {
   await warte(page);
 }
 
+// Vorschau vor dem Senden: Name nur im <h3>, keine ID, Betragsfeld mit Text (13.11.2026: kein Zeichen)
+const vorschau = (p) =>
+  p.$$eval("[data-testid=recipient-title]", (hs) =>
+    hs.map((h) => {
+      const z = h.closest("form").querySelector(".cu-pp-zaehler");
+      return [z?.textContent ?? null, z?.parentElement.className ?? null, z ? Math.round(z.getBoundingClientRect().right - z.parentElement.getBoundingClientRect().right) : null];
+    }),
+  );
+await page.goto(`${BASIS}/preview`);
+await warte(page);
+pruefe("Vorschau: Zeichen am Kreis", await vorschau(page), [["✓ 4", "kr", 6]]);
+await page.goto("https://www.paypal.com/myaccount/transfer/mehrdeutig/preview");
+await warte(page);
+pruefe("Vorschau: Name mit zwei IDs, kein Zeichen", await vorschau(page), [[null, null, null]]);
+
+// Startseite mit Karte: die echten Transfer-Seiten oben haben sie gefuellt (nur eindeutige Namen mit >= 1)
+await page.goto(START);
+await warte(page);
+pruefe("Startseite mit Karte", (await startZeichen(page)).map((z) => z[1]), ["✓ 2", null, null, null, "✓ 7"]);
+pruefe(
+  "Startseite: Zeichen am Kreis",
+  await kreisLage(page, ".cu-pp-zaehler"),
+  [["aussen", 6, 4], ["aussen", 6, 4]],
+);
+pruefe(
+  "Startseite: Tooltip mit vollem Namen",
+  await page.$$eval(".cu-pp-zaehler", (zs) => zs.map((z) => z.title)),
+  ["Du hast schon 2× Geld an Anna Beispiel gesendet", "Du hast schon 7× Geld an Jürgen Möller gesendet"],
+);
+
 pruefe("Fehler auf der Seite", fehlerSeite, []);
-const fremd = anfragen.filter((u) => !u.startsWith("https://www.paypal.com/myaccount/transfer/"));
+const fremd = anfragen.filter((u) => !ERLAUBT.some((e) => u.startsWith(e)));
 pruefe("Anfragen ausser der Testseite", fremd, []);
 await ctx.close();
 console.log(fehler ? `\n${fehler} Fehler` : "\nalles gruen");

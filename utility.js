@@ -1648,6 +1648,7 @@ function websiteSelector() {
   const websiteMatcher = [
     new Matcher("www.geoguessr.com", fixGeoguessr),
     new Matcher("www.paypal.com/myaccount/transfer/", fixPayPal),
+    new Matcher("www.paypal.com/myaccount/summary", fixPayPal),
     new Matcher("lookmovie2.to", fixLookMovie2),
     // new Matcher("dooodster.com", fixDoodster),
     // Abgeschaltet 18.09.2026 (Daniel: Probleme gefunden, sollen nicht behoben werden).
@@ -6477,6 +6478,9 @@ function addCustomCrunchyCss() {
 //    Klick ausserhalb eines erkannten Eintrags vergisst ihn; ein Suchtreffer setzt also nichts.
 // Gleichnamige Kontakte ohne ID im DOM bekommen kein Zeichen.
 const PP_PRUEF_TAKT_MS = 300;
+const PP_STARTSEITE = /^\/myaccount\/summary(?:\/|$)/;
+// Vorschau vor dem Senden: Betragsfeld mit Text, aber keine Suche -- kein Suchtreffer moeglich
+const PP_VORSCHAU = /^\/myaccount\/transfer\/.*\/preview\/?$/;
 const PP_DIALOG_KOPF =
   /^(?:sie senden geld an|du sendest geld an|you(?:'|’| a)re sending money to)\s+(.+?)[.!:]?$/i;
 /** payerId -> { payerId, namen: Set<normalisiert>, anzeige, anzahl } */
@@ -6522,6 +6526,7 @@ function fixPayPal() {
   );
   document.addEventListener("click", pp_merkeKlick, true);
   pp_pruefen();
+  if (PP_STARTSEITE.test(location.pathname)) pp_karteLaden();
   // SPA: Liste und Dialog werden ohne Neuladen ausgetauscht, also nachlaufend gebremst neu pruefen
   let geplant = null;
   let letzte = 0;
@@ -6543,10 +6548,12 @@ const pp_norm = (s) =>
 
 /** Liest die Kontakte aus allen noch nicht gelesenen Inline-Skripten. */
 function pp_kontakteLesen() {
+  let neu = false;
   for (const skript of document.querySelectorAll("script:not([src])")) {
     const text = skript.textContent;
     if (pp_gelesen.has(skript) || !text.includes("paymentSentCount")) continue;
     pp_gelesen.add(skript);
+    neu = true;
     for (const k of pp_kontakteAus(text)) {
       const alt = pp_kontakte.get(k.payerId);
       if (alt) {
@@ -6554,6 +6561,64 @@ function pp_kontakteLesen() {
         for (const n of k.namen) alt.namen.add(n);
       } else pp_kontakte.set(k.payerId, k);
     }
+  }
+  if (neu) pp_karteSpeichern();
+}
+
+// Namenskarte fuer die Startseite (13.11.2026): /myaccount/summary hat weder payerId noch
+// paymentSentCount. Darum merkt sich jede Transfer-Seite, was sie gelesen hat: normalisierter Name
+// -> { i: payerId, a: Anzeigename, n: Anzahl }, nur fuer Namen, die zu genau einem Kontakt gehoeren.
+// Liegt nur im chrome.storage.local dieses Browsers, kein Abruf. Ohne Karte zeigt die Startseite nichts.
+const PP_KARTE = "cu:pp:namen";
+
+/** Alte Karte + gerade gelesene Kontakte (normalisierter Name -> [Kontakt]) -> neue Karte. */
+function pp_karteAktualisieren(alt, nachName) {
+  const karte = { ...alt };
+  for (const [name, liste] of nachName) {
+    const k = liste[0];
+    // mehrdeutig (hier oder gegenueber einer frueheren Seite) oder nie bezahlt: kein Eintrag
+    if (liste.length > 1 || (karte[name] && karte[name].i !== k.payerId) || k.anzahl < 1)
+      delete karte[name];
+    else karte[name] = { i: k.payerId, a: k.anzeige, n: k.anzahl };
+  }
+  return karte;
+}
+
+/** Kontakte aus einer gespeicherten Karte; Eintraege mit falschem Format werden uebergangen. */
+function pp_kontakteAusKarte(karte) {
+  const kontakte = new Map();
+  for (const [name, e] of Object.entries(karte ?? {})) {
+    if (typeof e?.i !== "string" || typeof e.a !== "string" || !(e.n >= 1)) continue;
+    const k = kontakte.get(e.i) ?? { payerId: e.i, namen: new Set(), anzeige: e.a, anzahl: e.n };
+    k.namen.add(name);
+    kontakte.set(e.i, k);
+  }
+  return kontakte;
+}
+
+function pp_karteSpeichern() {
+  const speicher = _gemeinsamerSpeicher();
+  if (!speicher) return;
+  try {
+    speicher.get(PP_KARTE, (daten = {}) => {
+      speicher.set({ [PP_KARTE]: pp_karteAktualisieren(daten[PP_KARTE], pp_nachName()) });
+    });
+  } catch {
+    // Erweiterung gerade neu geladen: dieser Tab speichert nichts
+  }
+}
+
+/** Startseite: Karte laden, in pp_kontakte uebernehmen und neu pruefen. */
+function pp_karteLaden() {
+  const speicher = _gemeinsamerSpeicher();
+  if (!speicher) return;
+  try {
+    speicher.get(PP_KARTE, (daten = {}) => {
+      for (const [id, k] of pp_kontakteAusKarte(daten[PP_KARTE])) pp_kontakte.set(id, k);
+      pp_pruefen();
+    });
+  } catch {
+    // Erweiterung gerade neu geladen: keine Karte, kein Zeichen
   }
 }
 
@@ -6851,9 +6916,12 @@ function pp_pruefen() {
   const ziele = new Map(); // Element, das das Zeichen bekommt -> { kontakt, kreis }
   const ziel = (el, grenze, kontakt) => {
     const { el: anker, kreis } = pp_anker(el, grenze, [...namensElemente.keys(), ...koepfe.keys()]);
+    // Startseite: nur am Kreis (Erneut senden), nie neben einem beliebigen Namen
+    if (PP_STARTSEITE.test(location.pathname) && !kreis) return;
     ziele.set(anker, { kontakt, kreis });
   };
-  const sicher = koepfe.size === 0 && !pp_sucheAktiv(); // kein Dialog offen, keine Suche
+  // kein Dialog offen, keine Suche (die Vorschau hat nur ein Betragsfeld)
+  const sicher = koepfe.size === 0 && (PP_VORSCHAU.test(location.pathname) || !pp_sucheAktiv());
   const neueEintraege = new WeakMap();
 
   // Senden-Dialog
@@ -8486,7 +8554,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0.2",
+  version: "1.16.0.3",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

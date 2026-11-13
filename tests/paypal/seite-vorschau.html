@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  Nachbau der Vorschau vor dem Senden (/myaccount/transfer/homepage/preview), Aufbau gemessen am
+  13.11.2026 an einer gespeicherten Seite; Namen, IDs und Zahlen hier sind erfunden:
+  - Kopf: Kreis (Initialen als Text, 64 px, position relative) in eigenen divs, daneben
+    <h3 data-testid="recipient-title"> mit dem vollen Namen; keine payerId im DOM oder in der Adresse.
+  - Die Seite bringt dasselbe Kontakt-JSON mit wie "Geld senden" (hier gekuerzt).
+  - Ein Betragsfeld mit Text (kein Suchfeld). Daran scheiterte die Suchsperre: kein Zeichen.
+  Dieselbe Datei dient auch fuer den mehrdeutigen Fall (Seite liefert dann zwei Kontakte gleichen Namens).
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Vorschau (Testseite)</title>
+<script type="application/json" id="server-props">
+{"contacts":{
+ "topContacts":[
+  {"id":"TESTID-V1","payerId":"TESTPAYERV1","firstName":"Vera","lastName":"Vorschau","fullName":"Vera Vorschau","paymentSentCount":4,"paymentReceivedCount":0},
+  {"id":"TESTID-V2","payerId":"TESTPAYERV2","firstName":"Wiebke","lastName":"Zweifach","fullName":"Wiebke Zweifach","paymentSentCount":2,"paymentReceivedCount":0},
+  {"id":"TESTID-V3","payerId":"TESTPAYERV3","firstName":"Wiebke","lastName":"Zweifach","fullName":"Wiebke Zweifach","paymentSentCount":5,"paymentReceivedCount":0}
+ ]
+}}
+</script>
+<style>
+  .kr { position: relative; width: 64px; height: 64px; border-radius: 50%; background: #dbe; line-height: 64px; text-align: center; }
+</style>
+</head>
+<body>
+<form data-testid="preview-form">
+  <div><div class="recipientHeader">
+    <div><div class="kr" data-ppui-info="avatar_test" aria-hidden="true">NN</div></div>
+    <div><h3 data-testid="recipient-title" id="titel">Vera Vorschau</h3></div>
+  </div></div>
+  <input type="text" value="25,00" aria-label="Betrag">
+</form>
+<script>
+  // Mehrdeutiger Fall: derselbe Aufbau mit dem Namen, den die Liste zweimal kennt
+  if (location.pathname.includes("/mehrdeutig/")) document.getElementById("titel").textContent = "Wiebke Zweifach";
+</script>
+</body>
+</html>

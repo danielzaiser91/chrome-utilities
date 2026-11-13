@@ -392,7 +392,7 @@ Namenskarte für die Startseite gespeichert (unten), kein MAIN-World-Skript. Suc
   auf der Vorschau gibt es keine Suche (`PP_VORSCHAU`), der eindeutige Name genügt.
 - **Startseite (`/myaccount/summary`, „Erneut senden“, 1.16.0.3):** die Seite hat weder payerId noch
   `paymentSentCount`. Jede Transfer-Seite legt darum eine Namenskarte in `chrome.storage.local`
-  (`cu:pp:namen`: normalisierter Name → `{i: payerId, a: Anzeigename, n: Anzahl}`), nur für Namen
+  (`cu:pp:namen`: normalisierter Name → `{i, a, n, t}` mit Sichtung `t`; Namen mit je zwei IDs bleiben als Grabstein `{x, t}`; Verfall 90 Tage, höchstens 500 Einträge; Tooltip nennt den Stand), nur für Namen
   mit genau einem Kontakt und Anzahl ≥ 1; ein Name, der später mit anderer ID auftaucht, wird
   gelöscht (`pp_karteAktualisieren`). Die Startseite liest sie (`pp_karteLaden`) und setzt das ✓
   nur an Kreise, nie neben einen Namen. Ohne Karte nichts. Die Karte kann veraltet sein (Anzahl

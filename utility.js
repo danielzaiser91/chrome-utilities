@@ -6567,30 +6567,48 @@ function pp_kontakteLesen() {
 
 // Namenskarte fuer die Startseite (13.11.2026): /myaccount/summary hat weder payerId noch
 // paymentSentCount. Darum merkt sich jede Transfer-Seite, was sie gelesen hat: normalisierter Name
-// -> { i: payerId, a: Anzeigename, n: Anzahl }, nur fuer Namen, die zu genau einem Kontakt gehoeren.
+// -> { i: payerId, a: Anzeigename, n: Anzahl, t: Sichtung (ms) }, nur fuer Namen, die zu genau einem
+// Kontakt gehoeren. Ein Name, der je zwei IDs hatte, bleibt als Grabstein { x: 1, t } stehen: auch
+// wenn eine spaetere Seite nur einen der beiden liefert, zeigt die Startseite dann nichts.
+// Eintraege ohne Sichtung seit PP_KARTE_TAGE verfallen, hoechstens PP_KARTE_MAX Eintraege (aelteste raus).
 // Liegt nur im chrome.storage.local dieses Browsers, kein Abruf. Ohne Karte zeigt die Startseite nichts.
 const PP_KARTE = "cu:pp:namen";
+const PP_KARTE_MAX = 500;
+const PP_KARTE_TAGE = 90;
+const PP_TAG_MS = 24 * 60 * 60 * 1000;
+
+/** Abgelaufene Eintraege und Eintraege ohne Zeitstempel raus, Obergrenze auf die juengsten. */
+function pp_karteBeschneiden(karte, jetzt) {
+  const frisch = Object.entries(karte).filter(
+    ([, e]) => Number.isFinite(e?.t) && jetzt - e.t < PP_KARTE_TAGE * PP_TAG_MS,
+  );
+  frisch.sort((a, b) => b[1].t - a[1].t);
+  return Object.fromEntries(frisch.slice(0, PP_KARTE_MAX));
+}
 
 /** Alte Karte + gerade gelesene Kontakte (normalisierter Name -> [Kontakt]) -> neue Karte. */
-function pp_karteAktualisieren(alt, nachName) {
+function pp_karteAktualisieren(alt, nachName, jetzt) {
   const karte = { ...alt };
   for (const [name, liste] of nachName) {
     const k = liste[0];
-    // mehrdeutig (hier oder gegenueber einer frueheren Seite) oder nie bezahlt: kein Eintrag
-    if (liste.length > 1 || (karte[name] && karte[name].i !== k.payerId) || k.anzahl < 1)
-      delete karte[name];
-    else karte[name] = { i: k.payerId, a: k.anzeige, n: k.anzahl };
+    // mehrdeutig (hier oder gegenueber einer frueheren Seite): Grabstein. Ein Grabstein hat kein i,
+    // gilt also bei jeder spaeteren Sichtung als "andere ID" und bleibt ein Grabstein.
+    if (liste.length > 1 || (karte[name] && karte[name].i !== k.payerId))
+      karte[name] = { x: 1, t: jetzt };
+    else if (k.anzahl < 1) delete karte[name];
+    else karte[name] = { i: k.payerId, a: k.anzeige, n: k.anzahl, t: jetzt };
   }
-  return karte;
+  return pp_karteBeschneiden(karte, jetzt);
 }
 
-/** Kontakte aus einer gespeicherten Karte; Eintraege mit falschem Format werden uebergangen. */
-function pp_kontakteAusKarte(karte) {
+/** Kontakte aus einer gespeicherten Karte; Eintraege mit falschem Format oder abgelaufen entfallen. */
+function pp_kontakteAusKarte(karte, jetzt) {
   const kontakte = new Map();
-  for (const [name, e] of Object.entries(karte ?? {})) {
-    if (typeof e?.i !== "string" || typeof e.a !== "string" || !(e.n >= 1)) continue;
-    const k = kontakte.get(e.i) ?? { payerId: e.i, namen: new Set(), anzeige: e.a, anzahl: e.n };
+  for (const [name, e] of Object.entries(pp_karteBeschneiden(karte ?? {}, jetzt))) {
+    if (typeof e.i !== "string" || typeof e.a !== "string" || !(e.n >= 1)) continue;
+    const k = kontakte.get(e.i) ?? { payerId: e.i, namen: new Set(), anzeige: e.a, anzahl: e.n, stand: e.t };
     k.namen.add(name);
+    k.stand = Math.min(k.stand, e.t);
     kontakte.set(e.i, k);
   }
   return kontakte;
@@ -6601,7 +6619,7 @@ function pp_karteSpeichern() {
   if (!speicher) return;
   try {
     speicher.get(PP_KARTE, (daten = {}) => {
-      speicher.set({ [PP_KARTE]: pp_karteAktualisieren(daten[PP_KARTE], pp_nachName()) });
+      speicher.set({ [PP_KARTE]: pp_karteAktualisieren(daten[PP_KARTE], pp_nachName(), Date.now()) });
     });
   } catch {
     // Erweiterung gerade neu geladen: dieser Tab speichert nichts
@@ -6614,7 +6632,7 @@ function pp_karteLaden() {
   if (!speicher) return;
   try {
     speicher.get(PP_KARTE, (daten = {}) => {
-      for (const [id, k] of pp_kontakteAusKarte(daten[PP_KARTE])) pp_kontakte.set(id, k);
+      for (const [id, k] of pp_kontakteAusKarte(daten[PP_KARTE], Date.now())) pp_kontakte.set(id, k);
       pp_pruefen();
     });
   } catch {
@@ -6893,7 +6911,8 @@ function pp_zeichenSetzen(ziele) {
       continue;
     }
     const text = `✓ ${kontakt.anzahl}`;
-    const titel = `Du hast schon ${kontakt.anzahl}× Geld an ${kontakt.anzeige} gesendet`;
+    const stand = kontakt.stand ? ` (Stand: ${new Date(kontakt.stand).toLocaleDateString("de-DE")})` : "";
+    const titel = `Du hast schon ${kontakt.anzahl}× Geld an ${kontakt.anzeige} gesendet${stand}`;
     const klasse = kreis ? "cu-pp-zaehler cu-pp-zaehler--kreis" : "cu-pp-zaehler";
     if (alt?.textContent === text && alt.title === titel && alt.className === klasse) continue;
     if (kreis && getComputedStyle(el).position === "static") el.classList.add("cu-pp-anker");

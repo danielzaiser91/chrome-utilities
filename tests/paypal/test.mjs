@@ -18,20 +18,23 @@ const html = readFileSync(join(hier, "seite.html"), "utf8");
 const htmlZwei = readFileSync(join(hier, "seite-zwei.html"), "utf8");
 const htmlEcht = readFileSync(join(hier, "seite-echt.html"), "utf8");
 const htmlVorschau = readFileSync(join(hier, "seite-vorschau.html"), "utf8");
-const htmlStart = readFileSync(join(hier, "seite-start.html"), "utf8");
+const htmlEinzeln = readFileSync(join(hier, "seite-einzeln.html"), "utf8");
+const htmlStart =readFileSync(join(hier, "seite-start.html"), "utf8");
 const BASIS = "https://www.paypal.com/myaccount/transfer/homepage";
 const START = "https://www.paypal.com/myaccount/summary";
 const ERLAUBT = ["https://www.paypal.com/myaccount/transfer/", START];
 const seiteFuer = (url) =>
   url.startsWith(START)
     ? htmlStart
-    : url.includes("/preview")
+    : url.includes("/preview") || url.includes("/suche/")
       ? htmlVorschau
-      : url.includes("/zwei")
-        ? htmlZwei
-        : url.includes("/echt")
-          ? htmlEcht
-          : html;
+      : url.includes("/einzeln")
+        ? htmlEinzeln
+        : url.includes("/zwei")
+          ? htmlZwei
+          : url.includes("/echt")
+            ? htmlEcht
+            : html;
 
 const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), "cu-pp-")), {
   channel: "chromium",
@@ -87,7 +90,7 @@ const startZeichen = (p) =>
   );
 await page.goto(START);
 await warte(page);
-pruefe("Startseite ohne Karte", (await startZeichen(page)).map((z) => z[1]), [null, null, null, null, null]);
+pruefe("Startseite ohne Karte", (await startZeichen(page)).map((z) => z[1]), [null, null, null, null, null, null]);
 
 await page.goto(BASIS);
 await page.waitForFunction(() => document.documentElement.dataset.cuInjected, null, { timeout: 5000 });
@@ -253,10 +256,19 @@ await page.goto("https://www.paypal.com/myaccount/transfer/mehrdeutig/preview");
 await warte(page);
 pruefe("Vorschau: Name mit zwei IDs, kein Zeichen", await vorschau(page), [[null, null, null]]);
 
+// Suchfeld mit Text auf einer anderen Transfer-Seite behaelt die Suchsperre (gleiche Seite, nicht /preview)
+await page.goto("https://www.paypal.com/myaccount/transfer/suche/start");
+await warte(page);
+pruefe("Textfeld ausserhalb der Vorschau: Suchsperre, kein Zeichen", await vorschau(page), [[null, null, null]]);
+
+// Grabstein: der Name hatte zwei IDs (Seite oben); eine spaetere Seite mit nur einer davon macht ihn nicht eindeutig
+await page.goto("https://www.paypal.com/myaccount/transfer/einzeln/start");
+await warte(page);
+
 // Startseite mit Karte: die echten Transfer-Seiten oben haben sie gefuellt (nur eindeutige Namen mit >= 1)
 await page.goto(START);
 await warte(page);
-pruefe("Startseite mit Karte", (await startZeichen(page)).map((z) => z[1]), ["✓ 2", null, null, null, "✓ 7"]);
+pruefe("Startseite mit Karte (Grabstein: letzter Name ohne Zeichen)", (await startZeichen(page)).map((z) => z[1]), ["✓ 2", null, null, null, "✓ 7", null]);
 pruefe(
   "Startseite: Zeichen am Kreis",
   await kreisLage(page, ".cu-pp-zaehler"),
@@ -264,8 +276,44 @@ pruefe(
 );
 pruefe(
   "Startseite: Tooltip mit vollem Namen",
-  await page.$$eval(".cu-pp-zaehler", (zs) => zs.map((z) => z.title)),
-  ["Du hast schon 2× Geld an Anna Beispiel gesendet", "Du hast schon 7× Geld an Jürgen Möller gesendet"],
+  (await page.$$eval(".cu-pp-zaehler", (zs) => zs.map((z) => z.title))).map((t) =>
+    t.replace(/ \(Stand: \d{1,2}\.\d{1,2}\.\d{4}\)$/, " (Stand)"),
+  ),
+  ["Du hast schon 2× Geld an Anna Beispiel gesendet (Stand)", "Du hast schon 7× Geld an Jürgen Möller gesendet (Stand)"],
+);
+
+// Karte direkt im Speicher der Erweiterung (Service Worker): Verfall und Obergrenze
+const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent("serviceworker"));
+const KARTE = "cu:pp:namen";
+const TAG = 24 * 60 * 60 * 1000;
+const setzeKarte = (karte) => sw.evaluate(([k, v]) => chrome.storage.local.set({ [k]: v }), [KARTE, karte]);
+const leseKarte = () => sw.evaluate((k) => chrome.storage.local.get(k).then((d) => d[k] ?? {}), KARTE);
+const eintrag = (name, id, n, vorTagen, vorMs = 0) => ({
+  i: id, a: name, n, t: Date.now() - vorTagen * TAG - vorMs,
+});
+// Verfall beim Lesen: 91 Tage ohne Sichtung zeigt die Startseite nicht, 89 Tage schon
+await setzeKarte({
+  "anna beispiel": eintrag("Anna Beispiel", "TESTPAYERA1", 2, 91),
+  "jürgen möller": eintrag("Jürgen Möller", "TESTPAYERA5", 7, 89),
+});
+await page.goto(START);
+await warte(page);
+pruefe("Startseite: 91 Tage alt kein Zeichen, 89 Tage alt Zeichen", (await startZeichen(page)).map((z) => z[1]), [null, null, null, null, "✓ 7", null]);
+
+// Verfall und Obergrenze beim Schreiben: Besuch einer Transfer-Seite beschneidet die Karte
+const karte = {
+  "alt eintrag": eintrag("Alt Eintrag", "TESTPAYERX0", 1, 91),
+  "frisch eintrag": eintrag("Frisch Eintrag", "TESTPAYERX1", 1, 1),
+};
+for (let i = 0; i < 520; i++) karte[`fueller ${i}`] = eintrag(`Fueller ${i}`, `TESTPAYERF${i}`, 1, 2, i * 1000);
+await setzeKarte(karte);
+await page.goto(BASIS);
+await warte(page);
+const nach = await leseKarte();
+pruefe(
+  "Karte beschnitten: genau 500, Verfallener und Aeltester raus, Frischer drin",
+  [Object.keys(nach).length, "alt eintrag" in nach, "fueller 519" in nach, "fueller 0" in nach, "frisch eintrag" in nach],
+  [500, false, false, true, true],
 );
 
 pruefe("Fehler auf der Seite", fehlerSeite, []);

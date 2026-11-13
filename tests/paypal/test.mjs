@@ -108,7 +108,7 @@ pruefe("Suchtreffer", await zeichen(page, "#liste .kontakt"), [
 // Suchtreffer anklicken -> Dialog ohne Zeichen, obwohl der Name in der Liste vorkommt
 await page.click("#liste .kontakt >> nth=0");
 await warte(page);
-pruefe("Dialog nach Suchtreffer", await zeichen(page, "#dialog h2"), [["Erika Beispiel", null]]);
+pruefe("Dialog nach Suchtreffer", await zeichen(page, "#dialog"), [["Erika Beispiel", null]]);
 await page.click("#zurueck");
 await warte(page);
 pruefe("Liste nach Zurueck", (await zeichen(page, "#liste .kontakt")).map((z) => z[1]), [
@@ -119,12 +119,12 @@ pruefe("Liste nach Zurueck", (await zeichen(page, "#liste .kontakt")).map((z) =>
 for (const [i, soll] of [[0, "✓ 12"], [1, "✓ 3"], [2, "✓ 1"], [3, null], [5, null]]) {
   await page.click(`#liste .kontakt >> nth=${i}`);
   await warte(page);
-  pruefe(`Dialog nach Eintrag ${i}`, (await zeichen(page, "#dialog h2"))[0][1], soll);
+  pruefe(`Dialog nach Eintrag ${i}`, (await zeichen(page, "#dialog"))[0][1], soll);
   // Klick im Dialog laesst das Zeichen stehen
   await page.click("#betrag");
   await page.keyboard.type("5");
   await warte(page);
-  pruefe(`  nach Eingabe im Dialog`, (await zeichen(page, "#dialog h2"))[0][1], soll);
+  pruefe(`  nach Eingabe im Dialog`, (await zeichen(page, "#dialog"))[0][1], soll);
   await page.click("#zurueck");
   await warte(page);
 }
@@ -132,13 +132,13 @@ for (const [i, soll] of [[0, "✓ 12"], [1, "✓ 3"], [2, "✓ 1"], [3, null], [
 // Dialog direkt geladen: mit ID in der Adresse Zuordnung ueber die ID, ohne ID kein Zeichen
 await page.goto(`${BASIS}/pay?recipient=TESTPAYER2&offen=1`);
 await warte(page);
-pruefe("Dialog direkt, ID in Adresse", (await zeichen(page, "#dialog h2"))[0][1], "✓ 3");
+pruefe("Dialog direkt, ID in Adresse", (await zeichen(page, "#dialog"))[0][1], "✓ 3");
 await page.goto(`${BASIS}/pay?offen=1`);
 await warte(page);
-pruefe("Dialog direkt, ohne ID", (await zeichen(page, "#dialog h2"))[0][1], null);
+pruefe("Dialog direkt, ohne ID", (await zeichen(page, "#dialog"))[0][1], null);
 await page.goto(`${BASIS}/pay?offen=2`);
 await warte(page);
-pruefe("Dialog direkt, eindeutiger Name ohne Klick", (await zeichen(page, "#dialog h2"))[0][1], null);
+pruefe("Dialog direkt, eindeutiger Name ohne Klick", (await zeichen(page, "#dialog"))[0][1], null);
 
 // Grenzfaelle der Zuordnung (seite-zwei.html)
 await page.goto(BASIS.replace("homepage", "zwei"));
@@ -158,7 +158,7 @@ for (const [i, name] of [[2, "Eva Doppel"], [3, "Frank Anders"], [6, "Hans Ander
   await page.click(`#liste .kontakt >> nth=${i}`);
   await warte(page);
   // zwei IDs im Dialog / ID mit fremdem Namen / Klick-Eintrag mit anderem Namen als die Kopfzeile
-  pruefe(`Grenzfall Dialog ${name}`, await zeichen(page, "#dialog h2"), [[name, null]]);
+  pruefe(`Grenzfall Dialog ${name}`, await zeichen(page, "#dialog"), [[name, null]]);
   await page.click("#zurueck");
   await warte(page);
 }
@@ -175,10 +175,20 @@ const kacheln = (p) =>
       return [teile.join(" "), z ? z.textContent : null];
     }),
   );
+// Zeichen haengt am Kreis, unten rechts (Daniel, 13.11.2026): [Klasse des Ankers, rechts, unten]
+// in px relativ zum Kreis; erwartet rechts 6, unten 4 (ragt so weit hinaus)
+const kreisLage = (p, sel) =>
+  p.$$eval(sel, (zs) =>
+    zs.map((z) => {
+      const k = z.parentElement.getBoundingClientRect();
+      const r = z.getBoundingClientRect();
+      return [z.parentElement.className, Math.round(r.right - k.right), Math.round(r.bottom - k.bottom)];
+    }),
+  );
 const dialogZeichen = (p) =>
-  p.$eval("[role=dialog] h2", (h) => [
-    h.querySelector(".ppvx_text--xl").firstChild.textContent,
-    h.querySelector(".cu-pp-zaehler")?.textContent ?? null,
+  p.$eval("[role=dialog]", (d) => [
+    d.querySelector("h2 .ppvx_text--xl").firstChild.textContent,
+    d.querySelector(".cu-pp-zaehler")?.textContent ?? null,
   ]);
 await page.goto(BASIS.replace("homepage", "echt"));
 await warte(page);
@@ -190,10 +200,21 @@ pruefe("Echter Aufbau: Kacheln", await kacheln(page), [
   ["Jürgen Möller", "✓ 7"],
   ["Anna Maria Beispiel", "✓ 4"], // längste Reihe gewinnt, nicht "Anna Maria" (6) oder "Anna" (9)
 ]);
+pruefe("Echter Aufbau: Zeichen am Kreis", await kreisLage(page, "menu .cu-pp-zaehler"), [
+  ["kreis", 6, 4],
+  ["kreis", 6, 4],
+  ["kreis", 6, 4],
+]);
 for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"], [5, "✓ 4"]]) {
   await page.click(`[data-testid=contact-bubble] >> nth=${i}`);
   await warte(page);
   pruefe(`Echter Aufbau: Dialog nach Kachel ${i}`, (await dialogZeichen(page))[1], soll);
+  // abschneidender Kreis: Zeichen am eng anliegenden Rahmen; die Kacheln dahinter bekommen nichts
+  pruefe(
+    `  am Kreis, Liste dahinter ohne Zeichen`,
+    [await kreisLage(page, "[role=dialog] .cu-pp-zaehler"), await page.$$eval("menu .cu-pp-zaehler", (z) => z.length)],
+    [soll ? [["rahmen48 cu-pp-anker", 6, 4]] : [], 0],
+  );
   await page.click("#zurueck");
   await warte(page);
 }

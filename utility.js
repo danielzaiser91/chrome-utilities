@@ -6505,6 +6505,18 @@ function fixPayPal() {
       white-space: nowrap;
       vertical-align: middle;
     }
+    .cu-pp-anker { position: relative; }
+    .cu-pp-zaehler.cu-pp-zaehler--kreis {
+      position: absolute;
+      right: -6px;
+      bottom: -4px;
+      z-index: 1;
+      margin: 0;
+      border: 2px solid #fff;
+      font: 600 11px/14px sans-serif;
+      letter-spacing: normal;
+      text-transform: none;
+    }
   `,
     "cu-paypal",
   );
@@ -6655,8 +6667,9 @@ function pp_idsIn(el, idMuster, zusatz = "") {
     for (const m of String(s).matchAll(idMuster)) funde.add(m[1]);
   };
   pruefe(zusatz);
+  // Unser eigenes Zeichen traegt die payerId: es darf sich nicht selbst bestaetigen
   for (const e of el ? [el, ...el.querySelectorAll("*")] : [])
-    for (const a of e.attributes) pruefe(a.value);
+    if (!e.closest(".cu-pp-zaehler")) for (const a of e.attributes) pruefe(a.value);
   return funde;
 }
 
@@ -6769,9 +6782,46 @@ function pp_listenKontakt(ids, name, nachName, sicher) {
   return null;
 }
 
+/** Rund und quadratisch, 20-120 px: so sieht der Initialen- oder Bild-Kreis eines Kontakts aus. */
+function pp_istKreis(el) {
+  const r = el.getBoundingClientRect();
+  if (r.width < 20 || r.width > 120 || Math.abs(r.width - r.height) > 2) return false;
+  const rund = getComputedStyle(el).borderTopLeftRadius;
+  return rund.endsWith("%") ? parseFloat(rund) >= 50 : parseFloat(rund) >= r.width / 2 - 1;
+}
+
+/**
+ * Wo das Zeichen haengt: am Kreis des Kontakts, unten rechts (Daniel, 13.11.2026: auf allen
+ * Ansichten gleich). Gesucht wird der naechste Kreis von el aus nach oben, nie ueber grenze hinaus
+ * und nie in einem Vorfahren, der einen anderen Namen enthaelt (sonst gehoert der Kreis zu einem
+ * anderen Kontakt, etwa der Liste hinter dem Dialog). Kein Kreis: neben den Namen wie bisher.
+ * Ergebnis: { el, kreis }
+ */
+function pp_anker(el, grenze, fremde) {
+  for (let a = el.parentElement, d = 0; a && a !== document.body && d < 6; a = a.parentElement, d++) {
+    if (fremde.some((f) => f !== el && !f.contains(el) && a.contains(f))) break;
+    const kreis = [...a.querySelectorAll("*")].find(
+      (k) => !k.closest(".cu-pp-zaehler") && pp_istKreis(k),
+    );
+    if (kreis) {
+      // Bild oder abschneidender Kreis traegt kein sichtbares Kind: dann an seinen Rahmen, aber
+      // nur, wenn der eng anliegt (sonst saesse das Zeichen irgendwo am Rand)
+      if (!(kreis instanceof HTMLImageElement) && getComputedStyle(kreis).overflow === "visible")
+        return { el: kreis, kreis: true };
+      const k = kreis.getBoundingClientRect();
+      const r = kreis.parentElement.getBoundingClientRect();
+      if (Math.abs(r.width - k.width) <= 4 && Math.abs(r.height - k.height) <= 4)
+        return { el: kreis.parentElement, kreis: true };
+      break;
+    }
+    if (a === grenze) break;
+  }
+  return { el, kreis: false };
+}
+
 /** Zeichen setzen, aendern, entfernen -- nur anfassen, was sich aendert (sonst Beobachter-Schleife). */
 function pp_zeichenSetzen(ziele) {
-  for (const [el, kontakt] of ziele) {
+  for (const [el, { kontakt, kreis }] of ziele) {
     const alt = [...el.children].find((c) => c.classList.contains("cu-pp-zaehler"));
     if (!kontakt || kontakt.anzahl < 1) {
       alt?.remove();
@@ -6779,9 +6829,11 @@ function pp_zeichenSetzen(ziele) {
     }
     const text = `✓ ${kontakt.anzahl}`;
     const titel = `Du hast schon ${kontakt.anzahl}× Geld an ${kontakt.anzeige} gesendet`;
-    if (alt?.textContent === text && alt.title === titel) continue;
+    const klasse = kreis ? "cu-pp-zaehler cu-pp-zaehler--kreis" : "cu-pp-zaehler";
+    if (alt?.textContent === text && alt.title === titel && alt.className === klasse) continue;
+    if (kreis && getComputedStyle(el).position === "static") el.classList.add("cu-pp-anker");
     const z = alt ?? document.createElement("span");
-    z.className = "cu-pp-zaehler";
+    z.className = klasse;
     z.textContent = text;
     z.title = titel;
     z.dataset.cuPayerId = kontakt.payerId;
@@ -6796,7 +6848,11 @@ function pp_pruefen() {
   const nachName = pp_nachName();
   const idMuster = pp_idMuster();
   const { namensElemente, koepfe } = pp_kandidaten(nachName);
-  const ziele = new Map(); // Element, das das Zeichen bekommt -> Kontakt
+  const ziele = new Map(); // Element, das das Zeichen bekommt -> { kontakt, kreis }
+  const ziel = (el, grenze, kontakt) => {
+    const { el: anker, kreis } = pp_anker(el, grenze, [...namensElemente.keys(), ...koepfe.keys()]);
+    ziele.set(anker, { kontakt, kreis });
+  };
   const sicher = koepfe.size === 0 && !pp_sucheAktiv(); // kein Dialog offen, keine Suche
   const neueEintraege = new WeakMap();
 
@@ -6804,7 +6860,8 @@ function pp_pruefen() {
   for (const [kopf, name] of koepfe) {
     const namensEl = [...namensElemente.keys()].find((n) => kopf.contains(n));
     if (namensEl) namensElemente.delete(namensEl);
-    ziele.set(namensEl ?? kopf, pp_dialogBinden(kopf, name, idMuster).kontakt);
+    const dialog = kopf.closest('[role=dialog], dialog, [aria-modal="true"]');
+    ziel(namensEl ?? kopf, dialog, pp_dialogBinden(kopf, name, idMuster).kontakt);
   }
 
   // Kontaktliste (und alles andere mit einem bekannten Namen)
@@ -6820,7 +6877,7 @@ function pp_pruefen() {
     const ids = idMuster ? pp_idsIn(eintrag, idMuster) : new Set();
     const kontakt = pp_listenKontakt(ids, name, nachName, sicher);
     neueEintraege.set(eintrag, { name, kontakt });
-    ziele.set(el, kontakt);
+    ziel(el, eintrag, kontakt);
   }
   pp_eintraege = neueEintraege;
   pp_zeichenSetzen(ziele);
@@ -8429,7 +8486,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0.1",
+  version: "1.16.0.2",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  Zweite Testseite fuer tests/paypal/test.mjs: Grenzfaelle der Zuordnung. Alle Kontakte erfunden,
+  Aufbau geraten (wie seite.html). Je Eintrag steht in LISTE, welche IDs er im DOM traegt (attr),
+  welchen Dialog er oeffnet (oeffnet) und welche IDs der Dialog traegt (dialogIds).
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Geld senden (Testseite 2)</title>
+<!-- Nicht gelesen: JSON in einfachem Anfuehrungszeichen; ungueltiges String-Literal (\x). Das
+     zweite steht vor den gueltigen Skripten und darf deren Lesen nicht abbrechen. -->
+<script>
+  window.__EINFACH__ = '{"payerId":"TESTPAYER21","fullName":"Olga Einfach","paymentSentCount":5}';
+  window.__KAPUTT__ = "{\x41 \"payerId\":\"TESTPAYER22\",\"fullName\":\"Paul Kaputt\",\"paymentSentCount\":2}";
+</script>
+<!-- Skript 1 und 2 nennen dieselbe payerId mit verschiedener Zahl (hoeher zuerst bzw. zuletzt) -->
+<script type="application/json">
+{"contacts":{"topContacts":[
+  {"payerId":"TESTPAYER23","fullName":"Quirin Seltsam","displayName":"Q\x","paymentSentCount":1},
+  {"payerId":"TESTPAYER11","fullName":"Dana Gleich","paymentSentCount":4},
+  {"payerId":"TESTPAYER12","fullName":"Dana Gleich","paymentSentCount":9},
+  {"payerId":"TESTPAYER13","fullName":"Eva Doppel","paymentSentCount":5},
+  {"payerId":"TESTPAYER14","fullName":"Eva Doppel","paymentSentCount":6},
+  {"payerId":"TESTPAYER15","fullName":"Frank Echt","paymentSentCount":8},
+  {"payerId":"TESTPAYER16","fullName":"Frank Anders","paymentSentCount":2},
+  {"payerId":"TESTPAYER17","fullName":"Karl Sieben","paymentSentCount":7},
+  {"payerId":"TESTPAYER18","fullName":"Lena Sechs","paymentSentCount":2},
+  {"payerId":"TESTPAYER19","fullName":"Gina Klick","paymentSentCount":3},
+  {"payerId":"TESTPAYER20","fullName":"Hans Anders","paymentSentCount":2}
+]}}
+</script>
+<script type="application/json">
+{"topSendContacts":[
+  {"payerId":"TESTPAYER17","fullName":"Karl Sieben","paymentSentCount":4},
+  {"payerId":"TESTPAYER18","fullName":"Lena Sechs","paymentSentCount":6}
+]}
+</script>
+<style>
+  body { font-family: sans-serif; }
+  .kontakt { display: flex; gap: 8px; padding: 6px; cursor: pointer; }
+  #dialog { border: 1px solid #999; padding: 12px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+  const LISTE = [
+    { name: "Dana Gleich" }, // zwei gleichnamige Kontakte, keine ID im DOM
+    { name: "Dana Gleich" },
+    { name: "Eva Doppel", attr: ["TESTPAYER13", "TESTPAYER14"], dialogIds: ["TESTPAYER13", "TESTPAYER14"] },
+    { name: "Frank Anders", attr: ["TESTPAYER15"], dialogIds: ["TESTPAYER15"] }, // ID gehoert zu anderem Namen
+    { name: "Karl Sieben", attr: ["TESTPAYER17"] },
+    { name: "Lena Sechs", attr: ["TESTPAYER18"] },
+    { name: "Gina Klick", oeffnet: "Hans Anders" }, // Dialog zeigt anderen Namen als der Eintrag
+    { name: "Olga Einfach", attr: ["TESTPAYER21"] },
+    { name: "Paul Kaputt", attr: ["TESTPAYER22"] },
+  ];
+  const app = document.getElementById("app");
+  function liste() {
+    app.innerHTML = `<div id="liste"></div>`;
+    for (const k of LISTE) {
+      const el = document.createElement("div");
+      el.className = "kontakt";
+      (k.attr ?? []).forEach((id, i) => el.setAttribute(`data-id${i}`, id));
+      el.innerHTML = `<span class="name">${k.name}</span>`;
+      el.addEventListener("click", () => dialog(k.oeffnet ?? k.name, k.dialogIds ?? []));
+      app.querySelector("#liste").append(el);
+    }
+  }
+  function dialog(name, ids) {
+    app.innerHTML = `<div id="dialog" role="dialog" data-ids="${ids.join(" ")}">
+      <h2>Sie senden Geld an <span class="ziel">${name}</span></h2><button id="zurueck">Zurück</button></div>`;
+    app.querySelector("#zurueck").addEventListener("click", liste);
+  }
+  liste();
+</script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<!--
+  Nachbau der PayPal-Seite "Geld senden" fuer tests/paypal/test.mjs. Alle Kontakte sind erfunden.
+  Aufbau nur grob nach Daniels Beschreibung (12.11.2026), nicht nach echtem PayPal-HTML:
+  Kontakt-JSON in Inline-Skripten, Liste mit Namen, Suche, Dialog "Sie senden Geld an <Name>".
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Geld senden (Testseite)</title>
+<!-- Form 1: reines JSON -->
+<script type="application/json" id="seitendaten">
+{"contacts":{"topContacts":[
+  {"payerId":"TESTPAYER1","fullName":"Max Muster","firstName":"Max","lastName":"Muster","paymentSentCount":12,"photo":{"initials":"MM"}},
+  {"payerId":"TESTPAYER2","fullName":"Max Muster","firstName":"Max","lastName":"Muster","paymentSentCount":3},
+  {"payerId":"TESTPAYER3","fullName":"Erika Beispiel","firstName":"Erika","lastName":"Beispiel","paymentSentCount":1},
+  {"payerId":"TESTPAYER4","fullName":"Lisa Probe","firstName":"Lisa","lastName":"Probe","paymentSentCount":0}
+]}}
+</script>
+<!-- Form 2: JSON in einem JS-String, mit Umlaut als Escape -->
+<script>
+window.__TESTDATEN__ = JSON.parse("{\"topSendContacts\":[{\"payerId\":\"TESTPAYER1\",\"fullName\":\"Max Muster\",\"paymentSentCount\":12},{\"payerId\":\"TESTPAYER5\",\"firstName\":\"J\\u00fcrgen\",\"lastName\":\"Testmann\",\"fullName\":\"J\\u00fcrgen Testmann\",\"paymentSentCount\":7}]}");
+</script>
+<style>
+  body { font-family: sans-serif; }
+  .kontakt { display: flex; gap: 8px; align-items: center; padding: 6px; cursor: pointer; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #ccc; display: grid; place-items: center; }
+  #dialog { border: 1px solid #999; padding: 12px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+  // Mini-SPA: Liste <-> Dialog, Suche ersetzt die Liste. Nichts davon geht ins Netz.
+  const LISTE = [
+    { id: "TESTPAYER1", name: "Max Muster", idIm: "data" },
+    { id: "TESTPAYER2", name: "Max Muster", idIm: "href" },
+    { id: "TESTPAYER3", name: "Erika Beispiel" },
+    { id: "TESTPAYER4", name: "Lisa Probe" },
+    { id: "TESTPAYER5", name: "Jürgen Testmann", geteilt: true },
+    { id: null, name: "Otto Fremd" },
+  ];
+  // Suchtreffer kommen bei PayPal per fetch und haben keine payerId aus dem Seiten-JSON
+  const TREFFER = [{ name: "Erika Beispiel" }, { name: "Max Muster" }];
+  const app = document.getElementById("app");
+  const initialen = (n) => n.split(" ").map((w) => w[0]).join("");
+  function eintrag(k) {
+    const el = document.createElement(k.idIm === "href" ? "a" : "div");
+    el.className = "kontakt";
+    if (k.idIm === "data") el.dataset.recipient = k.id;
+    if (k.idIm === "href") el.href = `#pay?recipient=${k.id}`;
+    const name = k.geteilt
+      ? `<span class="name"><span>${k.name.split(" ")[0]}</span> <span>${k.name.split(" ")[1]}</span></span>`
+      : `<span class="name">${k.name}</span>`;
+    el.innerHTML = `<span class="avatar">${initialen(k.name)}</span>${name}`;
+    el.addEventListener("click", (e) => { e.preventDefault(); dialog(k); });
+    return el;
+  }
+  function liste() {
+    app.innerHTML = `<input id="suche" type="text" placeholder="Name, E-Mail oder Mobilnummer"><div id="liste"></div>`;
+    const ziel = app.querySelector("#liste");
+    LISTE.forEach((k) => ziel.append(eintrag(k)));
+    app.querySelector("#suche").addEventListener("input", (e) => {
+      ziel.innerHTML = "";
+      (e.target.value ? TREFFER : LISTE).forEach((k) => ziel.append(eintrag(k)));
+    });
+  }
+  function dialog(k) {
+    app.innerHTML = `<div id="dialog" role="dialog"><span class="avatar">${initialen(k.name)}</span>
+      <h2>Sie senden Geld an <span class="ziel">${k.name}</span></h2>
+      <input id="betrag" type="text" placeholder="0,00"> <button id="zurueck">Zurück</button></div>`;
+    app.querySelector("#zurueck").addEventListener("click", liste);
+  }
+  const offen = new URLSearchParams(location.search).get("offen");
+  offen ? dialog(LISTE[offen]) : liste();
+</script>
+</body>
+</html>

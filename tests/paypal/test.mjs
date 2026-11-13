@@ -14,6 +14,7 @@ const { chromium } = createRequire(import.meta.url)("playwright");
 const hier = dirname(fileURLToPath(import.meta.url));
 const erweiterung = join(hier, "..", "..");
 const html = readFileSync(join(hier, "seite.html"), "utf8");
+const htmlZwei = readFileSync(join(hier, "seite-zwei.html"), "utf8");
 const BASIS = "https://www.paypal.com/myaccount/transfer/homepage";
 
 const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), "cu-pp-")), {
@@ -33,7 +34,11 @@ await ctx.route("**/*", (route) => {
   const url = route.request().url();
   anfragen.push(url);
   if (url.startsWith("https://www.paypal.com/myaccount/transfer/"))
-    return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+    return route.fulfill({
+      status: 200,
+      contentType: "text/html; charset=utf-8",
+      body: url.includes("/zwei") ? htmlZwei : html,
+    });
   return route.abort();
 });
 
@@ -132,6 +137,27 @@ pruefe("Dialog direkt, ohne ID", (await zeichen(page, "#dialog h2"))[0][1], null
 await page.goto(`${BASIS}/pay?offen=2`);
 await warte(page);
 pruefe("Dialog direkt, eindeutiger Name ohne Klick", (await zeichen(page, "#dialog h2"))[0][1], null);
+
+// Grenzfaelle der Zuordnung (seite-zwei.html)
+await page.goto(BASIS.replace("homepage", "zwei"));
+await warte(page);
+pruefe("Grenzfaelle Liste", await zeichen(page, "#liste .kontakt"), [
+  ["Dana Gleich", null], // zwei gleichnamige Kontakte, keine ID im DOM
+  ["Dana Gleich", null],
+  ["Eva Doppel", null], // zwei IDs im Eintrag
+  ["Frank Anders", null], // ID passt, Name nicht
+  ["Karl Sieben", "✓ 7", "Du hast schon 7× Geld an Karl Sieben gesendet"], // gleiche payerId in zwei Skripten: 7 und 4
+  ["Lena Sechs", "✓ 6", "Du hast schon 6× Geld an Lena Sechs gesendet"], // 2 und 6
+  ["Gina Klick", "✓ 3", "Du hast schon 3× Geld an Gina Klick gesendet"],
+]);
+for (const [i, name] of [[2, "Eva Doppel"], [3, "Frank Anders"], [6, "Hans Anders"]]) {
+  await page.click(`#liste .kontakt >> nth=${i}`);
+  await warte(page);
+  // zwei IDs im Dialog / ID mit fremdem Namen / Klick-Eintrag mit anderem Namen als die Kopfzeile
+  pruefe(`Grenzfall Dialog ${name}`, await zeichen(page, "#dialog h2"), [[name, null]]);
+  await page.click("#zurueck");
+  await warte(page);
+}
 
 pruefe("Fehler auf der Seite", fehlerSeite, []);
 const fremd = anfragen.filter((u) => !u.startsWith("https://www.paypal.com/myaccount/transfer/"));

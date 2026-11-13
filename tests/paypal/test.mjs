@@ -1,4 +1,5 @@
 // Test des PayPal-Zaehlers mit der echten Erweiterung und einer nachgebauten Seite.
+// Playwright steht nicht im Repo: NODE_PATH=C:/code/ai/anime-kalender-de/node_modules setzen.
 // Kein Abruf bei PayPal: Jede Anfrage wird abgefangen, die Transfer-Adresse bekommt seite.html,
 // alles andere wird abgebrochen. Alle Kontakte sind erfunden.
 //
@@ -167,10 +168,11 @@ for (const [i, name] of [[2, "Eva Doppel"], [3, "Frank Anders"], [6, "Hans Ander
 const kacheln = (p) =>
   p.$$eval("[data-testid=contact-bubble]", (bs) =>
     bs.map((b) => {
-      const [, vor, nach] = b.children;
       const z = b.querySelector(".cu-pp-zaehler");
-      const nachname = [...nach.childNodes].filter((n) => n !== z).map((n) => n.textContent);
-      return [[vor.textContent, ...nachname].join(" "), z ? z.textContent : null];
+      const teile = [...b.querySelectorAll("p")].flatMap((p) =>
+        [...p.childNodes].filter((n) => n !== z).map((n) => n.textContent),
+      );
+      return [teile.join(" "), z ? z.textContent : null];
     }),
   );
 const dialogZeichen = (p) =>
@@ -181,13 +183,14 @@ const dialogZeichen = (p) =>
 await page.goto(BASIS.replace("homepage", "echt"));
 await warte(page);
 pruefe("Echter Aufbau: Kacheln", await kacheln(page), [
-  ["Anna Beispiel", "✓ 2"], // nicht die 9 von "Anna" allein
+  ["Anna Beispiel", "✓ 2"], // nicht die 9 von "Anna" allein, nicht die 3 von "Anna Beispiel Junior" (nur exakter Name)
   ["Carlos Doppel", null], // zwei Kontakte, keine ID in der Kachel
   ["Dora Null", null],
   ["Emil Fremd", null],
   ["Jürgen Möller", "✓ 7"],
+  ["Anna Maria Beispiel", "✓ 4"], // längste Reihe gewinnt, nicht "Anna Maria" (6) oder "Anna" (9)
 ]);
-for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"]]) {
+for (const [i, soll] of [[0, "✓ 2"], [1, null], [4, "✓ 7"], [5, "✓ 4"]]) {
   await page.click(`[data-testid=contact-bubble] >> nth=${i}`);
   await warte(page);
   pruefe(`Echter Aufbau: Dialog nach Kachel ${i}`, (await dialogZeichen(page))[1], soll);

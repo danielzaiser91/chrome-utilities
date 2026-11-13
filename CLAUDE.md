@@ -377,7 +377,7 @@ gespeichert, kein MAIN-World-Skript. Suchtreffer (per `fetch`) stehen nicht dari
 - **Ein falsches Grün ist der schlimmste Fehler.** Zuordnung nur über `payerId` im Eintrag/Dialog/
   Adresse, sonst per Name nur, wenn der Name im JSON eindeutig ist, kein Dialog offen ist und kein
   Eingabefeld Text hat. Der Dialog übernimmt nur den zuletzt angeklickten Listeneintrag.
-- **Nie bei PayPal einloggen oder PayPal abrufen.** Test: `node tests/paypal/test.mjs` (echte
+- **Nie bei PayPal einloggen oder PayPal abrufen.** Test: `NODE_PATH=C:/code/ai/anime-kalender-de/node_modules node tests/paypal/test.mjs` (Playwright liegt nicht im Repo; echte
   Erweiterung, nachgebaute Seite `tests/paypal/seite.html`, erfundene Kontakte, alle Anfragen
   lokal abgefangen, ohne Proxy und Namensauflösung). `seite.html`/`seite-zwei.html` sind geraten;
   `seite-echt.html` bildet den echten Aufbau nach (13.11.2026, Struktur aus einer von Daniel

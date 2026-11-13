@@ -27,6 +27,11 @@
  "otherContacts":[
   {"id":"TESTID-0006","payerId":"TESTPAYERA6","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"","fullName":"Anna","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":9,"paymentReceivedCount":0}
  ],
+ "moreContacts":[
+  {"id":"TESTID-0007","payerId":"TESTPAYERA7","email":"","emails":{},"phones":{},"firstName":"Anna Maria","lastName":"Beispiel","fullName":"Anna Maria Beispiel","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":4,"paymentReceivedCount":0},
+  {"id":"TESTID-0008","payerId":"TESTPAYERA8","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"Maria","fullName":"Anna Maria","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":6,"paymentReceivedCount":0},
+  {"id":"TESTID-0009","payerId":"TESTPAYERA9","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"Beispiel Junior","fullName":"Anna Beispiel Junior","alternateFullName":"","thumbnailUrl":"","transacted":true,"paymentSentCount":3,"paymentReceivedCount":0}
+ ],
  "topSendContacts":[
   {"id":"TESTID-0001","payerId":"TESTPAYERA1","email":"","emails":{},"phones":{},"firstName":"Anna","lastName":"Beispiel","fullName":"Anna Beispiel","paymentSentCount":2,"paymentReceivedCount":0}
  ]
@@ -49,15 +54,16 @@
     ["Dora", "Null"], // 0 Zahlungen: kein Zeichen
     ["Emil", "Fremd"], // nicht im JSON: kein Zeichen
     ["Jürgen", "Möller"], // Umlaute
+    ["Anna", "Maria", "Beispiel"], // dreiteilig; "Anna Maria" (6) und "Anna" (9) sind auch Kontakte: gilt die laengste Reihe
   ];
   const app = document.getElementById("app");
   function kacheln() {
-    app.innerHTML = "<menu>" + KACHELN.map(([v, n]) =>
-      `<li><button type="button" data-testid="contact-bubble" data-nemo="contact-circle-item" tabindex="0"><div>${v[0]}${n[0]}</div><p title="${v}">${v}</p><p>${n}</p></button></li>`).join("") + "</menu>";
+    app.innerHTML = "<menu>" + KACHELN.map(([v, ...rest]) =>
+      `<li><button type="button" data-testid="contact-bubble" data-nemo="contact-circle-item" tabindex="0"><div>${v[0]}${rest[0][0]}</div><p title="${v}">${v}</p>${rest.map((n) => `<p>${n}</p>`).join("")}</button></li>`).join("") + "</menu>";
     app.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", () => dialog(KACHELN[i])));
   }
-  function dialog([v, n]) {
-    app.innerHTML = `<div role="dialog"><h2>Sie senden Geld an <span class="ppvx_text--xl">${v} ${n}</span></h2><button type="button" id="zurueck">Zurück</button></div>`;
+  function dialog(teile) {
+    app.innerHTML = `<div role="dialog"><h2>Sie senden Geld an <span class="ppvx_text--xl">${teile.join(" ")}</span></h2><button type="button" id="zurueck">Zurück</button></div>`;
     app.querySelector("#zurueck").addEventListener("click", kacheln);
   }
   kacheln();

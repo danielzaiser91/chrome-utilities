@@ -18,6 +18,8 @@ const html = readFileSync(join(hier, "seite.html"), "utf8");
 const htmlZwei = readFileSync(join(hier, "seite-zwei.html"), "utf8");
 const htmlEcht = readFileSync(join(hier, "seite-echt.html"), "utf8");
 const htmlVorschau = readFileSync(join(hier, "seite-vorschau.html"), "utf8");
+// Vorschau-Seite ohne Kontakt-JSON (Direktaufruf, SPA-Wechsel): nur die gespeicherte Karte kennt den Namen
+const htmlOhne = htmlVorschau.replace(/<script type="application\/json"[\s\S]*?<\/script>/, "");
 const htmlEinzeln = readFileSync(join(hier, "seite-einzeln.html"), "utf8");
 const htmlStart =readFileSync(join(hier, "seite-start.html"), "utf8");
 const BASIS = "https://www.paypal.com/myaccount/transfer/homepage";
@@ -26,6 +28,8 @@ const ERLAUBT = ["https://www.paypal.com/myaccount/transfer/", START];
 const seiteFuer = (url) =>
   url.startsWith(START)
     ? htmlStart
+    : url.includes("?ohne")
+      ? htmlOhne
     : url.includes("/preview") || url.includes("/suche/")
       ? htmlVorschau
       : url.includes("/einzeln")
@@ -319,6 +323,21 @@ pruefe(
   [Object.keys(nach).length, "alt eintrag" in nach, "fueller 519" in nach, "fueller 0" in nach, "frisch eintrag" in nach],
   [500, false, false, true, true],
 );
+
+// Vorschau ohne Inline-Kontakte holt die Karte nach: direkt aufgerufen und per SPA von
+// /transfer/homepage/external/summary (so gemessen am 13.11.2026), ohne Neuladen
+await setzeKarte({ "vera vorschau": eintrag("Vera Vorschau", "TESTPAYERV1", 4, 1) });
+await page.goto(`${BASIS}/preview?ohne`);
+await warte(page);
+pruefe("Vorschau ohne Inline-Kontakte: Zeichen aus der Karte", await vorschau(page), [["✓ 4", "kr", 6]]);
+await page.goto(`${BASIS}/external/summary?ohne`);
+await warte(page);
+await page.evaluate(() => {
+  history.pushState({}, "", "/myaccount/transfer/homepage/preview?ohne");
+  document.body.append(document.createElement("div"));
+});
+await warte(page);
+pruefe("SPA-Wechsel zur Vorschau ohne Neuladen: Zeichen aus der Karte", await vorschau(page), [["✓ 4", "kr", 6]]);
 
 pruefe("Fehler auf der Seite", fehlerSeite, []);
 const fremd = anfragen.filter((u) => !ERLAUBT.some((e) => u.startsWith(e)));

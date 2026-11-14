@@ -72,6 +72,7 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 
 ### luluvdo / Filemoon / VOE
 - Custom playback speed (0.2×–5×), also when the player is embedded on another site (e.g. VOE on serienstream.to)
+- AniWorld + VOE: a one-time permission notice above the player — [short guide with screenshots (German)](docs/voe-anleitung.md)
 
 ---
 

@@ -47,6 +47,6 @@ Ein Klick aufs Zahnrad öffnet die Einstellungen: Geschwindigkeit, Autoplay, „
 
 - **Einmal pro Adresse.** Die Freigabe bleibt, auch nach einem Neustart von Chrome. Wechselt VOE die Adresse, fragt der Hinweis wieder.
 - **Warum kein „alle Websites“?** Die Erweiterung verlangt bewusst nicht pauschal Zugriff auf alles. Du gibst nur die eine Player-Adresse frei.
-- **Zurücknehmen:** `chrome://extensions` → Erweiterung → „Details“ → „Websitezugriff“. Entfernst du dort die Adresse, ist sie wieder aus und der Hinweis kommt zurück.
+- **Zurücknehmen:** `chrome://extensions` → Erweiterung → „Details“ → „Websitezugriff“ (englisches Chrome: „Details“ → „Site access“). Entfernst du dort die Adresse, ist sie wieder aus und der Hinweis kommt zurück.
 - **VOE direkt im eigenen Tab** (nicht in AniWorld eingebettet): Das Zahnrad gibt es nur auf einer Adresse, die du vorher über AniWorld freigegeben hast.
 - Der Hinweis ist nur auf Englisch.

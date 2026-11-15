@@ -2,7 +2,7 @@
 
 A browser extension that adds quality-of-life improvements to a variety of websites — auto-skipping intros, custom playback speeds, UI fixes, and more.
 
-> Current version: **v1.9.0** · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
+> Current version: [![Latest release](https://img.shields.io/github/v/release/danielzaiser91/chrome-utilities?label=)](https://github.com/danielzaiser91/chrome-utilities/releases/latest) · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
 
 ---
 

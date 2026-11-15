@@ -5679,6 +5679,11 @@ const _netflix_adjustVal = (e, playBackInput) => {
   const newValue = +(+e.srcElement.value)?.toFixed(2);
   _netflix_setPlayerValue(newValue, playBackInput);
 };
+// Übernommener Wert (Enter, Pfeil, change): erst setzen, dann Fokus abgeben; beim Tippen nicht.
+const _netflix_commitSpeed = (e, playBackInput) => {
+  _netflix_adjustVal(e, playBackInput);
+  _netflix_releaseFocus();
+};
 function _netflix_speed_custom_control() {
   // add user option to allow this feature
   const value =
@@ -5705,6 +5710,9 @@ function _netflix_speed_custom_control() {
   );
   playBackInput.addEventListener("input", (e) =>
     _netflix_adjustVal(e, playBackInput),
+  );
+  playBackInput.addEventListener("change", (e) =>
+    _netflix_commitSpeed(e, playBackInput),
   );
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
   repeatIfCondition(
@@ -8623,7 +8631,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0",
+  version: "1.16.1.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

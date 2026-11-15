@@ -556,3 +556,5 @@ Seitenelement prüft vorher auf Änderung (`youtube`/generic taten es schon, Net
 eigenen Klicks in fremder Leiste `document.activeElement.blur()`. Keine künstlichen
 `mousemove`/Tastatur-Ereignisse. Wächter: `node tests/netflix/test.mjs` (ohne Browser).
 Netflix selbst ist nicht automatisch testbar, die Wirkung live bleibt eine Handprobe.
+
+**Nach dem Release sofort hochzählen (15.11.2026, PR 12):** `1.16.0` war am 13.11. veröffentlicht, der Zweig trug trotzdem `1.16.0.1` und `version_name` `1.16.0`. Nach einem Release steht der nächste Arbeitsstand auf `x.y.(z+1).0`, und `manifest.json` (`version`, `version_name`) und `userOptions.version` in `utility.js` sind identisch; `tests/netflix/test.mjs` (Fall 6) prüft das gegen die Git-Tags. Das Tempo-Feld gibt den Fokus erst nach dem Übernehmen (`change`) ab, nie beim Tippen.

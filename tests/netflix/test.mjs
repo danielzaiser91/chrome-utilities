@@ -9,12 +9,15 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 
 const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "utility.js"), "utf8");
 const schneide = (anfang) => {
   const i = quelle.indexOf(anfang);
   assert.ok(i >= 0, `${anfang} fehlt in utility.js`);
-  const ende = quelle.indexOf("\n};", i) + 3;
+  // Einzeiler enden mit ";" am Zeilenende, mehrzeilige Pfeilfunktionen mit "\n};"
+  const zeile = quelle.slice(i, quelle.indexOf("\n", i));
+  const ende = zeile.endsWith(";") ? i + zeile.length : quelle.indexOf("\n};", i) + 3;
   return quelle.slice(i, ende);
 };
 
@@ -67,9 +70,62 @@ this.set = _netflix_setPlayerValue; this.rel = _netflix_releaseFocus;`, ctx);
   assert.equal(w.blurs(), 1);
   welt(1, false).ctx.rel();
 }
-// 5. Verdrahtung: beide eigenen Klick-Wege im Netflix-Teil geben den Fokus ab.
+// 5. Verdrahtung als Verhalten: die echte _netflix_speed_custom_control mit Attrappen fahren.
 {
-  const teil = quelle.slice(quelle.indexOf("function _netflix_speed_custom_control"), quelle.indexOf("// YouTube\nconst initDateVisibilityListener"));
-  assert.equal((teil.match(/_netflix_releaseFocus\(\)/g) ?? []).length, 2, "Klick-Wege ohne Fokus-Abgabe");
+  const ereignisse = {};
+  const klicks = [];
+  let blurs = 0;
+  const eingabe = { max: "5", min: "0.2", value: "1", addEventListener: (n, f) => (ereignisse[n] = f) };
+  const video = { playbackRate: 1 };
+  const wiederholt = [];
+  const ctx = vm.createContext({
+    query: (q) => (q === "video" ? video : { classList: { contains: () => false, add() {} }, appendChild() {} }),
+    queryAll: () => [0, 1, 2, 3, 4].map(() => ({ addEventListener: (n, f) => klicks.push(f) })),
+    create: () => eingabe,
+    insertCSS() {},
+    setTimeout: (f) => f(),
+    repeatIfCondition: (fn) => wiederholt.push(fn),
+    clamp: (v, { max, min }) => Math.min(+max, Math.max(+min, v)),
+    userOptions: { netflix: { featurePlayBackSpeed: { isEnabled: { subFeatures: { playBackSpeed: { value: 1 } } } } } },
+    document: { activeElement: { blur: () => blurs++ } },
+  });
+  const i = quelle.indexOf("function _netflix_speed_custom_control");
+  const funktion = quelle.slice(i, quelle.indexOf("\n}\n", i) + 3);
+  vm.runInContext(
+    [
+      schneide("const _netflix_setPlayerValue"),
+      schneide("const _netflix_releaseFocus"),
+      schneide("const _netflix_adjustVal"),
+      schneide("const _netflix_commitSpeed"),
+      funktion,
+      "_netflix_speed_custom_control();",
+    ].join("\n"),
+    ctx,
+  );
+  wiederholt[1](); // _add_custom_speed_control: haengt Knoepfe und Feld an
+  const ev = (v) => ({ stopPropagation() {}, srcElement: { value: v } });
+  ereignisse.input(ev("1.5"));
+  assert.equal(video.playbackRate, 1.5, "Tippen setzt das Tempo");
+  assert.equal(blurs, 0, "Fokus beim Tippen abgegeben");
+  ereignisse.change(ev("1.5"));
+  assert.equal(blurs, 1, "Fokus nach Uebernehmen nicht abgegeben");
+  assert.equal(video.playbackRate, 1.5);
+  klicks[1](); // Tempo-Knopf 0.75
+  assert.equal(video.playbackRate, 0.75);
+  assert.equal(blurs, 2, "Fokus nach Tempo-Knopf nicht abgegeben");
+  // Auto-Skip-Knopf: Klickhandler gibt den Fokus nach dem Umschalten ab (Handler selbst braucht Netflix-DOM)
+  const k = quelle.indexOf("copyChild.onclick");
+  assert.ok(/toggleAutoSkipIntro\(copyChild\);\s*_netflix_releaseFocus\(\);/.test(quelle.slice(k, k + 140)), "Toggle-Klick ohne Fokus-Abgabe");
 }
-console.log("Netflix-Leiste: 5 Fälle grün (kein Schreiben ohne Änderung, Tempo, Grenzen, Fokus, Verdrahtung)");
+// 6. Versionen sind ueberall gleich und nicht die veroeffentlichte (CLAUDE.md "Versioning").
+{
+  const hier = dirname(fileURLToPath(import.meta.url));
+  const m = JSON.parse(readFileSync(join(hier, "..", "..", "manifest.json"), "utf8"));
+  const uo = /\n  version: "([^"]+)",/.exec(quelle)?.[1];
+  assert.equal(m.version, m.version_name, "version != version_name");
+  assert.equal(m.version, uo, "manifest != userOptions.version");
+  assert.match(m.version, /^\d+\.\d+\.\d+\.\d+$/, "Arbeitsstand braucht vier Stellen");
+  const tags = execFileSync("git", ["tag"], { encoding: "utf8", timeout: 20000, cwd: hier }).split("\n").map((t) => t.replace(/^v/, ""));
+  assert.ok(!tags.includes(m.version), "Version entspricht einem veroeffentlichten Tag");
+}
+console.log("Netflix-Leiste: 6 Faelle gruen (kein Schreiben ohne Aenderung, Tempo, Grenzen, Fokus, Verdrahtung als Verhalten, Version)");

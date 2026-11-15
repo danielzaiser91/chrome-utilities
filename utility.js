@@ -5666,14 +5666,23 @@ const _netflix_setPlayerValue = (val, playBackInput) => {
   val = clamp(val, { max: playBackInput.max, min: playBackInput.min });
   userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value =
     val;
-  playBackInput.value = val;
-  video.playbackRate = val;
+  // Nur schreiben, wenn sich etwas ändert: jedes ratechange zählt für Netflix als Aktivität
+  // und hält die Bedienleiste sichtbar (siehe CLAUDE.md, Netflix-Leiste).
+  if (+playBackInput.value !== val) playBackInput.value = val;
+  if (video.playbackRate !== val) video.playbackRate = val;
 };
+// Fokus nach einem eigenen Klick abgeben, sonst bleibt die Leiste „bedient“.
+const _netflix_releaseFocus = () => document.activeElement?.blur?.();
 const _netflix_adjustVal = (e, playBackInput) => {
   e.stopPropagation();
   if (!e.srcElement?.value) return;
   const newValue = +(+e.srcElement.value)?.toFixed(2);
   _netflix_setPlayerValue(newValue, playBackInput);
+};
+// Übernommener Wert (Enter, Pfeil, change): erst setzen, dann Fokus abgeben; beim Tippen nicht.
+const _netflix_commitSpeed = (e, playBackInput) => {
+  _netflix_adjustVal(e, playBackInput);
+  _netflix_releaseFocus();
 };
 function _netflix_speed_custom_control() {
   // add user option to allow this feature
@@ -5702,6 +5711,9 @@ function _netflix_speed_custom_control() {
   playBackInput.addEventListener("input", (e) =>
     _netflix_adjustVal(e, playBackInput),
   );
+  playBackInput.addEventListener("change", (e) =>
+    _netflix_commitSpeed(e, playBackInput),
+  );
   const condition = () => query('[data-uia="watch-video-speed-controls"]');
   repeatIfCondition(
     () =>
@@ -5724,9 +5736,10 @@ function _netflix_speed_custom_control() {
     const netflixPlay = queryAll('[data-uia="playback-speed-indicator"]');
     const netflixPlayArr = [0.5, 0.75, 1, 1.25, 1.5];
     (netflixPlay?.length ? Array.from(netflixPlay) : []).forEach((el, i) =>
-      el.addEventListener("click", (_) =>
-        _netflix_setPlayerValue(netflixPlayArr[i], playBackInput),
-      ),
+      el.addEventListener("click", (_) => {
+        _netflix_setPlayerValue(netflixPlayArr[i], playBackInput);
+        _netflix_releaseFocus();
+      }),
     );
     playBackInput.value =
       userOptions.netflix.featurePlayBackSpeed.isEnabled.subFeatures.playBackSpeed.value;
@@ -5820,6 +5833,7 @@ function addAutoSkipIntroButton() {
   );
   copyChild.onclick = () => {
     toggleAutoSkipIntro(copyChild);
+    _netflix_releaseFocus();
   };
   parent.insertBefore(copyChild, parent.children[0]);
 }
@@ -8617,7 +8631,7 @@ let ascending = false;
 let sortButton;
 let userOptions = {
   // key must be match.site lowercased (saved as matcher globally)
-  version: "1.16.0",
+  version: "1.16.1.0",
   ds3cheatsheet: {
     featureDarkMode: {
       featureName: "DarkMode",

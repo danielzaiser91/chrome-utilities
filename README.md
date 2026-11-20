@@ -2,7 +2,7 @@
 
 A browser extension that adds quality-of-life improvements to a variety of websites — auto-skipping intros, custom playback speeds, UI fixes, and more.
 
-> Current version: [![Latest release](https://img.shields.io/github/v/release/danielzaiser91/chrome-utilities?label=)](https://github.com/danielzaiser91/chrome-utilities/releases/latest) · [View all releases](https://github.com/danielzaiser91/chrome-utilities/releases)
+> Current version: [![Latest release](https://img.shields.io/github/v/release/derNamenloseDaniel/chrome-utilities?label=)](https://github.com/derNamenloseDaniel/chrome-utilities/releases/latest) · [View all releases](https://github.com/derNamenloseDaniel/chrome-utilities/releases)
 
 ---
 
@@ -80,7 +80,7 @@ A browser extension that adds quality-of-life improvements to a variety of websi
 
 > Chrome is the primary target. Steps may vary slightly in other browsers.
 
-1. Go to the [latest release](https://github.com/danielzaiser91/chrome-utilities/releases/latest) and download the source zip
+1. Go to the [latest release](https://github.com/derNamenloseDaniel/chrome-utilities/releases/latest) and download the source zip
    ![Download zip](https://github.com/user-attachments/assets/2a43e5e6-efb6-4f94-96a4-2ffb82ee48ad)
 2. Unzip the file
 3. Open `chrome://extensions/` in your browser
@@ -105,4 +105,4 @@ Note: settings are stored per browser profile. If multiple people share a browse
 ## Releases & Changelog
 
 New releases are announced automatically on Discord.
-Full changelogs are available on the [Releases page](https://github.com/danielzaiser91/chrome-utilities/releases).
+Full changelogs are available on the [Releases page](https://github.com/derNamenloseDaniel/chrome-utilities/releases).

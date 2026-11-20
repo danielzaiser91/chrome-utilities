@@ -460,7 +460,7 @@ liest, während jedes Detail nachlesbar bleibt.
 ### <Überschrift>
 Fließtext, Ursachen, Messwerte, Einschränkungen — alles, was oben nichts zu suchen hat.
 
-**Alle Commits:** https://github.com/danielzaiser91/chrome-utilities/compare/vALT...vNEU
+**Alle Commits:** https://github.com/derNamenloseDaniel/chrome-utilities/compare/vALT...vNEU
 ```
 
 Verbindlich:
